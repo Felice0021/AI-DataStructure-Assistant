@@ -7,13 +7,13 @@ import dashscope
 from openai import OpenAI
 from dotenv import load_dotenv
 from http import HTTPStatus
+from pathlib import Path
 
-
-load_dotenv()
+ENV_PATH = Path(__file__).with_name(".env")
+load_dotenv(ENV_PATH, override=True)
 
 BASE_DIR = Path(__file__).resolve().parent
 DASHSCOPE_API_KEY = os.getenv("DASHSCOPE_API_KEY")
-
 if not DASHSCOPE_API_KEY:
     raise RuntimeError("没有检测到 DASHSCOPE_API_KEY，请先在 .env 文件中配置。")
 
@@ -96,7 +96,7 @@ def build_chunks(documents: List[Dict]) -> List[Dict]:
 
 def embed_texts(texts: List[str], text_type: str = "document") -> List[List[float]]:
     """
-    调用 text-embedding-v4，把文本转成向量。
+    调用 qwen3.7-text-embedding，把文本转成向量。
     text_type:
     - document：用于知识库文本
     - query：用于用户问题
@@ -108,7 +108,7 @@ def embed_texts(texts: List[str], text_type: str = "document") -> List[List[floa
         batch = texts[i:i + batch_size]
 
         response = dashscope.TextEmbedding.call(
-            model="text-embedding-v4",
+            model="qwen3.7-text-embedding",
             input=batch,
             dimension=1024,
             text_type=text_type,
@@ -194,12 +194,13 @@ def generate_answer(query: str, retrieved_chunks: List[Dict]) -> str:
 """
 
     completion = client.chat.completions.create(
-        model="qwen-plus",
+        model="deepseek-v4-flash",
         messages=[
             {"role": "system", "content": system_prompt.strip()},
             {"role": "user", "content": user_prompt.strip()},
         ],
         temperature=0.2,
+        extra_body={"enable_thinking": False},
     )
 
     return completion.choices[0].message.content

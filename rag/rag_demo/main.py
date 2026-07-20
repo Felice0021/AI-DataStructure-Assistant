@@ -2,12 +2,12 @@ import os
 from pathlib import Path
 from typing import List, Dict
 
+import time
 import numpy as np
 import dashscope
 from openai import OpenAI
 from dotenv import load_dotenv
 from http import HTTPStatus
-from pathlib import Path
 
 ENV_PATH = Path(__file__).with_name(".env")
 load_dotenv(ENV_PATH, override=True)
@@ -42,10 +42,7 @@ def load_documents(folder: str = "docs") -> List[Dict]:
 
     for file_path in folder_path.glob("*.txt"):
         text = file_path.read_text(encoding="utf-8")
-        documents.append({
-            "source": file_path.name,
-            "text": text
-        })
+        documents.append({"source": file_path.name, "text": text})
 
     if not documents:
         raise RuntimeError(f"{folder_path} 目录下没有找到 txt 文件。")
@@ -85,11 +82,7 @@ def build_chunks(documents: List[Dict]) -> List[Dict]:
         chunks = split_text(doc["text"])
 
         for i, chunk in enumerate(chunks):
-            all_chunks.append({
-                "source": doc["source"],
-                "chunk_id": i,
-                "text": chunk
-            })
+            all_chunks.append({"source": doc["source"], "chunk_id": i, "text": chunk})
 
     return all_chunks
 
@@ -105,7 +98,7 @@ def embed_texts(texts: List[str], text_type: str = "document") -> List[List[floa
     batch_size = 10
 
     for i in range(0, len(texts), batch_size):
-        batch = texts[i:i + batch_size]
+        batch = texts[i : i + batch_size]
 
         response = dashscope.TextEmbedding.call(
             model="qwen3.7-text-embedding",
@@ -152,12 +145,14 @@ def retrieve(query: str, chunks: List[Dict], top_k: int = 3) -> List[Dict]:
     for chunk in chunks:
         score = cosine_similarity(query_embedding, chunk["embedding"])
 
-        scored_chunks.append({
-            "score": score,
-            "source": chunk["source"],
-            "chunk_id": chunk["chunk_id"],
-            "text": chunk["text"]
-        })
+        scored_chunks.append(
+            {
+                "score": score,
+                "source": chunk["source"],
+                "chunk_id": chunk["chunk_id"],
+                "text": chunk["text"],
+            }
+        )
 
     scored_chunks.sort(key=lambda x: x["score"], reverse=True)
 
@@ -206,7 +201,110 @@ def generate_answer(query: str, retrieved_chunks: List[Dict]) -> str:
     return completion.choices[0].message.content
 
 
-def main():
+def answer_question(
+    query: str,
+    chunks: List[Dict],
+    top_k: int = 3,
+) -> Dict:
+    """
+    根据用户问题完成检索和回答生成。
+
+    Args:
+        query: 用户问题。
+        chunks: 已包含 embedding 的知识片段。
+        top_k: 检索结果数量上限。
+
+    Returns:
+        包含答案、来源、检索结果、耗时和错误信息的字典。
+    """
+    start_time = time.perf_counter()
+    query = query.strip()
+
+    if not query:
+        return {
+            "answer": "",
+            "sources": [],
+            "retrieved_chunks": [],
+            "latency_ms": 0,
+            "error": {
+                "code": "INVALID_QUERY",
+                "message": "问题不能为空。",
+            },
+        }
+
+    try:
+        retrieved_chunks = retrieve(
+            query=query,
+            chunks=chunks,
+            top_k=top_k,
+        )
+
+        if not retrieved_chunks:
+            latency_ms = int(
+                (time.perf_counter() - start_time) * 1000
+            )
+
+            return {
+                "answer": "",
+                "sources": [],
+                "retrieved_chunks": [],
+                "latency_ms": latency_ms,
+                "error": {
+                    "code": "EMPTY_RETRIEVAL",
+                    "message": "没有检索到相关课程资料。",
+                },
+            }
+
+        answer = generate_answer(
+            query=query,
+            retrieved_chunks=retrieved_chunks,
+        )
+
+        latency_ms = int(
+            (time.perf_counter() - start_time) * 1000
+        )
+
+        sources = []
+
+        for chunk in retrieved_chunks:
+            sources.append({
+                "chunk_id": chunk["chunk_id"],
+                "source_file": chunk["source"],
+                "score": chunk["score"],
+            })
+
+        return {
+            "answer": answer,
+            "sources": sources,
+            "retrieved_chunks": retrieved_chunks,
+            "latency_ms": latency_ms,
+            "error": None,
+        }
+
+    except Exception as exc:
+        latency_ms = int(
+            (time.perf_counter() - start_time) * 1000
+        )
+
+        return {
+            "answer": "",
+            "sources": [],
+            "retrieved_chunks": [],
+            "latency_ms": latency_ms,
+            "error": {
+                "code": type(exc).__name__,
+                "message": str(exc),
+            },
+        }
+
+
+def prepare_knowledge_base() -> List[Dict]:
+    """
+    读取课程文档、切分文本并生成文档向量。
+
+    该函数应在程序或后端服务启动时执行一次，
+    返回已经包含 embedding 的知识片段列表。
+    """
     print("正在读取文档...")
     documents = load_documents("docs")
 
@@ -222,6 +320,12 @@ def main():
     for chunk, embedding in zip(chunks, chunk_embeddings):
         chunk["embedding"] = embedding
 
+    return chunks
+
+
+def main():
+    chunks = prepare_knowledge_base()
+
     print("RAG demo 已启动。输入 exit 退出。")
     print("-" * 50)
 
@@ -235,20 +339,36 @@ def main():
         if not query:
             continue
 
-        print("\n正在检索相关资料...")
-        retrieved_chunks = retrieve(query, chunks, top_k=3)
+        print("\n正在处理问题...")
+
+        result = answer_question(
+            query=query,
+            chunks=chunks,
+            top_k=3,
+        )
+        
+        if result["error"] is not None:
+            print(
+                "\n处理失败："
+                f"{result['error']['message']}"
+            )
+            continue
 
         print("\n检索到的资料片段：")
-        for i, chunk in enumerate(retrieved_chunks):
-            print(f"\n[{i + 1}] 相似度：{chunk['score']:.4f}，来源：{chunk['source']}，片段：{chunk['chunk_id']}")
+
+        for i, chunk in enumerate(result["retrieved_chunks"]):
+            print(
+                f"\n[{i + 1}] "
+                f"相似度：{chunk['score']:.4f}，"
+                f"来源：{chunk['source']}，"
+                f"片段：{chunk['chunk_id']}"
+            )
             print(chunk["text"])
 
-        print("\n正在调用模型生成回答...")
-        answer = generate_answer(query, retrieved_chunks)
-
         print("\n模型回答：")
-        print(answer)
+        print(result["answer"])
 
+        print(f"\n本次问答耗时：{result['latency_ms']} ms")
 
 if __name__ == "__main__":
     main()

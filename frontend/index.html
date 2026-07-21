@@ -1,0 +1,113 @@
+<!-- frontend/index.html -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>数据结构课程智能助教</title>
+    
+    <!-- 样式 -->
+    <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+    <div class="app-container">
+        <!-- ===== 头部 ===== -->
+        <header class="app-header">
+            <h1>📚 数据结构 <span class="highlight">智能助教</span></h1>
+            <p class="subtitle">基于课程知识库的 RAG 问答系统</p>
+        </header>
+        
+        <!-- ===== 状态栏 ===== -->
+        <div class="status-bar" id="statusBar">
+            <span>💡 输入数据结构课程相关问题</span>
+            <span>
+                <span id="mockBadge" class="mock-badge">🔧 Mock 模式</span>
+                <span style="margin-left:12px;">🔗 本地开发</span>
+            </span>
+        </div>
+        
+        <!-- ===== 输入区域 ===== -->
+        <section class="input-section">
+            <div class="input-group">
+                <textarea 
+                    id="questionInput" 
+                    placeholder="请输入数据结构课程问题，例如：顺序表为什么支持随机访问？"
+                    rows="2"
+                ></textarea>
+                <button class="btn-submit" id="submitBtn">
+                    <span>✚</span> 提问
+                </button>
+            </div>
+            <div style="margin-top:10px;font-size:12px;color:#aab5c5;">
+                <kbd>Enter</kbd> 提交 · <kbd>Ctrl+Enter</kbd> 换行
+            </div>
+        </section>
+        
+        <!-- ===== 加载状态 ===== -->
+        <section class="loading-section" id="loadingSection">
+            <div class="loading-spinner"></div>
+            <div class="loading-text" id="loadingText">正在检索知识库并生成回答...</div>
+            <div class="loading-time" id="loadingTime"></div>
+        </section>
+        
+        <!-- ===== 回答区域 ===== -->
+        <section class="answer-section" id="answerSection">
+            <div class="answer-header">
+                <span class="label">💬 回答</span>
+                <span class="latency" id="answerLatency"></span>
+            </div>
+            <div class="answer-content" id="answerContent"></div>
+            
+            <!-- 来源列表 -->
+            <div class="sources-section">
+                <div class="sources-label">
+                    📖 参考资料 
+                    <span class="source-count" id="sourcesCount">0</span>
+                </div>
+                
+                <!-- 来源列表 -->
+                <div class="sources-list" id="sourcesList"></div>
+                
+                <!-- 来源为空时的提示 -->
+                <div class="empty-sources" id="emptySources" style="display:none;">
+                    <span class="icon">ℹ️</span>
+                    <span>该回答未引用课程资料（可能是基于模型自身知识回答）</span>
+                </div>
+            </div>
+        </section>
+        
+        <!-- ===== 错误提示 ===== -->
+        <section class="error-section" id="errorSection">
+            <div>
+                <span class="error-icon">⚠️</span>
+                <span class="error-code" id="errorCode">ERROR</span>
+            </div>
+            <div class="error-message" id="errorMessage">错误详情</div>
+        </section>
+        
+        <!-- ===== 历史记录 ===== -->
+        <section class="history-section">
+            <div class="history-header">
+                <span class="history-label">📋 历史记录</span>
+                <div>
+                    <span class="history-count" id="historyCount">共 0 条</span>
+                    <button class="btn-clear-history" id="clearHistoryBtn">清空</button>
+                </div>
+            </div>
+            <div class="history-list" id="historyList">
+                <div class="empty-history">暂无问答记录</div>
+            </div>
+        </section>
+    </div>
+    
+    <!-- ===== JavaScript ===== -->
+    <!-- 配置 -->
+    <script src="js/config.js"></script>
+    <!-- Mock 数据 -->
+    <script src="js/mock.js"></script>
+    <!-- API 客户端 -->
+    <script src="js/api.js"></script>
+    <!-- 主应用 -->
+    <script src="js/app.js"></script>
+</body>
+</html>

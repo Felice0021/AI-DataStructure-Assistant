@@ -1,4 +1,5 @@
 import os
+import json
 from pathlib import Path
 from typing import List, Dict
 
@@ -9,10 +10,30 @@ from openai import OpenAI
 from dotenv import load_dotenv
 from http import HTTPStatus
 
+
 ENV_PATH = Path(__file__).with_name(".env")
 load_dotenv(ENV_PATH, override=True)
 
 BASE_DIR = Path(__file__).resolve().parent
+
+PROJECT_ROOT = BASE_DIR.parents[1]
+
+STANDARD_CHUNKS_PATH = (
+    PROJECT_ROOT
+    / "knowledge_base"
+    / "ds_demo_chunks_v2.jsonl"
+)
+
+REQUIRED_CHUNK_FIELDS = {
+    "chunk_id",
+    "text",
+    "chapter",
+    "section",
+    "source_file",
+    "page",
+    "content_type",
+}
+
 DASHSCOPE_API_KEY = os.getenv("DASHSCOPE_API_KEY")
 if not DASHSCOPE_API_KEY:
     raise RuntimeError("没有检测到 DASHSCOPE_API_KEY，请先在 .env 文件中配置。")
@@ -24,7 +45,70 @@ client = OpenAI(
     base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
 )
 
+def load_chunks_from_jsonl(
+    file_path: Path = STANDARD_CHUNKS_PATH,
+) -> List[Dict]:
+    """
+    读取标准 JSONL 知识片段文件，并校验必要字段。
 
+    JSONL 文件每一行都是一个独立的 JSON 对象。
+    """
+    if not file_path.exists():
+        raise RuntimeError(
+            f"标准知识片段文件不存在：{file_path}"
+        )
+
+    chunks = []
+    seen_chunk_ids = set()
+
+    with file_path.open("r", encoding="utf-8") as file:
+        for line_number, raw_line in enumerate(file, start=1):
+            line = raw_line.strip()
+
+            if not line:
+                continue
+
+            try:
+                chunk = json.loads(line)
+            except json.JSONDecodeError as exc:
+                raise RuntimeError(
+                    f"JSONL 第 {line_number} 行格式错误：{exc}"
+                ) from exc
+
+            missing_fields = (
+                REQUIRED_CHUNK_FIELDS - chunk.keys()
+            )
+
+            if missing_fields:
+                missing_text = ", ".join(
+                    sorted(missing_fields)
+                )
+                raise RuntimeError(
+                    f"JSONL 第 {line_number} 行缺少字段："
+                    f"{missing_text}"
+                )
+
+            chunk_id = chunk["chunk_id"]
+
+            if chunk_id in seen_chunk_ids:
+                raise RuntimeError(
+                    f"发现重复 chunk_id：{chunk_id}"
+                )
+
+            if not str(chunk["text"]).strip():
+                raise RuntimeError(
+                    f"chunk {chunk_id} 的 text 不能为空"
+                )
+
+            seen_chunk_ids.add(chunk_id)
+            chunks.append(chunk)
+
+    if not chunks:
+        raise RuntimeError(
+            f"知识片段文件为空：{file_path}"
+        )
+
+    return chunks
 def load_documents(folder: str = "docs") -> List[Dict]:
     """
     读取 docs 目录下所有 txt 文件。
@@ -134,41 +218,69 @@ def cosine_similarity(a: List[float], b: List[float]) -> float:
     return float(np.dot(vec_a, vec_b) / (np.linalg.norm(vec_a) * np.linalg.norm(vec_b)))
 
 
-def retrieve(query: str, chunks: List[Dict], top_k: int = 3) -> List[Dict]:
+def retrieve(
+    query: str,
+    chunks: List[Dict],
+    top_k: int = 3,
+) -> List[Dict]:
     """
-    根据用户问题，从知识片段中找最相关的 top_k 个片段。
+    根据用户问题检索最相关的 top_k 个标准知识片段。
     """
-    query_embedding = embed_texts([query], text_type="query")[0]
+    query_embedding = embed_texts(
+        [query],
+        text_type="query",
+    )[0]
 
     scored_chunks = []
 
     for chunk in chunks:
-        score = cosine_similarity(query_embedding, chunk["embedding"])
-
-        scored_chunks.append(
-            {
-                "score": score,
-                "source": chunk["source"],
-                "chunk_id": chunk["chunk_id"],
-                "text": chunk["text"],
-            }
+        score = cosine_similarity(
+            query_embedding,
+            chunk["embedding"],
         )
 
-    scored_chunks.sort(key=lambda x: x["score"], reverse=True)
+        scored_chunks.append({
+            "score": score,
+            "chunk_id": chunk["chunk_id"],
+            "text": chunk["text"],
+            "chapter": chunk["chapter"],
+            "section": chunk["section"],
+            "source_file": chunk["source_file"],
+            "page": chunk["page"],
+            "content_type": chunk["content_type"],
+        })
+
+    scored_chunks.sort(
+        key=lambda item: item["score"],
+        reverse=True,
+    )
 
     return scored_chunks[:top_k]
-
 
 def generate_answer(query: str, retrieved_chunks: List[Dict]) -> str:
     """
     把检索到的文本片段塞给大模型，让模型基于资料回答。
     """
-    context = "\n\n".join(
-        [
-            f"资料{i + 1}，来源：{chunk['source']}，片段编号：{chunk['chunk_id']}\n{chunk['text']}"
-            for i, chunk in enumerate(retrieved_chunks)
-        ]
+    context_blocks = []
+
+    for i, chunk in enumerate(retrieved_chunks):
+        page_text = (
+            str(chunk["page"])
+            if chunk["page"] is not None
+            else "未标注"
     )
+
+    context_blocks.append(
+        f"资料{i + 1}\n"
+        f"章节：{chunk['chapter']}\n"
+        f"小节：{chunk['section']}\n"
+        f"来源文件：{chunk['source_file']}\n"
+        f"页码：{page_text}\n"
+        f"片段编号：{chunk['chunk_id']}\n"
+        f"内容：{chunk['text']}"
+    )
+
+    context = "\n\n".join(context_blocks)
 
     system_prompt = """
 你是一个数据结构课程智能助教。
@@ -189,7 +301,7 @@ def generate_answer(query: str, retrieved_chunks: List[Dict]) -> str:
 """
 
     completion = client.chat.completions.create(
-        model="deepseek-v4-flash",
+        model="qwen3.7-plus-2026-05-26",
         messages=[
             {"role": "system", "content": system_prompt.strip()},
             {"role": "user", "content": user_prompt.strip()},
@@ -269,8 +381,10 @@ def answer_question(
         for chunk in retrieved_chunks:
             sources.append({
                 "chunk_id": chunk["chunk_id"],
-                "source_file": chunk["source"],
-                "score": chunk["score"],
+                "chapter": chunk["chapter"],
+                "section": chunk["section"],
+                "source_file": chunk["source_file"],
+                "page": chunk["page"],
             })
 
         return {
@@ -298,26 +412,30 @@ def answer_question(
         }
 
 
-def prepare_knowledge_base() -> List[Dict]:
+def prepare_knowledge_base(
+    file_path: Path = STANDARD_CHUNKS_PATH,
+) -> List[Dict]:
     """
-    读取课程文档、切分文本并生成文档向量。
+    读取标准 JSONL 知识片段，并生成文档向量。
 
-    该函数应在程序或后端服务启动时执行一次，
-    返回已经包含 embedding 的知识片段列表。
+    服务启动时执行一次，返回包含 embedding 的 chunks。
     """
-    print("正在读取文档...")
-    documents = load_documents("docs")
+    print("正在读取标准知识片段...")
+    chunks = load_chunks_from_jsonl(file_path)
 
-    print("正在切分文档...")
-    chunks = build_chunks(documents)
-
-    print(f"共得到 {len(chunks)} 个知识片段。")
+    print(f"共读取 {len(chunks)} 个知识片段。")
 
     print("正在生成知识片段向量...")
     chunk_texts = [chunk["text"] for chunk in chunks]
-    chunk_embeddings = embed_texts(chunk_texts, text_type="document")
+    chunk_embeddings = embed_texts(
+        chunk_texts,
+        text_type="document",
+    )
 
-    for chunk, embedding in zip(chunks, chunk_embeddings):
+    for chunk, embedding in zip(
+        chunks,
+        chunk_embeddings,
+    ):
         chunk["embedding"] = embedding
 
     return chunks
@@ -360,7 +478,8 @@ def main():
             print(
                 f"\n[{i + 1}] "
                 f"相似度：{chunk['score']:.4f}，"
-                f"来源：{chunk['source']}，"
+                f"章节：{chunk['chapter']}，"
+                f"来源：{chunk['source_file']}，"
                 f"片段：{chunk['chunk_id']}"
             )
             print(chunk["text"])

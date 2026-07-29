@@ -257,9 +257,13 @@ def retrieve(
 
     return scored_chunks[:top_k]
 
-def generate_answer(query: str, retrieved_chunks: List[Dict]) -> str:
+def generate_answer(
+    query: str,
+    retrieved_chunks: List[Dict],
+) -> str:
     """
-    把检索到的文本片段塞给大模型，让模型基于资料回答。
+    把检索到的文本片段传给大模型，
+    让模型依据课程资料回答。
     """
     context_blocks = []
 
@@ -268,17 +272,17 @@ def generate_answer(query: str, retrieved_chunks: List[Dict]) -> str:
             str(chunk["page"])
             if chunk["page"] is not None
             else "未标注"
-    )
+        )
 
-    context_blocks.append(
-        f"资料{i + 1}\n"
-        f"章节：{chunk['chapter']}\n"
-        f"小节：{chunk['section']}\n"
-        f"来源文件：{chunk['source_file']}\n"
-        f"页码：{page_text}\n"
-        f"片段编号：{chunk['chunk_id']}\n"
-        f"内容：{chunk['text']}"
-    )
+        context_blocks.append(
+            f"资料{i + 1}\n"
+            f"章节：{chunk['chapter']}\n"
+            f"小节：{chunk['section']}\n"
+            f"来源文件：{chunk['source_file']}\n"
+            f"页码：{page_text}\n"
+            f"片段编号：{chunk['chunk_id']}\n"
+            f"内容：{chunk['text']}"
+        )
 
     context = "\n\n".join(context_blocks)
 
@@ -303,8 +307,14 @@ def generate_answer(query: str, retrieved_chunks: List[Dict]) -> str:
     completion = client.chat.completions.create(
         model="qwen3.7-plus-2026-05-26",
         messages=[
-            {"role": "system", "content": system_prompt.strip()},
-            {"role": "user", "content": user_prompt.strip()},
+            {
+                "role": "system",
+                "content": system_prompt.strip(),
+            },
+            {
+                "role": "user",
+                "content": user_prompt.strip(),
+            },
         ],
         temperature=0.2,
         extra_body={"enable_thinking": False},

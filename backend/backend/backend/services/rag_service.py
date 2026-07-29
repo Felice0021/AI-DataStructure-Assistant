@@ -1,9 +1,6 @@
 """
 真实RAG问答服务
 """
-"""
-真实RAG问答服务
-"""
 import time
 import asyncio
 import uuid
@@ -17,7 +14,6 @@ logger = get_logger(__name__)
 # 导入RAG模块
 try:
     from rag.rag_demo.main import prepare_knowledge_base, answer_question
-
     RAG_AVAILABLE = True
     logger.info("RAG模块导入成功")
 except ImportError as e:
@@ -45,7 +41,7 @@ class RAGService:
         try:
             logger.info("开始加载知识库...")
 
-            # 调用 prepare_knowledge_base（不需要传参，内部使用默认路径）
+            # 调用 prepare_knowledge_base
             cls._chunks = prepare_knowledge_base()
 
             cls._is_initialized = True
@@ -58,7 +54,7 @@ class RAGService:
             return False
 
     @classmethod
-    async def answer(cls, question: str, top_k: int = 5) -> AskResponse:
+    async def answer(cls, question: str, top_k: int = 3) -> AskResponse:
         """问答接口"""
         request_id = str(uuid.uuid4())[:8]
         start_time = time.time()
@@ -85,7 +81,7 @@ class RAGService:
         try:
             logger.info(f"问答请求 [{request_id}]: {question[:30]}...")
 
-            # 在线程池中执行（避免阻塞事件循环）
+            # 在线程池中执行
             loop = asyncio.get_event_loop()
             result = await loop.run_in_executor(
                 None,
@@ -94,6 +90,13 @@ class RAGService:
                 cls._chunks,
                 top_k
             )
+
+            # 【调试】打印第一个检索到的chunk文本
+            retrieved = result.get("retrieved_chunks", [])
+            if retrieved:
+                logger.info(f"[调试] 第一个检索到的chunk文本: {retrieved[0].get('text', '')[:100]}...")
+            else:
+                logger.warning(f"[调试] 没有检索到任何chunk")
 
             # 检查RAG返回是否有错误
             if result.get("error"):
@@ -116,10 +119,11 @@ class RAGService:
                     page=source.get("page")
                 ))
 
-            # 计算耗时（使用RAG返回的latency_ms或自己计算）
+            # 计算耗时
             latency_ms = result.get("latency_ms", (time.time() - start_time) * 1000)
 
             logger.info(f"问答成功 [{request_id}]: {len(sources)} 个来源, {latency_ms:.0f}ms")
+            logger.info(f"[调试] 回答内容: {result.get('answer', '')[:200]}...")
 
             return AskResponse.ok(
                 request_id=request_id,

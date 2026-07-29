@@ -1,1 +1,2 @@
 from backend.services.mock_service import MockAnswerService
+from backend.services.rag_service import RAGService

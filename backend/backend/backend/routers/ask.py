@@ -6,4 +6,4 @@ router = APIRouter()
 
 @router.post("/api/v1/ask")
 async def ask(req: AskRequest) -> AskResponse:
-    return await MockAnswerService.answer(req.question, req.top_k)
+    return await MockAnswerService.answer(req.question, req.top_k or 5)

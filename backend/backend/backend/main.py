@@ -2,8 +2,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.routers.health import router as health_router
 from backend.routers.ask import router as ask_router
+from backend.config import get_settings
 
-app = FastAPI(title="数据结构智能助教", version="1.0.0")
+settings = get_settings()
+
+app = FastAPI(title="数据结构课程智能助教", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -21,4 +24,9 @@ async def root():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("backend.main:app", host="127.0.0.1", port=8000, reload=True)
+    uvicorn.run(
+        "backend.main:app",
+        host=settings.host,
+        port=settings.port,
+        reload=True
+    )

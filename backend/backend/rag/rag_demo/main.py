@@ -10,7 +10,6 @@ from openai import OpenAI
 from dotenv import load_dotenv
 from http import HTTPStatus
 
-
 ENV_PATH = Path(__file__).with_name(".env")
 load_dotenv(ENV_PATH, override=True)
 
@@ -19,9 +18,9 @@ BASE_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = BASE_DIR.parents[1]
 
 STANDARD_CHUNKS_PATH = (
-    PROJECT_ROOT
-    / "knowledge_base"
-    / "ds_demo_chunks_v2.jsonl"
+        PROJECT_ROOT
+        / "knowledge_base"
+        / "ds_demo_chunks_v2.jsonl"
 )
 
 REQUIRED_CHUNK_FIELDS = {
@@ -45,8 +44,9 @@ client = OpenAI(
     base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
 )
 
+
 def load_chunks_from_jsonl(
-    file_path: Path = STANDARD_CHUNKS_PATH,
+        file_path: Path = STANDARD_CHUNKS_PATH,
 ) -> List[Dict]:
     """
     读取标准 JSONL 知识片段文件，并校验必要字段。
@@ -76,7 +76,7 @@ def load_chunks_from_jsonl(
                 ) from exc
 
             missing_fields = (
-                REQUIRED_CHUNK_FIELDS - chunk.keys()
+                    REQUIRED_CHUNK_FIELDS - chunk.keys()
             )
 
             if missing_fields:
@@ -109,6 +109,8 @@ def load_chunks_from_jsonl(
         )
 
     return chunks
+
+
 def load_documents(folder: str = "docs") -> List[Dict]:
     """
     读取 docs 目录下所有 txt 文件。
@@ -182,7 +184,7 @@ def embed_texts(texts: List[str], text_type: str = "document") -> List[List[floa
     batch_size = 10
 
     for i in range(0, len(texts), batch_size):
-        batch = texts[i : i + batch_size]
+        batch = texts[i: i + batch_size]
 
         response = dashscope.TextEmbedding.call(
             model="qwen3.7-text-embedding",
@@ -219,9 +221,9 @@ def cosine_similarity(a: List[float], b: List[float]) -> float:
 
 
 def retrieve(
-    query: str,
-    chunks: List[Dict],
-    top_k: int = 3,
+        query: str,
+        chunks: List[Dict],
+        top_k: int = 3,
 ) -> List[Dict]:
     """
     根据用户问题检索最相关的 top_k 个标准知识片段。
@@ -257,9 +259,14 @@ def retrieve(
 
     return scored_chunks[:top_k]
 
-def generate_answer(query: str, retrieved_chunks: List[Dict]) -> str:
+
+def generate_answer(
+        query: str,
+        retrieved_chunks: List[Dict],
+) -> str:
     """
-    把检索到的文本片段塞给大模型，让模型基于资料回答。
+    把检索到的文本片段传给大模型，
+    让模型依据课程资料回答。
     """
     context_blocks = []
 
@@ -268,17 +275,17 @@ def generate_answer(query: str, retrieved_chunks: List[Dict]) -> str:
             str(chunk["page"])
             if chunk["page"] is not None
             else "未标注"
-    )
+        )
 
-    context_blocks.append(
-        f"资料{i + 1}\n"
-        f"章节：{chunk['chapter']}\n"
-        f"小节：{chunk['section']}\n"
-        f"来源文件：{chunk['source_file']}\n"
-        f"页码：{page_text}\n"
-        f"片段编号：{chunk['chunk_id']}\n"
-        f"内容：{chunk['text']}"
-    )
+        context_blocks.append(
+            f"资料{i + 1}\n"
+            f"章节：{chunk['chapter']}\n"
+            f"小节：{chunk['section']}\n"
+            f"来源文件：{chunk['source_file']}\n"
+            f"页码：{page_text}\n"
+            f"片段编号：{chunk['chunk_id']}\n"
+            f"内容：{chunk['text']}"
+        )
 
     context = "\n\n".join(context_blocks)
 
@@ -303,8 +310,14 @@ def generate_answer(query: str, retrieved_chunks: List[Dict]) -> str:
     completion = client.chat.completions.create(
         model="qwen3.7-plus-2026-05-26",
         messages=[
-            {"role": "system", "content": system_prompt.strip()},
-            {"role": "user", "content": user_prompt.strip()},
+            {
+                "role": "system",
+                "content": system_prompt.strip(),
+            },
+            {
+                "role": "user",
+                "content": user_prompt.strip(),
+            },
         ],
         temperature=0.2,
         extra_body={"enable_thinking": False},
@@ -314,9 +327,9 @@ def generate_answer(query: str, retrieved_chunks: List[Dict]) -> str:
 
 
 def answer_question(
-    query: str,
-    chunks: List[Dict],
-    top_k: int = 3,
+        query: str,
+        chunks: List[Dict],
+        top_k: int = 3,
 ) -> Dict:
     """
     根据用户问题完成检索和回答生成。
@@ -413,7 +426,7 @@ def answer_question(
 
 
 def prepare_knowledge_base(
-    file_path: Path = STANDARD_CHUNKS_PATH,
+        file_path: Path = STANDARD_CHUNKS_PATH,
 ) -> List[Dict]:
     """
     读取标准 JSONL 知识片段，并生成文档向量。
@@ -433,8 +446,8 @@ def prepare_knowledge_base(
     )
 
     for chunk, embedding in zip(
-        chunks,
-        chunk_embeddings,
+            chunks,
+            chunk_embeddings,
     ):
         chunk["embedding"] = embedding
 
@@ -464,7 +477,7 @@ def main():
             chunks=chunks,
             top_k=3,
         )
-        
+
         if result["error"] is not None:
             print(
                 "\n处理失败："
@@ -488,6 +501,7 @@ def main():
         print(result["answer"])
 
         print(f"\n本次问答耗时：{result['latency_ms']} ms")
+
 
 if __name__ == "__main__":
     main()

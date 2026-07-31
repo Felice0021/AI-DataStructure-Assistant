@@ -8,6 +8,28 @@
     
     <!-- 样式 -->
     <link rel="stylesheet" href="css/style.css" />
+    
+    <!-- MathJax 配置和加载 -->
+    <script>
+        MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                processEscapes: true,
+                processEnvironments: true
+            },
+            svg: {
+                fontCache: 'global'
+            },
+            options: {
+                enableMenu: false,
+                renderActions: {
+                    addMenu: []
+                }
+            }
+        };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
 </head>
 <body>
     <div class="app-container">
@@ -21,7 +43,7 @@
         <div class="status-bar" id="statusBar">
             <span>💡 输入数据结构课程相关问题</span>
             <span>
-                <span id="mockBadge" class="mock-badge">🔧 Mock 模式</span>
+                <span id="mockBadge" class="mock-badge">🟡 检测中...</span>
                 <span style="margin-left:12px;">🔗 本地开发</span>
             </span>
         </div>

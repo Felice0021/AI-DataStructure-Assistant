@@ -65,7 +65,6 @@ class ApiClient {
     
     // 问答接口
     async ask(question, topK = 5) {
-        // 如果使用 mock 数据
         if (this.useMock) {
             return mockAsk(question, topK);
         }
@@ -79,14 +78,10 @@ class ApiClient {
         });
     }
     
-    // 切换 mock 模式
     setMockMode(enabled) {
         this.useMock = enabled;
     }
 }
 
-// 创建全局 API 客户端实例
 const apiClient = new ApiClient(CONFIG);
-
-// 暴露给全局使用
 window.apiClient = apiClient;

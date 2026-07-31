@@ -9,13 +9,13 @@ const CONFIG = {
     },
     
     // 默认 top_k 值
-    DEFAULT_TOP_K: 5,
+    DEFAULT_TOP_K: 3,
     
     // 请求超时时间（毫秒）
     TIMEOUT: 30000,
     
     // 是否使用 mock 数据（开发阶段设为 true）
-    USE_MOCK: true
+    USE_MOCK: false
 };
 
 // 如果使用 mock，API_BASE_URL 可以不用真实地址

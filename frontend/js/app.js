@@ -2,50 +2,32 @@
 
 class ChatApp {
     constructor() {
-        // DOM 元素引用
         this.elements = {
-            // 输入
             questionInput: document.getElementById('questionInput'),
             submitBtn: document.getElementById('submitBtn'),
-            
-            // 状态
             statusBar: document.getElementById('statusBar'),
             mockBadge: document.getElementById('mockBadge'),
-            
-            // 加载
             loadingSection: document.getElementById('loadingSection'),
             loadingText: document.getElementById('loadingText'),
             loadingTime: document.getElementById('loadingTime'),
-            
-            // 回答
             answerSection: document.getElementById('answerSection'),
             answerContent: document.getElementById('answerContent'),
             answerLatency: document.getElementById('answerLatency'),
-            
-            // 来源
             sourcesList: document.getElementById('sourcesList'),
             sourcesCount: document.getElementById('sourcesCount'),
             emptySources: document.getElementById('emptySources'),
-            
-            // 错误
             errorSection: document.getElementById('errorSection'),
             errorCode: document.getElementById('errorCode'),
             errorMessage: document.getElementById('errorMessage'),
-            
-            // 历史
             historyList: document.getElementById('historyList'),
             historyCount: document.getElementById('historyCount'),
             clearHistoryBtn: document.getElementById('clearHistoryBtn')
         };
         
-        // 历史记录
         this.history = [];
         this.maxHistory = 50;
-        
-        // 是否正在请求
         this.isLoading = false;
         
-        // 初始化
         this.init();
     }
     
@@ -55,15 +37,14 @@ class ChatApp {
         this.updateStatusBar();
         this.updateHistoryUI();
         this.focusInput();
+        setTimeout(() => this.updateConnectionStatus(), 500);
     }
     
     bindEvents() {
-        // 提交按钮
         this.elements.submitBtn.addEventListener('click', () => {
             this.handleSubmit();
         });
         
-        // Enter 键提交（Ctrl+Enter 换行）
         this.elements.questionInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey) {
                 e.preventDefault();
@@ -71,12 +52,10 @@ class ChatApp {
             }
         });
         
-        // 清空历史
         this.elements.clearHistoryBtn.addEventListener('click', () => {
             this.clearHistory();
         });
         
-        // 输入框自动调整高度
         this.elements.questionInput.addEventListener('input', () => {
             this.autoResizeTextarea();
         });
@@ -98,10 +77,68 @@ class ChatApp {
         this.elements.mockBadge.className = isMock ? 'mock-badge' : 'online-badge';
     }
     
+    async updateConnectionStatus() {
+        try {
+            const response = await apiClient.healthCheck();
+            const isConnected = response.status === 'ok' || response.status === 'healthy';
+            this.elements.mockBadge.textContent = isConnected ? '🟢 已连接' : '🔴 未连接';
+            this.elements.mockBadge.className = isConnected ? 'online-badge' : 'mock-badge';
+            return isConnected;
+        } catch (error) {
+            this.elements.mockBadge.textContent = '🔴 未连接';
+            this.elements.mockBadge.className = 'mock-badge';
+            return false;
+        }
+    }
+    
+    // ===== Markdown 渲染（关键修复：处理反斜杠） =====
+    renderMarkdown(text) {
+        if (!text) return '';
+        
+        // 关键：将 \ 替换为 \\，这样在 HTML 中显示为 \
+        let html = text.replace(/\\/g, '\\\\');
+        
+        // 1. 代码块
+        html = html.replace(/```([\s\S]*?)```/g, (match, code) => {
+            return `<pre><code>${this.escapeHtml(code.trim())}</code></pre>`;
+        });
+        
+        // 2. 行内代码
+        html = html.replace(/`([^`]+)`/g, (match, code) => {
+            return `<code>${this.escapeHtml(code)}</code>`;
+        });
+        
+        // 3. 粗体
+        html = html.replace(/\*\*([^*]+)\*\*/g, (match, content) => {
+            return `<strong>${content}</strong>`;
+        });
+        
+        // 4. 斜体（避免匹配到公式中的 *）
+        html = html.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, (match, content) => {
+            if (match.includes('$') || match.includes('\\')) {
+                return match;
+            }
+            return `<em>${content}</em>`;
+        });
+        
+        // 5. 列表
+        html = html.replace(/^[-*]\s+(.+)$/gm, (match, content) => {
+            return `<li>${content}</li>`;
+        });
+        html = html.replace(/(<li>.*?<\/li>\s*)+/g, (match) => {
+            return `<ul>${match}</ul>`;
+        });
+        
+        // 6. 换行
+        html = html.replace(/\n/g, '<br />');
+        html = html.replace(/(<br \/>\s*){2,}/g, '<br /><br />');
+        
+        return html;
+    }
+    
     async handleSubmit() {
         const question = this.elements.questionInput.value.trim();
         
-        // 验证
         if (!question) {
             this.showError('EMPTY_QUESTION', '请输入您的问题后再提交。');
             return;
@@ -111,10 +148,7 @@ class ChatApp {
             return;
         }
         
-        // 清空之前的显示
         this.hideAllSections();
-        
-        // 显示加载状态
         this.showLoading('正在检索知识库并生成回答...');
         
         this.isLoading = true;
@@ -130,8 +164,6 @@ class ChatApp {
             const elapsed = Math.round(endTime - startTime);
             
             this.hideLoading();
-            
-            // 处理响应
             this.handleResponse(response, question, elapsed);
             
         } catch (error) {
@@ -152,20 +184,12 @@ class ChatApp {
             const sources = data.sources || [];
             const latency = data.latency_ms || elapsed;
             
-            // 显示回答
             this.showAnswer(answer, latency);
-            
-            // 显示来源
             this.showSources(sources);
-            
-            // 隐藏错误
             this.hideError();
-            
-            // 添加历史记录
             this.addHistory(question, answer, sources, latency);
             
         } else {
-            // 业务错误
             const error = response.error || {};
             this.showError(error.code || 'UNKNOWN_ERROR', error.message || '未知错误，请稍后重试。');
             this.hideAnswer();
@@ -173,14 +197,11 @@ class ChatApp {
         }
     }
     
-    // ===== 显示/隐藏方法 =====
-    
     showLoading(text) {
         this.elements.loadingSection.classList.add('active');
         this.elements.loadingText.textContent = text || '正在思考...';
         this.elements.loadingTime.textContent = '';
         
-        // 启动计时器
         let seconds = 0;
         this.loadingTimer = setInterval(() => {
             seconds++;
@@ -198,8 +219,37 @@ class ChatApp {
     
     showAnswer(answer, latency) {
         this.elements.answerSection.classList.add('active');
-        this.elements.answerContent.textContent = answer || '（无回答内容）';
+        const renderedHtml = this.renderMarkdown(answer);
+        this.elements.answerContent.innerHTML = renderedHtml || '<em>（无回答内容）</em>';
         this.elements.answerLatency.textContent = latency ? `⏱ ${latency}ms` : '';
+        
+        // 触发 MathJax 渲染
+        this.renderMath();
+    }
+    
+    renderMath() {
+        const element = this.elements.answerContent;
+        
+        if (window.MathJax && window.MathJax.typesetPromise) {
+            window.MathJax.typesetPromise([element])
+                .catch((err) => console.warn('MathJax 渲染失败:', err));
+        } else if (window.MathJax && window.MathJax.Hub) {
+            window.MathJax.Hub.Queue(['Typeset', window.MathJax.Hub, element]);
+        } else {
+            // 等待 MathJax 加载
+            let attempts = 0;
+            const checkMathJax = setInterval(() => {
+                attempts++;
+                if (window.MathJax && window.MathJax.typesetPromise) {
+                    clearInterval(checkMathJax);
+                    window.MathJax.typesetPromise([element])
+                        .catch((err) => console.warn('MathJax 渲染失败:', err));
+                } else if (attempts > 20) {
+                    clearInterval(checkMathJax);
+                    console.warn('MathJax 加载超时');
+                }
+            }, 500);
+        }
     }
     
     hideAnswer() {
@@ -211,11 +261,9 @@ class ChatApp {
         const countEl = this.elements.sourcesCount;
         const emptyEl = this.elements.emptySources;
         
-        // 清空列表
         list.innerHTML = '';
         
         if (!sources || sources.length === 0) {
-            // 来源为空
             emptyEl.style.display = 'flex';
             countEl.textContent = '0';
             return;
@@ -290,8 +338,6 @@ class ChatApp {
         this.hideError();
     }
     
-    // ===== 历史记录 =====
-    
     addHistory(question, answer, sources, latency) {
         const entry = {
             id: Date.now(),
@@ -304,7 +350,6 @@ class ChatApp {
         
         this.history.unshift(entry);
         
-        // 限制数量
         if (this.history.length > this.maxHistory) {
             this.history = this.history.slice(0, this.maxHistory);
         }
@@ -325,7 +370,7 @@ class ChatApp {
             return;
         }
         
-        this.history.forEach((entry, index) => {
+        this.history.forEach((entry) => {
             const item = document.createElement('div');
             item.className = 'history-item';
             item.innerHTML = `
@@ -333,13 +378,10 @@ class ChatApp {
                 <span class="history-time">${entry.timestamp}</span>
             `;
             
-            // 点击历史记录，填充到输入框并提交
             item.addEventListener('click', () => {
                 this.elements.questionInput.value = entry.question;
                 this.elements.questionInput.focus();
                 this.autoResizeTextarea();
-                // 可选：自动提交
-                // this.handleSubmit();
             });
             
             list.appendChild(item);
@@ -355,14 +397,10 @@ class ChatApp {
         }
     }
     
-    // ===== 本地存储 =====
-    
     saveHistoryToStorage() {
         try {
             localStorage.setItem('chatHistory', JSON.stringify(this.history));
-        } catch (e) {
-            // 存储失败忽略
-        }
+        } catch (e) {}
     }
     
     loadHistoryFromStorage() {
@@ -379,8 +417,6 @@ class ChatApp {
         }
     }
     
-    // ===== 工具方法 =====
-    
     escapeHtml(text) {
         if (!text) return '';
         const div = document.createElement('div');
@@ -389,9 +425,7 @@ class ChatApp {
     }
 }
 
-// ===== 页面加载完成后初始化 =====
 document.addEventListener('DOMContentLoaded', () => {
     const app = new ChatApp();
-    // 暴露到全局方便调试
     window.app = app;
 });

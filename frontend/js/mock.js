@@ -142,7 +142,7 @@ function getMockResponse(question) {
 }
 
 // 模拟 API 调用
-function mockAsk(question, topK = 5) {
+function mockAsk(question, topK = 3) {
     return new Promise((resolve, reject) => {
         // 模拟网络延迟
         const response = getMockResponse(question);

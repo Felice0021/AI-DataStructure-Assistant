@@ -13,15 +13,17 @@ from backend.config import get_settings
 logger = get_logger(__name__)
 settings = get_settings()
 
-# 记录导入路径
-logger.info(f"项目根目录: {Path(__file__).parent.parent.parent}")
-logger.info(f"RAG模块路径: {Path(__file__).parent.parent.parent / 'rag' / 'rag_demo' / 'main.py'}")
+# 记录项目根目录
+project_root = Path(__file__).parent.parent.parent
+logger.info(f"项目根目录: {project_root}")
 
 # 导入RAG模块
 try:
-    from rag.rag_demo.main import prepare_knowledge_base, answer_question
+    from rag.rag_demo import main as rag_main
+    prepare_knowledge_base = rag_main.prepare_knowledge_base
+    answer_question = rag_main.answer_question
     RAG_AVAILABLE = True
-    logger.info("RAG模块导入成功")
+    logger.info(f"RAG模块导入成功，文件路径: {rag_main.__file__}")
 except ImportError as e:
     RAG_AVAILABLE = False
     logger.error(f"RAG模块导入失败: {e}")

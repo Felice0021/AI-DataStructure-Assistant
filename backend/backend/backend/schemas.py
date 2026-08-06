@@ -27,7 +27,7 @@ class ErrorInfo(BaseModel):
 
 
 class AskResponse(BaseModel):
-    request_id: str  # 移到顶层
+    request_id: str
     success: bool
     data: Optional[AskData] = None
     error: Optional[ErrorInfo] = None
@@ -58,4 +58,7 @@ class AskResponse(BaseModel):
 class HealthResponse(BaseModel):
     status: str
     version: str
+    rag_ready: bool
+    chunk_count: int
+    knowledge_file: str
     timestamp: str

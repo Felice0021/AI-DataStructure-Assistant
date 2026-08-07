@@ -1,0 +1,11 @@
+{
+  "total": 20,
+  "request_success_rate": 1.0,
+  "chapter_hit@3": 0.9,
+  "source_hit@3": 0.9,
+  "out_of_scope_refuse_accuracy": 1.0,
+  "out_of_scope_sources_empty_rate": 0.0,
+  "avg_latency_ms": 5817.53,
+  "p95_latency_ms": 9887.96,
+  "failed_questions": []
+}

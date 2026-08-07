@@ -6,7 +6,6 @@ class ApiClient {
         this.endpoints = config.ENDPOINTS;
         this.timeout = config.TIMEOUT;
         this.useMock = config.USE_MOCK;
-        this.mockEnabled = config.USE_MOCK;
     }
     
     // 通用请求方法
@@ -55,16 +54,69 @@ class ApiClient {
         }
     }
     
-    // 健康检查
+    // 健康检查 - 带超时控制
     async healthCheck() {
         if (this.useMock) {
-            return { status: 'ok', version: '1.0.0' };
+            // mock 模式立即返回
+            return {
+                status: 'ok',
+                rag_ready: true,
+                version: '1.0.0',
+                timestamp: new Date().toISOString()
+            };
         }
-        return this.request(this.endpoints.HEALTH);
+        
+        // 健康检查使用较短的超时时间（3秒）
+        const HEALTH_CHECK_TIMEOUT = 3000;
+        
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), HEALTH_CHECK_TIMEOUT);
+            
+            const response = await fetch(`${this.baseUrl}${this.endpoints.HEALTH}`, {
+                signal: controller.signal,
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            clearTimeout(timeoutId);
+            
+            if (!response.ok) {
+                return {
+                    status: 'error',
+                    rag_ready: false,
+                    error: `HTTP ${response.status}`,
+                    timestamp: new Date().toISOString()
+                };
+            }
+            
+            const data = await response.json();
+            return {
+                ...data,
+                timestamp: new Date().toISOString()
+            };
+            
+        } catch (error) {
+            // 超时或网络错误
+            let errorMsg = '连接失败';
+            if (error.name === 'AbortError') {
+                errorMsg = '连接超时';
+            } else if (error.message) {
+                errorMsg = error.message;
+            }
+            
+            return {
+                status: 'unreachable',
+                rag_ready: false,
+                error: errorMsg,
+                timestamp: new Date().toISOString()
+            };
+        }
     }
     
     // 问答接口
-    async ask(question, topK = 5) {
+    async ask(question, topK = 3) {
         if (this.useMock) {
             return mockAsk(question, topK);
         }

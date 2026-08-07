@@ -6,7 +6,9 @@ class ChatApp {
             questionInput: document.getElementById('questionInput'),
             submitBtn: document.getElementById('submitBtn'),
             statusBar: document.getElementById('statusBar'),
-            mockBadge: document.getElementById('mockBadge'),
+            statusBadge: document.getElementById('statusBadge'),
+            statusDetail: document.getElementById('statusDetail'),
+            retryHint: document.getElementById('retryHint'),
             loadingSection: document.getElementById('loadingSection'),
             loadingText: document.getElementById('loadingText'),
             loadingTime: document.getElementById('loadingTime'),
@@ -27,6 +29,15 @@ class ChatApp {
         this.history = [];
         this.maxHistory = 50;
         this.isLoading = false;
+        this.currentAnswer = null;
+        this.currentSources = null;
+        this.currentLatency = null;
+        
+        // 状态管理
+        this.statusCheckTimer = null;
+        this.isStatusChecking = false;
+        this.connectionRetries = 0;
+        this.MAX_RETRIES = 3;
         
         this.init();
     }
@@ -34,10 +45,16 @@ class ChatApp {
     init() {
         this.bindEvents();
         this.loadHistoryFromStorage();
-        this.updateStatusBar();
         this.updateHistoryUI();
         this.focusInput();
-        setTimeout(() => this.updateConnectionStatus(), 500);
+        
+        // 启动时检测连接状态
+        this.updateConnectionStatus();
+        
+        // 每 30 秒自动重新检测一次
+        this.statusCheckTimer = setInterval(() => {
+            this.updateConnectionStatus();
+        }, 30000);
     }
     
     bindEvents() {
@@ -59,6 +76,13 @@ class ChatApp {
         this.elements.questionInput.addEventListener('input', () => {
             this.autoResizeTextarea();
         });
+        
+        // 点击状态栏重试连接
+        this.elements.statusBar.addEventListener('click', () => {
+            if (!this.isStatusChecking) {
+                this.retryConnection();
+            }
+        });
     }
     
     focusInput() {
@@ -71,71 +95,136 @@ class ChatApp {
         textarea.style.height = Math.min(textarea.scrollHeight, 150) + 'px';
     }
     
-    updateStatusBar() {
-        const isMock = CONFIG.USE_MOCK;
-        this.elements.mockBadge.textContent = isMock ? '🔧 Mock 模式' : '🔗 已连接';
-        this.elements.mockBadge.className = isMock ? 'mock-badge' : 'online-badge';
-    }
-    
+    // ===== 智能连接状态检测 =====
     async updateConnectionStatus() {
+        // 防止重复检测
+        if (this.isStatusChecking) {
+            return;
+        }
+        
+        this.isStatusChecking = true;
+        this.elements.retryHint.style.display = 'none';
+        
+        // 先显示检测中
+        this.setStatus('checking', '🟡 检测中...', '正在连接后端服务...');
+        
         try {
-            const response = await apiClient.healthCheck();
-            const isConnected = response.status === 'ok' || response.status === 'healthy';
-            this.elements.mockBadge.textContent = isConnected ? '🟢 已连接' : '🔴 未连接';
-            this.elements.mockBadge.className = isConnected ? 'online-badge' : 'mock-badge';
-            return isConnected;
+            const result = await apiClient.healthCheck();
+            
+            // 检查结果
+            if (result.status === 'unreachable' || result.rag_ready === false) {
+                // 连接失败或 RAG 不可用
+                if (result.error === '连接超时') {
+                    this.setStatus('timeout', '⏰ 连接超时', '请检查后端服务是否启动');
+                } else {
+                    this.setStatus('disconnected', '🔴 未连接', result.error || '后端服务不可达');
+                }
+                this.elements.retryHint.style.display = 'inline';
+                
+                // 自动重试（最多3次）
+                if (this.connectionRetries < this.MAX_RETRIES) {
+                    this.connectionRetries++;
+                    setTimeout(() => {
+                        this.updateConnectionStatus();
+                    }, 2000);
+                }
+                return;
+            }
+            
+            // 连接成功，重置重试计数
+            this.connectionRetries = 0;
+            
+            if (result.rag_ready === true) {
+                this.setStatus('connected', '🟢 已连接', 'RAG 服务就绪');
+            } else {
+                this.setStatus('degraded', '🟠 服务异常', 'RAG 服务不可用');
+                this.elements.retryHint.style.display = 'inline';
+            }
+            
         } catch (error) {
-            this.elements.mockBadge.textContent = '🔴 未连接';
-            this.elements.mockBadge.className = 'mock-badge';
-            return false;
+            // 任何未捕获的异常
+            this.setStatus('disconnected', '🔴 未连接', '连接异常');
+            this.elements.retryHint.style.display = 'inline';
+            
+            // 自动重试
+            if (this.connectionRetries < this.MAX_RETRIES) {
+                this.connectionRetries++;
+                setTimeout(() => {
+                    this.updateConnectionStatus();
+                }, 2000);
+            }
+        } finally {
+            this.isStatusChecking = false;
         }
     }
     
-    // ===== Markdown 渲染（关键修复：处理反斜杠） =====
+    // ===== 设置状态显示 =====
+    setStatus(state, label, detail) {
+        const badge = this.elements.statusBadge;
+        const detailEl = this.elements.statusDetail;
+        
+        // 更新徽章样式
+        badge.textContent = label;
+        badge.className = 'status-badge';
+        
+        switch (state) {
+            case 'checking':
+                badge.classList.add('status-checking');
+                break;
+            case 'connected':
+                badge.classList.add('status-connected');
+                break;
+            case 'degraded':
+                badge.classList.add('status-degraded');
+                break;
+            case 'timeout':
+                badge.classList.add('status-timeout');
+                break;
+            case 'disconnected':
+                badge.classList.add('status-disconnected');
+                break;
+            default:
+                badge.classList.add('status-checking');
+        }
+        
+        detailEl.textContent = detail || '';
+    }
+    
+    // ===== 手动重试连接 =====
+    async retryConnection() {
+        this.connectionRetries = 0;
+        await this.updateConnectionStatus();
+    }
+    
+    // ===== Markdown 渲染（使用 marked + DOMPurify） =====
     renderMarkdown(text) {
         if (!text) return '';
         
-        // 关键：将 \ 替换为 \\，这样在 HTML 中显示为 \
-        let html = text.replace(/\\/g, '\\\\');
-        
-        // 1. 代码块
-        html = html.replace(/```([\s\S]*?)```/g, (match, code) => {
-            return `<pre><code>${this.escapeHtml(code.trim())}</code></pre>`;
-        });
-        
-        // 2. 行内代码
-        html = html.replace(/`([^`]+)`/g, (match, code) => {
-            return `<code>${this.escapeHtml(code)}</code>`;
-        });
-        
-        // 3. 粗体
-        html = html.replace(/\*\*([^*]+)\*\*/g, (match, content) => {
-            return `<strong>${content}</strong>`;
-        });
-        
-        // 4. 斜体（避免匹配到公式中的 *）
-        html = html.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, (match, content) => {
-            if (match.includes('$') || match.includes('\\')) {
-                return match;
-            }
-            return `<em>${content}</em>`;
-        });
-        
-        // 5. 列表
-        html = html.replace(/^[-*]\s+(.+)$/gm, (match, content) => {
-            return `<li>${content}</li>`;
-        });
-        html = html.replace(/(<li>.*?<\/li>\s*)+/g, (match) => {
-            return `<ul>${match}</ul>`;
-        });
-        
-        // 6. 换行
-        html = html.replace(/\n/g, '<br />');
-        html = html.replace(/(<br \/>\s*){2,}/g, '<br /><br />');
-        
-        return html;
+        try {
+            // 使用 marked 解析 Markdown
+            const rawHtml = marked.parse(text, {
+                breaks: true,
+                gfm: true,
+                headerIds: false,
+                mangle: false
+            });
+            
+            // 使用 DOMPurify 清洗 HTML
+            const cleanHtml = DOMPurify.sanitize(rawHtml, {
+                ADD_TAGS: ['math'],
+                ADD_ATTR: ['xmlns', 'display', 'inline'],
+                FORBID_TAGS: ['script', 'style'],
+                FORBID_ATTR: ['onerror', 'onload', 'onclick']
+            });
+            
+            return cleanHtml;
+        } catch (error) {
+            console.warn('Markdown 渲染失败，使用纯文本:', error);
+            return this.escapeHtml(text);
+        }
     }
     
+    // ===== 提交问题 =====
     async handleSubmit() {
         const question = this.elements.questionInput.value.trim();
         
@@ -148,9 +237,16 @@ class ChatApp {
             return;
         }
         
+        // 清空旧回答、来源、错误
         this.hideAllSections();
+        this.currentAnswer = null;
+        this.currentSources = null;
+        this.currentLatency = null;
+        
+        // 显示加载状态
         this.showLoading('正在检索知识库并生成回答...');
         
+        // 禁用输入
         this.isLoading = true;
         this.elements.submitBtn.disabled = true;
         this.elements.questionInput.disabled = true;
@@ -168,21 +264,79 @@ class ChatApp {
             
         } catch (error) {
             this.hideLoading();
-            this.showNetworkError(error);
+            
+            // 检查是否是后端返回的标准错误格式
+            if (error.data && error.data.error) {
+                const backendError = error.data.error;
+                let code = backendError.code || 'UNKNOWN_ERROR';
+                let message = backendError.message || '服务异常';
+                
+                // 网络相关错误 → 显示友好提示
+                const networkKeywords = [
+                    'connection', 'connect', 'network', 'dns', 
+                    'failed to resolve', 'getaddrinfo', 'enotfound',
+                    'econnrefused', 'timeout', 'ConnectionError',
+                    'Max retries exceeded', 'HTTPSConnectionPool'
+                ];
+                const isNetworkError = networkKeywords.some(keyword => 
+                    message.toLowerCase().includes(keyword.toLowerCase()) ||
+                    code.toLowerCase().includes('connection') ||
+                    code.toLowerCase().includes('network')
+                );
+                
+                if (isNetworkError) {
+                    code = 'NETWORK_ERROR';
+                    message = '网络连接失败，请检查网络设置后重试';
+                }
+                
+                this.showError(code, message);
+            } else {
+                // 网络层面的错误
+                this.showNetworkError(error);
+            }
+            
+            this.hideAnswer();
+            this.hideSources();
+            
         } finally {
             this.isLoading = false;
             this.elements.submitBtn.disabled = false;
             this.elements.questionInput.disabled = false;
             this.elements.questionInput.focus();
+            this.updateConnectionStatus();
         }
     }
     
+    // ===== 处理响应 =====
     handleResponse(response, question, elapsed) {
         if (response.success) {
             const data = response.data;
-            const answer = data.answer || '';
+            let answer = data.answer || '';
             const sources = data.sources || [];
             const latency = data.latency_ms || elapsed;
+            
+            // 检测是否是模型调用失败的兜底话术
+            const fallbackPhrases = [
+                '根据当前资料无法确定',
+                '无法确定',
+                '没有找到相关内容',
+                '抱歉，我无法回答'
+            ];
+            
+            const isFallbackAnswer = fallbackPhrases.some(phrase => 
+                answer.includes(phrase)
+            );
+            
+            if (isFallbackAnswer) {
+                // 回答保留原样，只隐藏来源
+                this.showAnswer(answer, latency);  // ← 保留原回答
+                this.showSources([]);              // ← 只隐藏来源
+                return;
+            }
+            // 正常显示
+            this.currentAnswer = answer;
+            this.currentSources = sources;
+            this.currentLatency = latency;
             
             this.showAnswer(answer, latency);
             this.showSources(sources);
@@ -191,12 +345,32 @@ class ChatApp {
             
         } else {
             const error = response.error || {};
-            this.showError(error.code || 'UNKNOWN_ERROR', error.message || '未知错误，请稍后重试。');
+            
+            // 检查是否是网络相关错误
+            const networkKeywords = [
+                'connection', 'connect', 'network', 'dns',
+                'failed to resolve', 'getaddrinfo', 'enotfound',
+                'econnrefused', 'timeout', 'ConnectionError',
+                'Max retries exceeded', 'HTTPSConnectionPool'
+            ];
+            const isNetworkError = networkKeywords.some(keyword =>
+                (error.message || '').toLowerCase().includes(keyword.toLowerCase()) ||
+                (error.code || '').toLowerCase().includes('connection') ||
+                (error.code || '').toLowerCase().includes('network')
+            );
+            
+            if (isNetworkError) {
+                this.showError('NETWORK_ERROR', '网络连接失败，请检查网络设置后重试');
+            } else {
+                this.showError(error.code || 'UNKNOWN_ERROR', error.message || '未知错误，请稍后重试。');
+            }
+            
             this.hideAnswer();
             this.hideSources();
         }
     }
     
+    // ===== 加载状态 =====
     showLoading(text) {
         this.elements.loadingSection.classList.add('active');
         this.elements.loadingText.textContent = text || '正在思考...';
@@ -217,6 +391,7 @@ class ChatApp {
         }
     }
     
+    // ===== 显示回答 =====
     showAnswer(answer, latency) {
         this.elements.answerSection.classList.add('active');
         const renderedHtml = this.renderMarkdown(answer);
@@ -227,6 +402,7 @@ class ChatApp {
         this.renderMath();
     }
     
+    // ===== MathJax 渲染 =====
     renderMath() {
         const element = this.elements.answerContent;
         
@@ -236,7 +412,6 @@ class ChatApp {
         } else if (window.MathJax && window.MathJax.Hub) {
             window.MathJax.Hub.Queue(['Typeset', window.MathJax.Hub, element]);
         } else {
-            // 等待 MathJax 加载
             let attempts = 0;
             const checkMathJax = setInterval(() => {
                 attempts++;
@@ -256,6 +431,7 @@ class ChatApp {
         this.elements.answerSection.classList.remove('active');
     }
     
+    // ===== 显示来源 =====
     showSources(sources) {
         const list = this.elements.sourcesList;
         const countEl = this.elements.sourcesCount;
@@ -309,6 +485,7 @@ class ChatApp {
         this.elements.emptySources.style.display = 'none';
     }
     
+    // ===== 错误显示 =====
     showError(code, message) {
         this.elements.errorSection.classList.add('active');
         this.elements.errorCode.textContent = code || 'ERROR';
@@ -319,14 +496,35 @@ class ChatApp {
         this.elements.errorSection.classList.remove('active');
     }
     
+    // ===== 显示网络错误（增强版） =====
     showNetworkError(error) {
+        let code = 'NETWORK_ERROR';
         let message = '网络请求失败，请检查网络连接';
+        
         if (error.status === 408 || error.statusText === 'Request Timeout') {
+            code = 'TIMEOUT_ERROR';
             message = '请求超时，请稍后重试';
         } else if (error.message) {
-            message = error.message;
+            const msg = error.message.toLowerCase();
+            if (msg.includes('failed to resolve') || 
+                msg.includes('getaddrinfo') || 
+                msg.includes('enotfound') ||
+                msg.includes('econnrefused') ||
+                msg.includes('connectionerror') ||
+                msg.includes('connection') ||
+                msg.includes('network') ||
+                msg.includes('connect') ||
+                msg.includes('max retries exceeded') ||
+                msg.includes('httpsconnectionpool')) {
+                code = 'CONNECTION_ERROR';
+                message = '网络连接失败，请检查网络设置后重试';
+            } else {
+                // 截断过长的错误消息
+                message = error.message.length > 100 ? error.message.substring(0, 100) + '...' : error.message;
+            }
         }
-        this.showError('NETWORK_ERROR', message);
+        
+        this.showError(code, message);
         this.hideAnswer();
         this.hideSources();
     }
@@ -338,6 +536,7 @@ class ChatApp {
         this.hideError();
     }
     
+    // ===== 历史记录 =====
     addHistory(question, answer, sources, latency) {
         const entry = {
             id: Date.now(),
@@ -378,14 +577,31 @@ class ChatApp {
                 <span class="history-time">${entry.timestamp}</span>
             `;
             
+            // 点击历史记录：恢复完整内容
             item.addEventListener('click', () => {
-                this.elements.questionInput.value = entry.question;
-                this.elements.questionInput.focus();
-                this.autoResizeTextarea();
+                this.restoreHistoryEntry(entry);
             });
             
             list.appendChild(item);
         });
+    }
+    
+    // 恢复历史记录的完整内容
+    restoreHistoryEntry(entry) {
+        this.elements.questionInput.value = entry.question;
+        this.elements.questionInput.focus();
+        this.autoResizeTextarea();
+        
+        this.currentAnswer = entry.answer;
+        this.currentSources = entry.sources || [];
+        this.currentLatency = entry.latency || 0;
+        
+        this.hideAllSections();
+        this.showAnswer(entry.answer, entry.latency);
+        this.showSources(entry.sources || []);
+        this.hideError();
+        
+        this.elements.answerSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
     
     clearHistory() {
@@ -417,6 +633,7 @@ class ChatApp {
         }
     }
     
+    // ===== 工具方法 =====
     escapeHtml(text) {
         if (!text) return '';
         const div = document.createElement('div');

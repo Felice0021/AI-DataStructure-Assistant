@@ -9,6 +9,12 @@
     <!-- 样式 -->
     <link rel="stylesheet" href="css/style.css" />
     
+    <!-- DOMPurify - 用于清洗 HTML -->
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+    
+    <!-- marked - 成熟的 Markdown 解析库 -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+    
     <!-- MathJax 配置和加载 -->
     <script>
         MathJax = {
@@ -43,8 +49,11 @@
         <div class="status-bar" id="statusBar">
             <span>💡 输入数据结构课程相关问题</span>
             <span>
-                <span id="mockBadge" class="mock-badge">🟡 检测中...</span>
-                <span style="margin-left:12px;">🔗 本地开发</span>
+                <span id="statusBadge" class="status-badge status-checking">🟡 检测中...</span>
+                <span style="margin-left:12px;color:#aab5c5;" id="statusDetail">正在连接后端服务...</span>
+                <span id="retryHint" style="margin-left:12px;font-size:11px;color:#aab5c5;display:none;">
+                    （点击重试）
+                </span>
             </span>
         </div>
         
@@ -93,7 +102,7 @@
                 <!-- 来源为空时的提示 -->
                 <div class="empty-sources" id="emptySources" style="display:none;">
                     <span class="icon">ℹ️</span>
-                    <span>该回答未引用课程资料（可能是基于模型自身知识回答）</span>
+                    <span>本次回答未引用课程资料</span>
                 </div>
             </div>
         </section>
@@ -123,13 +132,9 @@
     </div>
     
     <!-- ===== JavaScript ===== -->
-    <!-- 配置 -->
     <script src="js/config.js"></script>
-    <!-- Mock 数据 -->
     <script src="js/mock.js"></script>
-    <!-- API 客户端 -->
     <script src="js/api.js"></script>
-    <!-- 主应用 -->
     <script src="js/app.js"></script>
 </body>
 </html>

@@ -43,7 +43,7 @@ body {
     margin-top: 6px;
 }
 
-/* ===== 状态提示 ===== */
+/* ===== 状态栏 ===== */
 .status-bar {
     display: flex;
     justify-content: space-between;
@@ -54,6 +54,13 @@ body {
     border-radius: 8px;
     font-size: 13px;
     color: #6b7a8f;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.2s;
+}
+
+.status-bar:hover {
+    background: #e8ecf1;
 }
 
 .status-bar .mock-badge {
@@ -72,6 +79,55 @@ body {
     border-radius: 12px;
     font-size: 11px;
     font-weight: 600;
+}
+
+/* ===== 状态徽章样式 ===== */
+.status-badge {
+    padding: 2px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.status-checking {
+    background: #f0c040;
+    color: #fff;
+    animation: pulse 1.2s ease-in-out infinite;
+}
+
+.status-connected {
+    background: #51cf66;
+    color: #fff;
+}
+
+.status-degraded {
+    background: #fd7e14;
+    color: #fff;
+}
+
+.status-disconnected {
+    background: #ff6b6b;
+    color: #fff;
+}
+
+.status-timeout {
+    background: #ff6b6b;
+    color: #fff;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* ===== 脉冲动画 ===== */
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+/* ===== 重试提示 ===== */
+#retryHint {
+    font-size: 11px;
+    color: #aab5c5;
+    margin-left: 12px;
 }
 
 /* ===== 输入区域 ===== */
@@ -209,7 +265,7 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 16px;
+    margin-bottom: 12px;
 }
 
 .answer-header .label {
@@ -223,23 +279,196 @@ body {
     color: #aab5c5;
 }
 
+/* ===== 回答内容 - 优化间距 ===== */
 .answer-content {
     font-size: 15px;
-    line-height: 1.8;
+    line-height: 1.6;
     color: #1a2332;
-    white-space: pre-wrap;
     word-wrap: break-word;
 }
 
-.answer-content .empty-answer {
-    color: #aab5c5;
+/* 段落间距 - 紧凑 */
+.answer-content p {
+    margin: 0 0 6px 0;
+    line-height: 1.6;
+}
+
+/* 标题间距 */
+.answer-content h1,
+.answer-content h2,
+.answer-content h3,
+.answer-content h4 {
+    margin: 8px 0 4px 0;
+    font-weight: 600;
+}
+
+/* 列表间距 - 紧凑 */
+.answer-content ul,
+.answer-content ol {
+    margin: 4px 0 6px 0;
+    padding-left: 20px;
+}
+
+.answer-content li {
+    margin: 2px 0;
+    line-height: 1.5;
+}
+
+/* 代码块间距 */
+.answer-content pre {
+    background: #f1f3f5;
+    padding: 10px 14px;
+    border-radius: 8px;
+    overflow-x: auto;
+    margin: 6px 0 10px 0;
+}
+
+.answer-content pre code {
+    background: transparent;
+    padding: 0;
+    color: #2d3436;
+    font-size: 0.9em;
+    line-height: 1.5;
+}
+
+/* 行内代码 */
+.answer-content code {
+    background: #f1f3f5;
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-family: 'SF Mono', 'Consolas', 'Monaco', monospace;
+    font-size: 0.9em;
+    color: #e74c3c;
+}
+
+/* 粗体 */
+.answer-content strong {
+    font-weight: 700;
+    color: #1a2332;
+}
+
+/* 斜体 */
+.answer-content em {
     font-style: italic;
+    color: #2d3436;
+}
+
+/* 数学公式 */
+.answer-content .math-formula {
+    display: inline-block;
+    background: #f8f9fa;
+    padding: 2px 10px;
+    border-radius: 4px;
+    font-family: 'Times New Roman', 'STIX', serif;
+    font-style: italic;
+    color: #1a2332;
+    border: 1px solid #e9ecef;
+    margin: 0 2px;
+    font-size: 1.05em;
+}
+
+.answer-content .math-block {
+    display: block;
+    background: #f8f9fa;
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-family: 'Times New Roman', 'STIX', serif;
+    font-style: italic;
+    color: #1a2332;
+    border: 1px solid #e9ecef;
+    margin: 8px 0;
+    text-align: center;
+    font-size: 1.15em;
+}
+
+.answer-content .math-inline {
+    display: inline-block;
+    padding: 0 4px;
+}
+
+.answer-content .math-display {
+    display: block;
+    text-align: center;
+    margin: 12px 0;
+    padding: 8px 0;
+}
+
+/* 引用块 */
+.answer-content blockquote {
+    margin: 6px 0 8px 0;
+    padding: 6px 14px;
+    border-left: 4px solid #4f7cff;
+    background: #f8fafc;
+    border-radius: 0 6px 6px 0;
+}
+
+/* 表格 */
+.answer-content table {
+    margin: 8px 0;
+    border-collapse: collapse;
+    width: 100%;
+}
+
+.answer-content th,
+.answer-content td {
+    padding: 6px 10px;
+    border: 1px solid #e2e8f0;
+    text-align: left;
+}
+
+.answer-content th {
+    background: #f1f3f5;
+    font-weight: 600;
+}
+
+/* 水平分割线 */
+.answer-content hr {
+    margin: 10px 0;
+    border: none;
+    border-top: 1px solid #e2e8f0;
+}
+
+/* 上标和下标 */
+.answer-content sup {
+    font-size: 0.7em;
+    vertical-align: super;
+}
+
+.answer-content sub {
+    font-size: 0.7em;
+    vertical-align: sub;
+}
+
+/* 大 O 符号 */
+.answer-content .big-o {
+    font-family: 'Times New Roman', 'STIX', serif;
+    font-style: normal;
+    font-weight: 600;
+}
+
+/* 代码块滚动条 */
+.answer-content pre::-webkit-scrollbar {
+    height: 6px;
+}
+
+.answer-content pre::-webkit-scrollbar-track {
+    background: #e9ecef;
+    border-radius: 3px;
+}
+
+.answer-content pre::-webkit-scrollbar-thumb {
+    background: #ced4da;
+    border-radius: 3px;
+}
+
+.answer-content pre::-webkit-scrollbar-thumb:hover {
+    background: #adb5bd;
 }
 
 /* ===== 来源列表 ===== */
 .sources-section {
-    margin-top: 20px;
-    padding-top: 16px;
+    margin-top: 16px;
+    padding-top: 14px;
     border-top: 1px solid #f0f2f5;
 }
 
@@ -247,7 +476,7 @@ body {
     font-size: 13px;
     font-weight: 600;
     color: #6b7a8f;
-    margin-bottom: 12px;
+    margin-bottom: 10px;
 }
 
 .sources-section .source-count {
@@ -261,14 +490,14 @@ body {
 .sources-list {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
 }
 
 .source-item {
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 10px 14px;
+    padding: 8px 14px;
     background: #f8fafc;
     border-radius: 8px;
     font-size: 13px;
@@ -307,11 +536,12 @@ body {
     font-family: monospace;
 }
 
+/* ===== 来源为空时的样式 ===== */
 .empty-sources {
-    display: flex;
+    display: none;
     align-items: center;
     gap: 10px;
-    padding: 12px 16px;
+    padding: 10px 16px;
     background: #f8fafc;
     border-radius: 8px;
     color: #6b7a8f;
@@ -401,7 +631,7 @@ body {
 .history-list {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
     max-height: 300px;
     overflow-y: auto;
 }
@@ -410,7 +640,7 @@ body {
     display: flex;
     align-items: flex-start;
     gap: 12px;
-    padding: 10px 14px;
+    padding: 8px 14px;
     background: #f8fafc;
     border-radius: 8px;
     font-size: 13px;
@@ -474,6 +704,11 @@ body {
         width: 100%;
         margin-left: 36px;
     }
+
+    .status-bar {
+        flex-wrap: wrap;
+        gap: 4px 0;
+    }
 }
 
 /* ===== 滚动条美化 ===== */
@@ -493,135 +728,4 @@ body {
 
 .history-list::-webkit-scrollbar-thumb:hover {
     background: #c0c6d0;
-}
-
-/* ===== Markdown 渲染样式 ===== */
-
-.answer-content code {
-    background: #f1f3f5;
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-family: 'SF Mono', 'Consolas', 'Monaco', monospace;
-    font-size: 0.9em;
-    color: #e74c3c;
-}
-
-.answer-content pre {
-    background: #f1f3f5;
-    padding: 12px 16px;
-    border-radius: 8px;
-    overflow-x: auto;
-    margin: 12px 0;
-}
-
-.answer-content pre code {
-    background: transparent;
-    padding: 0;
-    color: #2d3436;
-    font-size: 0.9em;
-}
-
-.answer-content strong {
-    font-weight: 700;
-    color: #1a2332;
-}
-
-.answer-content em {
-    font-style: italic;
-    color: #2d3436;
-}
-
-.answer-content .math-formula {
-    background: #f8f9fa;
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-family: 'Times New Roman', serif;
-    font-style: italic;
-    color: #2d3436;
-    border: 1px solid #e9ecef;
-}
-
-.answer-content ul {
-    margin: 8px 0;
-    padding-left: 24px;
-}
-
-.answer-content li {
-    margin: 4px 0;
-    line-height: 1.6;
-}
-
-.answer-content br {
-    display: block;
-    content: '';
-    margin: 4px 0;
-}
-
-/* 代码块滚动条 */
-.answer-content pre::-webkit-scrollbar {
-    height: 6px;
-}
-
-.answer-content pre::-webkit-scrollbar-track {
-    background: #e9ecef;
-    border-radius: 3px;
-}
-
-.answer-content pre::-webkit-scrollbar-thumb {
-    background: #ced4da;
-    border-radius: 3px;
-}
-
-.answer-content pre::-webkit-scrollbar-thumb:hover {
-    background: #adb5bd;
-}
-
-/* ===== 数学公式样式增强 ===== */
-
-.answer-content .math-formula {
-    display: inline-block;
-    background: #f8f9fa;
-    padding: 2px 10px;
-    border-radius: 4px;
-    font-family: 'Times New Roman', 'STIX', serif;
-    font-style: italic;
-    color: #1a2332;
-    border: 1px solid #e9ecef;
-    margin: 0 2px;
-    font-size: 1.05em;
-}
-
-.answer-content .math-block {
-    display: block;
-    background: #f8f9fa;
-    padding: 12px 20px;
-    border-radius: 6px;
-    font-family: 'Times New Roman', 'STIX', serif;
-    font-style: italic;
-    color: #1a2332;
-    border: 1px solid #e9ecef;
-    margin: 12px 0;
-    text-align: center;
-    font-size: 1.15em;
-}
-
-/* 上标和下标 */
-.answer-content .math-formula sup,
-.answer-content .math-block sup {
-    font-size: 0.7em;
-    vertical-align: super;
-}
-
-.answer-content .math-formula sub,
-.answer-content .math-block sub {
-    font-size: 0.7em;
-    vertical-align: sub;
-}
-
-/* 大 O 符号 */
-.answer-content .math-formula .big-o,
-.answer-content .math-block .big-o {
-    font-family: 'Times New Roman', 'STIX', serif;
-    font-style: normal;
-    font-weight: 600;
 }

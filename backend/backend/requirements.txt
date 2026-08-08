@@ -1,3 +1,8 @@
 fastapi
 uvicorn[standard]
 pydantic
+pydantic-settings
+openai
+dashscope
+numpy
+python-dotenv

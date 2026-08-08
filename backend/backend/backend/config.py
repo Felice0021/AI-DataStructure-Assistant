@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     version: str = "1.0.0"
 
     # 知识库配置
-    knowledge_file: str = "knowledge_base/ds_demo_chunks_v2.jsonl"
+    knowledge_file: str = "knowledge_base/ds_chunks.jsonl"
 
     class Config:
         extra = "ignore"

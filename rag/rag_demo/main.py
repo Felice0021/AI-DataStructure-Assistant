@@ -10,19 +10,21 @@ from openai import OpenAI
 from dotenv import load_dotenv
 from http import HTTPStatus
 
+from rag.config import (
+    KNOWLEDGE_BASE_PATH,
+    DEFAULT_TOP_K,
+    MIN_RETRIEVAL_SCORE,
+    EMBEDDING_MODEL,
+    EMBEDDING_DIMENSION,
+    GENERATION_MODEL,
+    GENERATION_TEMPERATURE,
+)
+
 
 ENV_PATH = Path(__file__).with_name(".env")
 load_dotenv(ENV_PATH, override=True)
 
 BASE_DIR = Path(__file__).resolve().parent
-
-PROJECT_ROOT = BASE_DIR.parents[1]
-
-STANDARD_CHUNKS_PATH = (
-    PROJECT_ROOT
-    / "knowledge_base"
-    / "ds_demo_chunks_v2.jsonl"
-)
 
 REQUIRED_CHUNK_FIELDS = {
     "chunk_id",
@@ -46,7 +48,7 @@ client = OpenAI(
 )
 
 def load_chunks_from_jsonl(
-    file_path: Path = STANDARD_CHUNKS_PATH,
+    file_path: Path = KNOWLEDGE_BASE_PATH,
 ) -> List[Dict]:
     """
     读取标准 JSONL 知识片段文件，并校验必要字段。
@@ -185,9 +187,9 @@ def embed_texts(texts: List[str], text_type: str = "document") -> List[List[floa
         batch = texts[i : i + batch_size]
 
         response = dashscope.TextEmbedding.call(
-            model="qwen3.7-text-embedding",
+            model=EMBEDDING_MODEL,
             input=batch,
-            dimension=1024,
+            dimension=EMBEDDING_DIMENSION,
             text_type=text_type,
         )
 
@@ -221,7 +223,7 @@ def cosine_similarity(a: List[float], b: List[float]) -> float:
 def retrieve(
     query: str,
     chunks: List[Dict],
-    top_k: int = 3,
+    top_k: int = DEFAULT_TOP_K,
 ) -> List[Dict]:
     """
     根据用户问题检索最相关的 top_k 个标准知识片段。
@@ -288,9 +290,12 @@ def generate_answer(
 
     system_prompt = """
 你是一个数据结构课程智能助教。
-你必须优先依据给定资料回答。
-如果资料中没有相关内容，要明确说明“根据当前资料无法确定”，不要编造。
-回答要适合本科生理解，必要时可以分点解释。
+
+回答规则：
+1. 只使用给定课程资料中能够直接支持的内容回答，不得凭常识补充资料中没有的信息。
+2. 回答应自然、准确、适合本科生理解，必要时可以分点、给出公式或代码。
+3. 不要在正文中使用“资料1”“资料2”“片段1”等内部检索编号，也不要机械重复来源文件名。
+4. 如果现有资料不足以回答问题的核心内容，只回答“根据当前资料无法确定”，不要猜测或编造。
 """
 
     user_prompt = f"""
@@ -305,7 +310,7 @@ def generate_answer(
 """
 
     completion = client.chat.completions.create(
-        model="qwen3.7-plus-2026-05-26",
+        model=GENERATION_MODEL,
         messages=[
             {
                 "role": "system",
@@ -316,7 +321,7 @@ def generate_answer(
                 "content": user_prompt.strip(),
             },
         ],
-        temperature=0.2,
+        temperature=GENERATION_TEMPERATURE,
         extra_body={"enable_thinking": False},
     )
 
@@ -326,7 +331,7 @@ def generate_answer(
 def answer_question(
     query: str,
     chunks: List[Dict],
-    top_k: int = 3,
+    top_k: int = DEFAULT_TOP_K,
 ) -> Dict:
     """
     根据用户问题完成检索和回答生成。
@@ -377,6 +382,36 @@ def answer_question(
                 },
             }
 
+        # 保存本次 Top-K 的相似度，供调试和评测使用
+        retrieval_scores = [
+            chunk["score"]
+            for chunk in retrieved_chunks
+        ]
+
+        top1_score = retrieval_scores[0]
+
+        # 先判断检索结果是否足够相关，再决定是否调用生成模型。
+        # 这样可以避免“模型使用了低相关资料回答，
+        # 但最终 sources 又被清空”的逻辑不一致。
+        if (
+            MIN_RETRIEVAL_SCORE is not None
+            and top1_score < MIN_RETRIEVAL_SCORE
+        ):
+            latency_ms = int(
+                (time.perf_counter() - start_time) * 1000
+            )
+
+            return {
+                "answer": "根据当前资料无法确定",
+                "sources": [],
+                "retrieved_chunks": retrieved_chunks,
+                "retrieval_scores": retrieval_scores,
+                "top1_score": top1_score,
+                "out_of_scope": True,
+                "latency_ms": latency_ms,
+                "error": None,
+            }
+
         answer = generate_answer(
             query=query,
             retrieved_chunks=retrieved_chunks,
@@ -401,6 +436,9 @@ def answer_question(
             "answer": answer,
             "sources": sources,
             "retrieved_chunks": retrieved_chunks,
+            "retrieval_scores": retrieval_scores,
+            "top1_score": top1_score,
+            "out_of_scope": False,
             "latency_ms": latency_ms,
             "error": None,
         }
@@ -423,7 +461,7 @@ def answer_question(
 
 
 def prepare_knowledge_base(
-    file_path: Path = STANDARD_CHUNKS_PATH,
+    file_path: Path = KNOWLEDGE_BASE_PATH,
 ) -> List[Dict]:
     """
     读取标准 JSONL 知识片段，并生成文档向量。
@@ -472,7 +510,7 @@ def main():
         result = answer_question(
             query=query,
             chunks=chunks,
-            top_k=3,
+            top_k=DEFAULT_TOP_K,
         )
         
         if result["error"] is not None:

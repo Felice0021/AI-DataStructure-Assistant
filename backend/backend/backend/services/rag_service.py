@@ -95,7 +95,7 @@ class RAGService:
                 return AskResponse.fail(
                     request_id=request_id,
                     code="RAG_INIT_FAILED",
-                    message="知识库加载失败，请检查 knowledge_base/ds_demo_chunks_v2.jsonl 是否存在"
+                    message="知识库加载失败，请检查 knowledge_base/ds_chunks.jsonl 是否存在"
                 )
 
         try:

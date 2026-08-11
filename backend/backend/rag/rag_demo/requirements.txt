@@ -1,4 +1,0 @@
-openai
-dashscope
-numpy
-python-dotenv

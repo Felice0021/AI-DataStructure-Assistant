@@ -1,0 +1,23 @@
+{
+  "retrieval_only": true,
+  "total": 20,
+  "in_scope_total": 18,
+  "out_of_scope_total": 2,
+  "knowledge_chunk_count": 55,
+  "retriever": "bm25",
+  "tokenizer": "jieba",
+  "top_k": 3,
+  "k1": 1.5,
+  "b": 0.75,
+  "chapter_hit@k": 1.0,
+  "source_hit@k": 1.0,
+  "chunk_hit@k": 0.7222222222222222,
+  "chunk_recall@k": 0.7222222222222222,
+  "mrr@k": 0.5833333333333334,
+  "index_build_latency_ms": 272.943,
+  "avg_retrieval_latency_ms": 0.074,
+  "p95_retrieval_latency_ms": 0.105,
+  "in_scope_top1_score_mean": 14.801882,
+  "out_of_scope_top1_score_mean": 4.802824,
+  "note": "BM25 score is not calibrated against the dense retriever's cosine threshold; out-of-scope abstention must be calibrated separately."
+}

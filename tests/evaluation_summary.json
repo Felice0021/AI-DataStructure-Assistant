@@ -1,11 +1,17 @@
 {
   "total": 20,
+  "in_scope_total": 18,
+  "out_of_scope_total": 2,
+  "knowledge_chunk_count": 55,
+  "top_k": 3,
+  "min_retrieval_score": 0.62,
   "request_success_rate": 1.0,
-  "chapter_hit@3": 0.9,
-  "source_hit@3": 0.9,
+  "chapter_hit@3": 1.0,
+  "source_hit@3": 1.0,
+  "chunk_hit@3": 0.8888888888888888,
   "out_of_scope_refuse_accuracy": 1.0,
-  "out_of_scope_sources_empty_rate": 0.0,
-  "avg_latency_ms": 5817.53,
-  "p95_latency_ms": 9887.96,
+  "out_of_scope_sources_empty_rate": 1.0,
+  "avg_latency_ms": 4932.3,
+  "p95_latency_ms": 7912.23,
   "failed_questions": []
 }

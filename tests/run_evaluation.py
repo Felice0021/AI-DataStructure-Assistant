@@ -1,685 +1,601 @@
 """
-RAG自动评测脚本
+RAG 自动评测
 
-输入:
+同时评测：
+1. API 端到端问答
+2. RAG 检索质量
+
+输入：
 tests/test_questions.jsonl
 
-输出:
+输出：
 tests/test_results.jsonl
 tests/evaluation_summary.json
 """
 
 import json
-import time
-import requests
-import statistics
 import math
+import statistics
+import time
 from pathlib import Path
 
+import requests
 
-# ==========================
-# 配置
-# ==========================
+from rag.config import (
+    DEFAULT_TOP_K,
+    MIN_RETRIEVAL_SCORE,
+)
+from rag.rag_demo.main import (
+    prepare_knowledge_base,
+    retrieve,
+)
+
 
 API_URL = "http://127.0.0.1:8000/api/v1/ask"
 
 BASE_DIR = Path(__file__).parent
-
 QUESTION_FILE = BASE_DIR / "test_questions.jsonl"
-
 RESULT_FILE = BASE_DIR / "test_results.jsonl"
-
 SUMMARY_FILE = BASE_DIR / "evaluation_summary.json"
 
-TOP_K = 3
+TOP_K = DEFAULT_TOP_K
 
 
-# ==========================
-# 请求接口
-# ==========================
+def load_questions():
+    questions = []
+
+    with QUESTION_FILE.open(
+        "r",
+        encoding="utf-8",
+    ) as f:
+        for line in f:
+            line = line.strip()
+
+            if line:
+                questions.append(
+                    json.loads(line)
+                )
+
+    return questions
+
 
 def call_api(question):
     payload = {
         "question": question,
-        "top_k": TOP_K
+        "top_k": TOP_K,
     }
-    start = time.time()
+
+    start = time.perf_counter()
+
     try:
-        r = requests.post(
+        response = requests.post(
             API_URL,
             json=payload,
-            timeout=60
+            timeout=60,
         )
 
-        latency = (
-            time.time() - start
+        latency_ms = (
+            time.perf_counter() - start
         ) * 1000
 
-        r.raise_for_status()
-        result = r.json()
+        response.raise_for_status()
+
+        result = response.json()
 
         if not result.get("success"):
             return {
                 "answer": "",
                 "sources": [],
-                "error":
-                    result.get("error")
-            }, latency
+                "error": result.get("error"),
+            }, latency_ms
 
-
-        data = result.get(
-            "data",
-            {}
-        )
+        data = result.get("data") or {}
 
         return {
-            "answer":
-                data.get(
-                    "answer",
-                    ""
-                ),
+            "answer": data.get("answer", ""),
+            "sources": data.get("sources", []),
+            "error": None,
+        }, latency_ms
 
-            "sources":
-                data.get(
-                    "sources",
-                    []
-                ),
+    except Exception as exc:
+        latency_ms = (
+            time.perf_counter() - start
+        ) * 1000
 
-            "latency_ms":
-                data.get(
-                    "latency_ms",
-                    latency
-                )
-        }, latency
-
-
-    except Exception as e:
         return {
             "answer": "",
             "sources": [],
-            "error":
-            {
-                "type":
-                    "interface_error",
-                "message":
-                    str(e)
-            }
-
-        }, latency
-
-# ==========================
-# 检索命中判断
-# ==========================
-
-def get_chunk_ids(sources):
-    return [
-        s.get(
-            "chunk_id",
-            ""
-        )
-
-        for s in sources
-
-    ]
+            "error": {
+                "type": "interface_error",
+                "message": str(exc),
+            },
+        }, latency_ms
 
 
-def check_chunk_hit(expected, sources):
-    if not expected:
+def to_list(value):
+    if value is None:
+        return []
+
+    if isinstance(value, list):
+        return value
+
+    return [value]
+
+
+def check_hit(
+    retrieved_chunks,
+    field,
+    expected,
+):
+    expected_values = to_list(expected)
+
+    if not expected_values:
         return False
-
-    retrieved = get_chunk_ids(
-        sources
-    )
 
     return any(
-        x in retrieved
-        for x in expected
+        chunk.get(field) in expected_values
+        for chunk in retrieved_chunks[:TOP_K]
     )
 
 
-def check_chapter_hit(expected, sources):
+def check_chunk_hit(
+    retrieved_chunks,
+    expected_chunk_ids,
+):
+    expected = set(
+        to_list(expected_chunk_ids)
+    )
+
     if not expected:
         return False
 
-    for s in sources[:3]:
-        if s.get("chapter") == expected:
-            return True
+    retrieved = {
+        chunk.get("chunk_id")
+        for chunk in retrieved_chunks[:TOP_K]
+    }
 
-    return False
-
-
-def check_source_hit(expected, sources):
-    if not expected:
-        return False
-
-    for s in sources[:3]:
-
-        if s.get("source_file") == expected:
-
-            return True
-
-    return False
-
-# ==========================
-# 范围外判断
-# ==========================
-
-def check_refused(item, result):
-
-    if not item.get(
-        "is_out_of_scope",
-        False
-    ):
-
-        return False
-
-    answer = result.get(
-        "answer",
-        ""
+    return bool(
+        expected & retrieved
     )
 
-    sources = result.get(
-        "sources",
-        []
-    )
+
+def is_refusal(answer):
+    answer = (answer or "").strip()
 
     refuse_keywords = [
+        "根据当前资料无法确定",
         "无法回答",
         "无法确定",
         "不在知识库",
         "超出范围",
         "没有相关信息",
-        "不知道"
+        "不知道",
     ]
 
-    # 明确拒答
-    if any(
-        k in answer
-        for k in refuse_keywords
-    ):
+    return any(
+        keyword in answer
+        for keyword in refuse_keywords
+    )
 
-        return True
 
-    # 没有来源也认为可能拒答
-    if not sources:
-        return True
-
-    return False
-
-# ==========================
-# 生成质量简单判断
-# ==========================
-
-def check_generation(result):
-    answer = result.get(
-        "answer",
-        ""
-    ).strip()
-
-    if not answer:
-        return False
-
-    return True
-
-# ==========================
-# 错误分类
-# ==========================
-
-def classify_error(item, result):
-    # 接口错误
-
-    if result.get("error"):
+def classify_error(
+    item,
+    api_result,
+    chapter_hit,
+    source_hit,
+):
+    if api_result.get("error"):
         return "接口错误"
 
-    # 范围外问题
+    answer = api_result.get(
+        "answer",
+        "",
+    )
+
+    sources = api_result.get(
+        "sources",
+        [],
+    )
+
+    refused = is_refusal(answer)
 
     if item.get(
         "is_out_of_scope",
-        False
+        False,
     ):
+        if not refused:
+            return "范围外判断错误"
 
-        if result.get(
-            "refused",
-            False
-        ):
-            return None
+        if sources:
+            return "范围外来源未清空"
 
-        return "范围外判断错误"
+        return None
 
-    # 没有检索结果
+    if refused:
+        return "范围内误拒答"
 
-    if not result["sources"]:
-        return "知识库缺失"
+    if not sources:
+        return "来源缺失"
 
-    # 章节错误
-
-    if not result["chapter_hit"]:
-
+    if not chapter_hit:
         return "检索错误"
 
-    # 来源错误
-
-    if not result["source_hit"]:
-
+    if not source_hit:
         return "来源错误"
 
-    # 生成失败
-
-    if not check_generation(result):
-
+    if not answer.strip():
         return "生成错误"
 
     return None
 
-# ==========================
-# 主流程
-# ==========================
+
+def percentile_95(values):
+    if not values:
+        return 0
+
+    values = sorted(values)
+
+    index = (
+        math.ceil(
+            len(values) * 0.95
+        )
+        - 1
+    )
+
+    return values[index]
+
 
 def main():
+    questions = load_questions()
 
-    questions = []
+    print("正在初始化正式知识库用于检索评测...")
+    chunks = prepare_knowledge_base()
 
-    with open(
-        QUESTION_FILE,
-        "r",
-        encoding="utf-8"
-    ) as f:
-
-        for line in f:
-
-            if line.strip():
-
-                questions.append(
-                    json.loads(line)
-                )
-
+    print(
+        f"知识片段数量：{len(chunks)}"
+    )
 
     results = []
-
     latencies = []
 
     for item in questions:
-
+        print()
         print(
-            "测试:",
+            "测试：",
             item["id"],
+            item["question"],
+        )
+
+        # -------------------------
+        # 1. 直接评测检索
+        # -------------------------
+
+        retrieved = retrieve(
+            query=item["question"],
+            chunks=chunks,
+            top_k=TOP_K,
+        )
+
+        retrieval_scores = [
+            round(
+                chunk["score"],
+                6,
+            )
+            for chunk in retrieved
+        ]
+
+        retrieved_chunk_ids = [
+            chunk["chunk_id"]
+            for chunk in retrieved
+        ]
+
+        is_out = item.get(
+            "is_out_of_scope",
+            False,
+        )
+
+        if is_out:
+            chapter_hit = None
+            source_hit = None
+            chunk_hit = None
+
+        else:
+            chapter_hit = check_hit(
+                retrieved,
+                "chapter",
+                item.get(
+                    "expected_chapter"
+                ),
+            )
+
+            source_hit = check_hit(
+                retrieved,
+                "source_file",
+                item.get(
+                    "expected_source"
+                ),
+            )
+
+            chunk_hit = check_chunk_hit(
+                retrieved,
+                item.get(
+                    "expected_chunk_id"
+                ),
+            )
+
+        # -------------------------
+        # 2. API 端到端评测
+        # -------------------------
+
+        api_result, latency_ms = call_api(
             item["question"]
         )
 
-        api_result, latency = call_api(
-
-            item["question"]
-
+        answer = api_result.get(
+            "answer",
+            "",
         )
 
         sources = api_result.get(
-
             "sources",
-            []
+            [],
+        )
 
+        refused = is_refusal(
+            answer
+        )
+
+        error_type = classify_error(
+            item,
+            api_result,
+            chapter_hit,
+            source_hit,
         )
 
         result = {
+            "id": item["id"],
+            "question": item["question"],
+            "type": item.get("type"),
+            "is_out_of_scope": is_out,
 
-
-            "id":
-                item["id"],
-
-
-            "question":
-
-                item["question"],
-
-
-            "is_out_of_scope":
-
-                item.get(
-                    "is_out_of_scope",
-                    False
-                ),
-
-            "answer":
-
-                api_result.get(
-                    "answer",
-                    ""
-                ),
-
-            "sources":
-
-                sources,
-
+            "answer": answer,
+            "sources": sources,
 
             "retrieved_chunk_ids":
-
-                get_chunk_ids(
-                    sources
-                ),
-
-
-            # 当前接口没有返回score
+                retrieved_chunk_ids,
 
             "retrieval_scores":
+                retrieval_scores,
 
-                [],
+            "top1_score": (
+                retrieval_scores[0]
+                if retrieval_scores
+                else None
+            ),
 
-            "chapter_hit":
+            "chapter_hit": chapter_hit,
+            "source_hit": source_hit,
+            "chunk_hit": chunk_hit,
 
-                check_chapter_hit(
+            "refused": refused,
 
-                    item.get(
-                        "expected_chapter"
-                    ),
-
-                    sources
-
-                ),
-
-            "source_hit":
-
-                check_source_hit(
-
-                    item.get(
-                        "expected_source"
-                    ),
-
-                    sources
-
-                ),
-
-            "refused":
-
-                check_refused(
-
-                    item,
-
-                    api_result
-
-                ),
-
-            "latency_ms":
-
-                round(
-                    latency,
-                    2
-                ),
+            "latency_ms": round(
+                latency_ms,
+                2,
+            ),
 
             "error":
-
-                api_result.get(
-                    "error"
-                )
-
-        }
-
-        result["error_type"] = classify_error(
-
-            item,
-
-            result
-
-        )
-
-        results.append(result)
-
-
-        latencies.append(
-            latency
-        )
-
-    # ======================
-    # 保存详细结果
-    # ======================
-
-    with open(
-
-        RESULT_FILE,
-
-        "w",
-
-        encoding="utf-8"
-
-    ) as f:
-
-
-        for r in results:
-
-
-            f.write(
-
-                json.dumps(
-
-                    r,
-
-                    ensure_ascii=False
-
-                )
-
-                + "\n"
-
-            )
-
-    # ======================
-    # 汇总
-    # ======================
-    total = len(results)
-
-    success = sum(
-        1
-
-        for r in results
-
-        if r["error"] is None
-
-    )
-
-
-    chapter_hit = sum(
-
-        r["chapter_hit"]
-
-        for r in results
-
-    )
-
-
-    source_hit = sum(
-
-        r["source_hit"]
-
-        for r in results
-
-    )
-
-
-    out_scope = [
-
-        r
-
-        for r in results
-
-        if r["is_out_of_scope"]
-
-    ]
-
-
-    refused_correct = sum(
-
-        1
-
-        for r in out_scope
-
-        if r["refused"]
-
-    )
-
-
-    failed = [
-
-        {
-
-            "id":
-                r["id"],
-
-            "question":
-                r["question"],
+                api_result.get("error"),
 
             "error_type":
-                r["error_type"]
-
+                error_type,
         }
 
-        for r in results
+        results.append(result)
+        latencies.append(latency_ms)
 
-        if r["error_type"]
+        print(
+            "scores:",
+            retrieval_scores,
+        )
 
-    ]
+        print(
+            "sources:",
+            len(sources),
+        )
 
+        print(
+            "refused:",
+            refused,
+        )
 
-    sorted_latency = sorted(
-        latencies
-    )
+        print(
+            "error_type:",
+            error_type,
+        )
 
-    summary = {
+    # -------------------------
+    # 保存详细结果
+    # -------------------------
 
-        "total":
-
-            total,
-
-        "request_success_rate":
-
-            success / total
-            if total
-            else 0,
-
-
-        "chapter_hit@3":
-
-            chapter_hit / total
-            if total
-            else 0,
-
-
-        "source_hit@3":
-
-            source_hit / total
-            if total
-            else 0,
-
-
-        "out_of_scope_refuse_accuracy":
-
-            refused_correct /
-            len(out_scope)
-
-            if out_scope
-
-            else 0,
-
-
-        "out_of_scope_sources_empty_rate":
-
-            sum(
-
-                1
-
-                for r in out_scope
-
-                if len(r["sources"]) == 0
-
+    with RESULT_FILE.open(
+        "w",
+        encoding="utf-8",
+    ) as f:
+        for result in results:
+            f.write(
+                json.dumps(
+                    result,
+                    ensure_ascii=False,
+                )
+                + "\n"
             )
 
-            /
+    # -------------------------
+    # 汇总
+    # -------------------------
 
-            len(out_scope)
+    in_scope = [
+        r
+        for r in results
+        if not r["is_out_of_scope"]
+    ]
 
+    out_scope = [
+        r
+        for r in results
+        if r["is_out_of_scope"]
+    ]
+
+    successful = [
+        r
+        for r in results
+        if r["error"] is None
+    ]
+
+    failed_questions = [
+        {
+            "id": r["id"],
+            "question": r["question"],
+            "error_type":
+                r["error_type"],
+        }
+        for r in results
+        if r["error_type"]
+    ]
+
+    summary = {
+        "total":
+            len(results),
+
+        "in_scope_total":
+            len(in_scope),
+
+        "out_of_scope_total":
+            len(out_scope),
+
+        "knowledge_chunk_count":
+            len(chunks),
+
+        "top_k":
+            TOP_K,
+
+        "min_retrieval_score":
+            MIN_RETRIEVAL_SCORE,
+
+        "request_success_rate": (
+            len(successful) /
+            len(results)
+            if results
+            else 0
+        ),
+
+        # 只对范围内问题计算
+        "chapter_hit@3": (
+            sum(
+                1
+                for r in in_scope
+                if r["chapter_hit"]
+            )
+            / len(in_scope)
+            if in_scope
+            else 0
+        ),
+
+        "source_hit@3": (
+            sum(
+                1
+                for r in in_scope
+                if r["source_hit"]
+            )
+            / len(in_scope)
+            if in_scope
+            else 0
+        ),
+
+        "chunk_hit@3": (
+            sum(
+                1
+                for r in in_scope
+                if r["chunk_hit"]
+            )
+            / len(in_scope)
+            if in_scope
+            else 0
+        ),
+
+        "out_of_scope_refuse_accuracy": (
+            sum(
+                1
+                for r in out_scope
+                if r["refused"]
+            )
+            / len(out_scope)
             if out_scope
+            else 0
+        ),
 
-            else 0,
+        "out_of_scope_sources_empty_rate": (
+            sum(
+                1
+                for r in out_scope
+                if not r["sources"]
+            )
+            / len(out_scope)
+            if out_scope
+            else 0
+        ),
 
-
-        "avg_latency_ms":
-
+        "avg_latency_ms": (
             round(
-
                 statistics.mean(
                     latencies
                 ),
-
-                2
-
+                2,
             )
-
             if latencies
+            else 0
+        ),
 
-            else 0,
-
-
-        "p95_latency_ms":
-
+        "p95_latency_ms": (
             round(
-
-                sorted_latency[
-                    math.ceil(
-                        len(sorted_latency)
-                        * 0.95
-                    )
-                    - 1
-                ],
-
-                2
-
+                percentile_95(
+                    latencies
+                ),
+                2,
             )
-
-            if sorted_latency
-
-            else 0,
+            if latencies
+            else 0
+        ),
 
         "failed_questions":
-
-            failed
-
+            failed_questions,
     }
 
-
-    with open(
-
-        SUMMARY_FILE,
-
+    with SUMMARY_FILE.open(
         "w",
-
-        encoding="utf-8"
-
+        encoding="utf-8",
     ) as f:
-
         json.dump(
-
             summary,
-
             f,
-
             ensure_ascii=False,
-
-            indent=2
-
+            indent=2,
         )
 
-    print("\n评测完成")
+    print()
+    print("=" * 70)
+    print("评测完成")
+    print("=" * 70)
 
     print(
-
         json.dumps(
-
             summary,
-
             ensure_ascii=False,
-
-            indent=2
-
+            indent=2,
         )
-
     )
 
-if __name__ == "__main__":
 
+if __name__ == "__main__":
     main()

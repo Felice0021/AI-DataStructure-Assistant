@@ -1,0 +1,336 @@
+{
+  "summary": {
+    "in_scope_count": 18,
+    "out_of_scope_count": 2,
+    "in_scope_top1_min": 0.777295,
+    "in_scope_top1_max": 0.941849,
+    "in_scope_top1_mean": 0.8670411666666666,
+    "out_of_scope_top1_min": 0.435564,
+    "out_of_scope_top1_max": 0.455821,
+    "out_of_scope_top1_mean": 0.4456925,
+    "separable": true,
+    "candidate_threshold": 0.6165579999999999
+  },
+  "records": [
+    {
+      "id": "q001",
+      "question": "什么是循环单链表？它相比普通单链表有什么核心特点？",
+      "is_out_of_scope": false,
+      "scores": [
+        0.901235,
+        0.724922,
+        0.683272
+      ],
+      "top1_score": 0.901235,
+      "retrieved_chunk_ids": [
+        "ds_ch02_0020",
+        "ds_ch02_0025",
+        "ds_ch02_0003"
+      ]
+    },
+    {
+      "id": "q002",
+      "question": "双向链表为什么能够支持从某个结点快速访问其前驱结点？",
+      "is_out_of_scope": false,
+      "scores": [
+        0.899409,
+        0.688299,
+        0.624759
+      ],
+      "top1_score": 0.899409,
+      "retrieved_chunk_ids": [
+        "ds_ch02_0021",
+        "ds_ch02_0041",
+        "ds_ch02_0033"
+      ]
+    },
+    {
+      "id": "q003",
+      "question": "什么是静态链表？它主要适用于哪些场景？",
+      "is_out_of_scope": false,
+      "scores": [
+        0.896998,
+        0.861169,
+        0.733513
+      ],
+      "top1_score": 0.896998,
+      "retrieved_chunk_ids": [
+        "ds_ch02_0022",
+        "ds_ch02_0053",
+        "ds_ch02_0047"
+      ]
+    },
+    {
+      "id": "q004",
+      "question": "链表中的头结点有什么作用？为什么很多链表实现会引入头结点？",
+      "is_out_of_scope": false,
+      "scores": [
+        0.907449,
+        0.693034,
+        0.61584
+      ],
+      "top1_score": 0.907449,
+      "retrieved_chunk_ids": [
+        "ds_ch02_0017",
+        "ds_ch02_0039",
+        "ds_ch02_0003"
+      ]
+    },
+    {
+      "id": "q005",
+      "question": "什么是线性表的顺序存储结构？它有什么基本特点？",
+      "is_out_of_scope": false,
+      "scores": [
+        0.819305,
+        0.740774,
+        0.726034
+      ],
+      "top1_score": 0.819305,
+      "retrieved_chunk_ids": [
+        "ds_ch02_0002",
+        "ds_ch02_0001",
+        "ds_ch02_0016"
+      ]
+    },
+    {
+      "id": "q006",
+      "question": "顺序表和单链表在存储密度方面有什么区别？",
+      "is_out_of_scope": false,
+      "scores": [
+        0.864597,
+        0.856607,
+        0.689173
+      ],
+      "top1_score": 0.864597,
+      "retrieved_chunk_ids": [
+        "ds_ch02_0052",
+        "ds_ch02_0023",
+        "ds_ch02_0002"
+      ]
+    },
+    {
+      "id": "q007",
+      "question": "顺序表和单链表分别适合什么类型的数据访问场景？",
+      "is_out_of_scope": false,
+      "scores": [
+        0.802245,
+        0.719057,
+        0.715608
+      ],
+      "top1_score": 0.802245,
+      "retrieved_chunk_ids": [
+        "ds_ch02_0054",
+        "ds_ch02_0019",
+        "ds_ch02_0002"
+      ]
+    },
+    {
+      "id": "q008",
+      "question": "为什么顺序表支持随机访问，而单链表不支持？",
+      "is_out_of_scope": false,
+      "scores": [
+        0.791261,
+        0.767704,
+        0.764732
+      ],
+      "top1_score": 0.791261,
+      "retrieved_chunk_ids": [
+        "ds_ch02_0018",
+        "ds_ch02_0002",
+        "ds_ch02_0054"
+      ]
+    },
+    {
+      "id": "q009",
+      "question": "长度为n的顺序表在任意合法位置插入一个元素，平均需要移动多少个元素？为什么？",
+      "is_out_of_scope": false,
+      "scores": [
+        0.941849,
+        0.903637,
+        0.796749
+      ],
+      "top1_score": 0.941849,
+      "retrieved_chunk_ids": [
+        "ds_ch02_0048",
+        "ds_ch02_0028",
+        "ds_ch02_0029"
+      ]
+    },
+    {
+      "id": "q010",
+      "question": "单链表按值查找的时间复杂度是多少？为什么？",
+      "is_out_of_scope": false,
+      "scores": [
+        0.815672,
+        0.787081,
+        0.733263
+      ],
+      "top1_score": 0.815672,
+      "retrieved_chunk_ids": [
+        "ds_ch02_0037",
+        "ds_ch02_0049",
+        "ds_ch02_0019"
+      ]
+    },
+    {
+      "id": "q011",
+      "question": "在双向链表中已知某结点位置，访问其前驱结点的时间复杂度是多少？",
+      "is_out_of_scope": false,
+      "scores": [
+        0.902763,
+        0.630871,
+        0.597879
+      ],
+      "top1_score": 0.902763,
+      "retrieved_chunk_ids": [
+        "ds_ch02_0021",
+        "ds_ch02_0041",
+        "ds_ch02_0049"
+      ]
+    },
+    {
+      "id": "q012",
+      "question": "单链表头插法建立链表的基本过程是什么？生成链表后的元素顺序有什么特点？",
+      "is_out_of_scope": false,
+      "scores": [
+        0.916801,
+        0.773452,
+        0.753644
+      ],
+      "top1_score": 0.916801,
+      "retrieved_chunk_ids": [
+        "ds_ch02_0030",
+        "ds_ch02_0039",
+        "ds_ch02_0032"
+      ]
+    },
+    {
+      "id": "q013",
+      "question": "单链表尾插法建立链表时为什么需要维护尾指针？",
+      "is_out_of_scope": false,
+      "scores": [
+        0.822256,
+        0.729314,
+        0.643071
+      ],
+      "top1_score": 0.822256,
+      "retrieved_chunk_ids": [
+        "ds_ch02_0031",
+        "ds_ch02_0025",
+        "ds_ch02_0051"
+      ]
+    },
+    {
+      "id": "q014",
+      "question": "两个有序顺序表合并的基本思想是什么？时间复杂度是多少？",
+      "is_out_of_scope": false,
+      "scores": [
+        0.904676,
+        0.781052,
+        0.646068
+      ],
+      "top1_score": 0.904676,
+      "retrieved_chunk_ids": [
+        "ds_ch02_0034",
+        "ds_ch02_0045",
+        "ds_ch02_0028"
+      ]
+    },
+    {
+      "id": "q015",
+      "question": "单链表反转算法的基本思想是什么？空间复杂度是多少？",
+      "is_out_of_scope": false,
+      "scores": [
+        0.873765,
+        0.784281,
+        0.744253
+      ],
+      "top1_score": 0.873765,
+      "retrieved_chunk_ids": [
+        "ds_ch02_0032",
+        "ds_ex_0003",
+        "ds_ch02_0040"
+      ]
+    },
+    {
+      "id": "q016",
+      "question": "顺序表按值查找函数LocateElem的实现思路是什么？",
+      "is_out_of_scope": false,
+      "scores": [
+        0.881943,
+        0.696832,
+        0.579817
+      ],
+      "top1_score": 0.881943,
+      "retrieved_chunk_ids": [
+        "ds_ch02_0038",
+        "ds_ch02_0037",
+        "ds_ch02_0002"
+      ]
+    },
+    {
+      "id": "q017",
+      "question": "如何通过代码计算单链表的长度？",
+      "is_out_of_scope": false,
+      "scores": [
+        0.777295,
+        0.556194,
+        0.552439
+      ],
+      "top1_score": 0.777295,
+      "retrieved_chunk_ids": [
+        "ds_ch02_0043",
+        "ds_ch02_0037",
+        "ds_ch02_0019"
+      ]
+    },
+    {
+      "id": "q018",
+      "question": "如何判断带头结点的循环单链表是否为空？",
+      "is_out_of_scope": false,
+      "scores": [
+        0.887222,
+        0.796113,
+        0.715017
+      ],
+      "top1_score": 0.887222,
+      "retrieved_chunk_ids": [
+        "ds_ch02_0042",
+        "ds_ch02_0055",
+        "ds_ch02_0035"
+      ]
+    },
+    {
+      "id": "q019",
+      "question": "哈希表的基本原理是什么？如何解决哈希冲突？",
+      "is_out_of_scope": true,
+      "scores": [
+        0.455821,
+        0.424448,
+        0.423466
+      ],
+      "top1_score": 0.455821,
+      "retrieved_chunk_ids": [
+        "ds_ch02_0027",
+        "ds_ch02_0017",
+        "ds_ch02_0001"
+      ]
+    },
+    {
+      "id": "q020",
+      "question": "这门数据结构课程的授课教师是谁？",
+      "is_out_of_scope": true,
+      "scores": [
+        0.435564,
+        0.432463,
+        0.432177
+      ],
+      "top1_score": 0.435564,
+      "retrieved_chunk_ids": [
+        "ds_ch02_0023",
+        "ds_ch02_0041",
+        "ds_ch02_0024"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+openai
+dashscope
+numpy
+python-dotenv
+jieba==0.42.1

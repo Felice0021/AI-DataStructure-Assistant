@@ -112,9 +112,7 @@ AI-DataStructure-Assistant/
 │   └── js/
 │
 ├── knowledge_base/
-│   ├── ds_chunks.jsonl
-│   ├── ds_demo_chunks_v2.jsonl
-│   └── ds_demo_chunks_v50.jsonl
+│   └── ds_chunks.jsonl
 │
 ├── rag/
 │   ├── config.py
@@ -142,7 +140,7 @@ AI-DataStructure-Assistant/
 knowledge_base/ds_chunks.jsonl
 ```
 
-其余 `ds_demo_*` 文件主要保留用于早期 Demo 或阶段性实验。
+当前仓库仅保留正式知识库 `ds_chunks.jsonl`，旧版 Demo 知识库文件已移除。
 
 ---
 
@@ -189,6 +187,23 @@ knowledge_base/ds_chunks.jsonl
 因此，例如某个知识点虽然属于数据结构课程，但如果当前正式知识库中尚未包含对应资料，系统仍应将其视为当前知识库范围外问题。
 
 ---
+
+
+### 知识库质量校验
+
+项目提供 `knowledge_base/validate_chunks.py` 用于检查正式知识库 `knowledge_base/ds_chunks.jsonl` 的数据质量。
+
+脚本会检查 JSONL 格式、7 字段 Schema、字段类型、重复 chunk_id、重复正文、空文本、page 合法性、source_file 路径污染、metadata 完整性和 content_type，并统计章节、来源及文本长度分布。
+
+直接运行：`python3 knowledge_base/validate_chunks.py`
+
+严格模式：`python3 knowledge_base/validate_chunks.py --fail-on-warning`
+
+生成 JSON 报告：`python3 knowledge_base/validate_chunks.py knowledge_base/ds_chunks.jsonl --report knowledge_base/validation_report.json`
+
+当前正式知识库共 55 个 Chunk，最近一次校验结果为 ERROR=0、WARNING=0、PASS。机器可读结果保存在 `knowledge_base/validation_report.json`。
+
+知识库更新后，应先通过该脚本校验，再提交新的数据。
 
 ## 五、RAG 检索模块
 

@@ -13,7 +13,7 @@ async def health_check() -> HealthResponse:
     """健康检查"""
     rag_ready = RAGService.is_ready()
 
-    # 如果 RAG 未就绪，状态为 degraded，否则为 healthy
+    # rag_ready=false 时返回 degraded
     status = "degraded" if not rag_ready else "healthy"
 
     return HealthResponse(

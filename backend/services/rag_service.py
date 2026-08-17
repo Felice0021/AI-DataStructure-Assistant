@@ -1,5 +1,5 @@
 """
-RAG问答服务
+RAG问答服务 - 调用重构后的 rag 模块
 """
 import time
 import asyncio
@@ -17,16 +17,21 @@ settings = get_settings()
 project_root = Path(__file__).parent.parent.parent
 logger.info(f"项目根目录: {project_root}")
 
-# 导入RAG模块
+# 导入重构后的 RAG 模块
 try:
-    from rag.rag_demo import main as rag_main
-    prepare_knowledge_base = rag_main.prepare_knowledge_base
-    answer_question = rag_main.answer_question
+    from rag.main import prepare_knowledge_base, answer_question
     RAG_AVAILABLE = True
-    logger.info(f"RAG模块导入成功，文件路径: {rag_main.__file__}")
+    logger.info("RAG模块导入成功")
 except ImportError as e:
     RAG_AVAILABLE = False
     logger.error(f"RAG模块导入失败: {e}")
+
+# 也尝试导入 rag 模块本身来打印路径
+try:
+    import rag
+    logger.info(f"rag 包路径: {rag.__file__}")
+except ImportError:
+    pass
 
 
 class RAGService:
@@ -38,7 +43,7 @@ class RAGService:
 
     @classmethod
     async def initialize(cls):
-        """初始化RAG服务"""
+        """初始化RAG服务（只执行一次）"""
         if cls._is_initialized:
             return True
 
@@ -49,7 +54,12 @@ class RAGService:
         try:
             logger.info("开始加载知识库...")
 
-            cls._chunks = prepare_knowledge_base()
+            # 使用重构后的 prepare_knowledge_base
+            # 支持缓存：第二次启动直接读取缓存，不请求 embedding API
+            cls._chunks = prepare_knowledge_base(
+                file_path=Path(settings.knowledge_file),
+                use_cache=settings.rag_use_cache
+            )
 
             cls._chunk_count = len(cls._chunks) if cls._chunks else 0
             cls._is_initialized = True
@@ -74,17 +84,21 @@ class RAGService:
         return cls._chunk_count
 
     @classmethod
-    async def answer(cls, question: str, top_k: int = 3) -> AskResponse:
+    async def answer(cls, question: str, top_k: int = None) -> AskResponse:
         """问答接口"""
         request_id = str(uuid.uuid4())[:8]
         start_time = time.time()
+
+        # 使用配置的默认值
+        if top_k is None:
+            top_k = settings.rag_top_k
 
         # 检查RAG是否可用
         if not RAG_AVAILABLE:
             return AskResponse.fail(
                 request_id=request_id,
                 code="RAG_UNAVAILABLE",
-                message="RAG模块未正确导入，请检查 rag/rag_demo/main.py 是否存在"
+                message="RAG模块未正确导入，请检查 rag/main.py 是否存在"
             )
 
         # 检查是否已初始化
@@ -95,12 +109,13 @@ class RAGService:
                 return AskResponse.fail(
                     request_id=request_id,
                     code="RAG_INIT_FAILED",
-                    message="知识库加载失败，请检查 knowledge_base/ds_demo_chunks_v2.jsonl 是否存在"
+                    message=f"知识库加载失败，请检查 {settings.knowledge_file} 是否存在"
                 )
 
         try:
             logger.info(f"问答请求 [{request_id}]: {question[:30]}...")
 
+            # 调用重构后的 answer_question
             loop = asyncio.get_event_loop()
             result = await loop.run_in_executor(
                 None,

@@ -8,7 +8,11 @@ class Settings(BaseSettings):
     version: str = "1.0.0"
 
     # 知识库配置
-    knowledge_file: str = "knowledge_base/ds_demo_chunks_v2.jsonl"
+    knowledge_file: str = "knowledge_base/ds_chunks.jsonl"
+
+    # RAG 配置
+    rag_top_k: int = 3
+    rag_use_cache: bool = True
 
     class Config:
         extra = "ignore"

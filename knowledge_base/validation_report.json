@@ -1,45 +1,43 @@
 {
-  "input_file": "knowledge_base/ds_chunks.jsonl",
+  "input_file": "D:\\git-demo\\git02\\AI-DataStructure-Assistant\\knowledge_base\\ds_chunks.jsonl",
   "statistics": {
-    "chunk_count": 465,
+    "chunk_count": 463,
     "error_count": 0,
     "warning_count": 0,
     "valid": true,
-    "unique_chapter_count": 11,
-    "unique_source_count": 9,
-    "average_text_length": 75.54,
-    "median_text_length": 50,
+    "unique_chapter_count": 10,
+    "unique_source_count": 8,
+    "average_text_length": 75.52,
+    "median_text_length": 51,
     "min_text_length": 17,
     "max_text_length": 656,
     "chapter_distribution": {
       "第一章 绪论": 10,
       "第七章 图": 51,
       "第三章 栈和队列": 53,
-      "第九章 排序": 50,
+      "第九章 查找": 50,
       "第二章 线性表": 46,
       "第五章 数组和广义表": 50,
-      "第八章 查找": 50,
       "第六章 树和二叉树": 53,
-      "第十章 内部排序": 2,
-      "第十章 外部排序": 50,
+      "第十一章 外部排序": 50,
+      "第十章 内部排序": 50,
       "第四章 串": 50
     },
     "content_type_distribution": {
-      "algorithm": 116,
+      "algorithm": 110,
       "code": 71,
-      "concept": 185,
-      "exercise": 93
+      "concept": 187,
+      "exercise": 95
     },
     "source_distribution": {
-      "数据结构（C语言版）严蔚敏.pdf": 455,
+      "数据结构（C语言版）严蔚敏.pdf": 454,
       "数据结构实验代码示例集.docx": 2,
       "数据结构课后习题集.pdf": 2,
       "数据结构实验指导书.pdf": 1,
       "数据结构章节练习题.docx": 1,
       "第三章 栈和队列课件.pptx": 1,
       "第二章 线性表课件.pptx": 1,
-      "第六章 树和二叉树课件.pptx": 1,
-      "第十章 内部排序课件.pptx": 1
+      "第六章 树和二叉树课件.pptx": 1
     }
   },
   "issues": []

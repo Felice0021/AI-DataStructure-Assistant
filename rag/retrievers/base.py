@@ -1,30 +1,33 @@
-"""
-统一Retriever接口
-"""
+"""Common retrieval interface used by all experiment baselines."""
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any
+from typing import Any, Dict, List, Sequence
 
 
 class BaseRetriever(ABC):
-    """所有Retriever的基类"""
+    """Base class for retrievers used by the RAG system and experiments."""
+
+    def prepare(self, chunks: Sequence[Dict], **kwargs: Any) -> None:
+        """Optionally build/load an index before retrieval.
+
+        Stateless retrievers may keep the default no-op implementation.
+        """
 
     @abstractmethod
     def retrieve(
-            self,
-            query: str,
-            chunks: List[Dict],
-            top_k: int = 3
+        self,
+        query: str,
+        chunks: Sequence[Dict],
+        top_k: int = 3,
     ) -> List[Dict]:
-        """
-        检索最相关的top_k个片段
-
-        Returns:
-            每个结果包含: chunk_id, text, chapter, section,
-            source_file, page, content_type, score
-        """
-        pass
+        """Return ranked chunks with a numeric ``score`` field."""
+        raise NotImplementedError
 
     @abstractmethod
     def get_name(self) -> str:
-        """返回检索器名称"""
-        pass
+        """Return a stable retriever identifier used in experiment configs."""
+        raise NotImplementedError
+
+    def get_config(self) -> Dict[str, Any]:
+        return {"retriever": self.get_name()}

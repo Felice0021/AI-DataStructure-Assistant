@@ -3,7 +3,7 @@ import statistics
 from pathlib import Path
 
 from rag.config import DEFAULT_TOP_K
-from rag.rag_demo.main import (
+from rag.main import (
     prepare_knowledge_base,
     retrieve,
 )

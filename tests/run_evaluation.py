@@ -25,7 +25,7 @@ from rag.config import (
     DEFAULT_TOP_K,
     MIN_RETRIEVAL_SCORE,
 )
-from rag.rag_demo.main import (
+from rag.main import (
     prepare_knowledge_base,
     retrieve,
 )

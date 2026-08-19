@@ -1,5 +1,9 @@
 """Retrieval-only evaluation for the BM25 baseline.
 
+**DEPRECATED**: 已由 tests/run_retrieval_eval.py 取代，
+请改用 `python tests/run_retrieval_eval.py --retriever bm25`。
+本文件仅保留以兼容历史调用，不再维护。
+
 Run from the project root:
     PYTHONPATH=. python3 tests/run_bm25_evaluation.py
 

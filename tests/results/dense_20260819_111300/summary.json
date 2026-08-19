@@ -1,0 +1,33 @@
+{
+  "experiment": {
+    "retriever": "dense",
+    "top_k": 3,
+    "retrieval_depth": 5,
+    "dataset": "tests\\test_questions.jsonl",
+    "knowledge_base": "knowledge_base\\ds_chunks.jsonl",
+    "knowledge_chunk_count": 463,
+    "params": {
+      "retriever": "dense",
+      "embedding_model": "qwen3.7-text-embedding",
+      "embedding_dimension": 1024,
+      "batch_size": 10
+    },
+    "timestamp": "20260819_111300"
+  },
+  "metrics": {
+    "recall@1": 0.8333,
+    "recall@3": 1.0,
+    "recall@5": 1.0,
+    "mrr@3": 0.9444,
+    "mrr@5": 0.9444,
+    "ndcg@3": 0.959,
+    "ndcg@5": 0.959,
+    "avg_retrieval_latency_ms": 192.682,
+    "p95_retrieval_latency_ms": 203.689,
+    "index_build_latency_ms": 0.011
+  },
+  "failures": [],
+  "total": 20,
+  "in_scope_total": 18,
+  "out_of_scope_total": 2
+}

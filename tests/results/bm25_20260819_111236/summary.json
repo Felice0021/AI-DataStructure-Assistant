@@ -1,0 +1,64 @@
+{
+  "experiment": {
+    "retriever": "bm25",
+    "top_k": 3,
+    "retrieval_depth": 5,
+    "dataset": "tests\\test_questions.jsonl",
+    "knowledge_base": "knowledge_base\\ds_chunks.jsonl",
+    "knowledge_chunk_count": 463,
+    "params": {
+      "retriever": "bm25",
+      "tokenizer": "jieba_tokenize",
+      "k1": 1.5,
+      "b": 0.75
+    },
+    "timestamp": "20260819_111236"
+  },
+  "metrics": {
+    "recall@1": 0.6667,
+    "recall@3": 0.7778,
+    "recall@5": 0.8889,
+    "mrr@3": 0.75,
+    "mrr@5": 0.775,
+    "ndcg@3": 0.7528,
+    "ndcg@5": 0.7982,
+    "avg_retrieval_latency_ms": 2.032,
+    "p95_retrieval_latency_ms": 2.973,
+    "index_build_latency_ms": 1271.423
+  },
+  "failures": [
+    {
+      "id": "q005",
+      "question": "什么是线性表的顺序存储结构？它有什么基本特点？",
+      "expected_chunk_ids": [
+        "ds_ch02_0002"
+      ],
+      "top5_chunk_ids": [
+        "ds_ch01_0004",
+        "ds_ch06_0042",
+        "ds_ch03_0040",
+        "ds_ch02_0005",
+        "ds_ch07_0045"
+      ],
+      "recall@5": 0.0
+    },
+    {
+      "id": "q017",
+      "question": "如何通过代码计算单链表的长度？",
+      "expected_chunk_ids": [
+        "ds_ch02_0032"
+      ],
+      "top5_chunk_ids": [
+        "ds_ch09_0038",
+        "ds_ch02_0007",
+        "ds_ch02_0014",
+        "ds_ch02_0016",
+        "ds_ch02_0003"
+      ],
+      "recall@5": 0.0
+    }
+  ],
+  "total": 20,
+  "in_scope_total": 18,
+  "out_of_scope_total": 2
+}

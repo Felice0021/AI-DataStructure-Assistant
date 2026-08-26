@@ -4,3 +4,13 @@ __pycache__/
 .venv/
 .env
 .cache/
+
+# IDE
+.idea/
+
+# Runtime logs
+backend/logs/
+*.log
+
+# Local experiment outputs
+tests/results/

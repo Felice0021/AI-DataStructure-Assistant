@@ -19,10 +19,8 @@ from rag.generators.qwen_generator import QwenGenerator
 from rag.retrievers import BM25Retriever, DenseRetriever, load_chunks_from_jsonl
 
 
-# Prefer a project-root .env. Keep the old demo location as a temporary
-# fallback so the directory migration does not break existing local setups.
+# Load project-level environment variables.
 load_dotenv(PROJECT_ROOT / ".env", override=False)
-load_dotenv(Path(__file__).resolve().parent / "rag_demo" / ".env", override=False)
 if os.getenv("DASHSCOPE_API_KEY"):
     dashscope.api_key = os.getenv("DASHSCOPE_API_KEY")
 

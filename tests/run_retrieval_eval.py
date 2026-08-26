@@ -41,9 +41,8 @@ def _load_env_file(path: Path) -> None:
         os.environ.setdefault(key.strip(), value.strip().strip('"\''))
 
 
-# 与 rag/main.py 的加载顺序保持一致：项目根 .env 优先，其次 rag_demo/.env
+# 与 rag/main.py 保持一致：只读取项目根目录 .env
 _load_env_file(PROJECT_ROOT / ".env")
-_load_env_file(PROJECT_ROOT / "rag" / "rag_demo" / ".env")
 
 from rag.config import DEFAULT_TOP_K, KNOWLEDGE_BASE_PATH  # noqa: E402
 from rag.retrievers import (  # noqa: E402
@@ -61,7 +60,7 @@ from tests.metrics import (  # noqa: E402
 )
 
 
-DEFAULT_QUESTION_FILE = PROJECT_ROOT / "tests" / "test_questions.jsonl"
+DEFAULT_QUESTION_FILE = PROJECT_ROOT / "tests" / "test_questions_50.jsonl"
 DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "tests" / "results"
 
 # 指标切点固定为 1/3/5；检索深度取 max(top_k, 5) 保证 @5 可算
@@ -102,12 +101,12 @@ def load_jsonl(path: Path) -> List[Dict]:
     return records
 
 
-def build_retriever(name: str, knowledge_file: Path, args: argparse.Namespace):
-    """按名称构建检索器；新增 Hybrid 只在这里加一个分支。"""
+def build_retriever(name: str, args: argparse.Namespace):
+    """按名称构建检索器；索引统一在 prepare(chunks) 中建立。"""
     if name == "dense":
         return DenseRetriever()
     if name == "bm25":
-        return BM25Retriever.from_jsonl(knowledge_file, k1=args.k1, b=args.b)
+        return BM25Retriever(k1=args.k1, b=args.b)
     raise ValueError(f"未知 retriever：{name}")
 
 
@@ -126,13 +125,18 @@ def main() -> None:
 
     questions = load_jsonl(args.question_file)
 
-    # ---------- 构建检索器 + 加载知识库（含索引构建计时） ----------
-    build_start = time.perf_counter()
-    retriever = build_retriever(args.retriever, args.knowledge_file, args)
-    index_build_ms = (time.perf_counter() - build_start) * 1000
-
+    # ---------- 加载知识库 ----------
+    # JSONL 文件读取不计入 index_build_latency_ms。
     chunks = load_chunks_from_jsonl(args.knowledge_file)
+
+    # ---------- 统一索引构建计时 ----------
+    # Dense 与 BM25 都只统计 prepare(chunks)：
+    # Dense: 加载/生成 document embedding cache；
+    # BM25: 分词、统计词频并建立 BM25 index。
+    retriever = build_retriever(args.retriever, args)
+    build_start = time.perf_counter()
     retriever.prepare(chunks)
+    index_build_ms = (time.perf_counter() - build_start) * 1000
 
     # ---------- 逐题检索与指标 ----------
     retrieval_depth = max(args.top_k, MIN_RETRIEVAL_DEPTH)

@@ -20,7 +20,7 @@
 
 {"id": "q011", "question": "栈和队列的主要区别是什么？", "type": "comparison", "reference_answer": "栈是后进先出（LIFO），仅允许在栈顶进行插入删除操作；队列是先进先出（FIFO），插入在队尾进行、删除在队头进行；二者都是操作受限的线性表。", "expected_chapter": "第三章 栈和队列", "expected_source": "数据结构（C语言版）严蔚敏.pdf", "expected_chunk_id": ["ds_ch03_0001", "ds_ch03_0007", "ds_ch03_0040"], "is_out_of_scope": false}
 
-{"id": "q012", "question": "顺序队列为什么会出现"假溢出"现象？如何解决？", "type": "concept", "reference_answer": "假溢出指队尾指针已到达数组末尾，但队首前方仍有空闲位置，造成看似队满实际有空间的错觉；解决方法是使用循环队列，将数组首尾逻辑相连。", "expected_chapter": "第三章 栈和队列", "expected_source": "数据结构（C语言版）严蔚敏.pdf", "expected_chunk_id": ["ds_ch03_0008", "ds_ch03_0046"], "is_out_of_scope": false}
+{"id": "q012", "question": "顺序队列为什么会出现“假溢出”现象？如何解决？", "type": "concept", "reference_answer": "假溢出指队尾指针已到达数组末尾，但队首前方仍有空闲位置，造成看似队满实际有空间的错觉；解决方法是使用循环队列，将数组首尾逻辑相连。", "expected_chapter": "第三章 栈和队列", "expected_source": "数据结构（C语言版）严蔚敏.pdf", "expected_chunk_id": ["ds_ch03_0008", "ds_ch03_0046"], "is_out_of_scope": false}
 
 {"id": "q013", "question": "循环队列常见的判满方式有哪些？教材常用哪一种？", "type": "concept", "reference_answer": "常见判满方式有三种：牺牲一个存储单元、增设长度计数器、增设标志位；教材通常采用牺牲一个存储单元的方法。", "expected_chapter": "第三章 栈和队列", "expected_source": "数据结构（C语言版）严蔚敏.pdf", "expected_chunk_id": ["ds_ch03_0009"], "is_out_of_scope": false}
 
@@ -58,7 +58,7 @@
 
 {"id": "q030", "question": "二叉树层序遍历LevelOrder算法是如何借助队列实现的？", "type": "code", "reference_answer": "先将根结点入队，然后循环执行：队列不空时出队一个结点并访问它，再将该结点的左右孩子（若存在）依次入队，直到队列为空，从而实现按层从上到下、同层从左到右的遍历。", "expected_chapter": "第六章 树和二叉树", "expected_source": "数据结构（C语言版）严蔚敏.pdf", "expected_chunk_id": ["ds_ch06_0021"], "is_out_of_scope": false}
 
-{"id": "q031", "question": "无向图和有向图中，顶点的"度"分别是如何定义的？", "type": "concept", "reference_answer": "无向图中顶点的度是依附于该顶点的边数；有向图中顶点的度等于入度加出度，入度是以该点为终点的弧数，出度是以该点为起点的弧数。", "expected_chapter": "第七章 图", "expected_source": "数据结构（C语言版）严蔚敏.pdf", "expected_chunk_id": ["ds_ch07_0003"], "is_out_of_scope": false}
+{"id": "q031", "question": "无向图和有向图中，顶点的“度”分别是如何定义的？", "type": "concept", "reference_answer": "无向图中顶点的度是依附于该顶点的边数；有向图中顶点的度等于入度加出度，入度是以该点为终点的弧数，出度是以该点为起点的弧数。", "expected_chapter": "第七章 图", "expected_source": "数据结构（C语言版）严蔚敏.pdf", "expected_chunk_id": ["ds_ch07_0003"], "is_out_of_scope": false}
 
 {"id": "q032", "question": "邻接矩阵和邻接表两种存储方式分别适合什么类型的图？空间复杂度各是多少？", "type": "comparison", "reference_answer": "邻接矩阵适合稠密图，空间复杂度O(n²)；邻接表适合稀疏图，空间复杂度O(n+e)，能有效节省存储空间。", "expected_chapter": "第七章 图", "expected_source": "数据结构（C语言版）严蔚敏.pdf", "expected_chunk_id": ["ds_ch07_0011", "ds_ch07_0013", "ds_ch07_0031"], "is_out_of_scope": false}
 
@@ -94,6 +94,6 @@
 
 {"id": "q048", "question": "置换-选择排序生成的初始归并段与普通分块生成的归并段相比有什么不同？内存工作区大小为w时平均归并段长度是多少？", "type": "comparison", "reference_answer": "普通分块生成的是等长的初始归并段；置换-选择排序生成的是长度不等的变长归并段，且相同内存条件下能生成数量更少的归并段。当内存工作区大小为w时，置换-选择排序生成的初始归并段平均长度约为2w。", "expected_chapter": "第十一章 外部排序", "expected_source": "数据结构（C语言版）严蔚敏.pdf", "expected_chunk_id": ["ds_ch11_0019", "ds_ch11_0020", "ds_ch11_0023", "ds_ch11_0033", "ds_ch11_0045"], "is_out_of_scope": false}
 
-{"id": "q049", "question": "最佳归并树中为什么需要补充"虚归并段"？虚归并段的权值是多少？", "type": "concept", "reference_answer": "当现有归并段数量r不满足构造严格k叉树的条件时，需要补充虚归并段以保证能正确构造k叉归并树并计算WPL；虚归并段的权值为0，且只能作为叶子节点，不参与实际磁盘IO操作。", "expected_chapter": "第十一章 外部排序", "expected_source": "数据结构（C语言版）严蔚敏.pdf", "expected_chunk_id": ["ds_ch11_0027", "ds_ch11_0028", "ds_ch11_0034", "ds_ch11_0041"], "is_out_of_scope": false}
+{"id": "q049", "question": "最佳归并树中为什么需要补充“虚归并段”？虚归并段的权值是多少？", "type": "concept", "reference_answer": "当现有归并段数量r不满足构造严格k叉树的条件时，需要补充虚归并段以保证能正确构造k叉归并树并计算WPL；虚归并段的权值为0，且只能作为叶子节点，不参与实际磁盘IO操作。", "expected_chapter": "第十一章 外部排序", "expected_source": "数据结构（C语言版）严蔚敏.pdf", "expected_chunk_id": ["ds_ch11_0027", "ds_ch11_0028", "ds_ch11_0034", "ds_ch11_0041"], "is_out_of_scope": false}
 
 {"id": "q050", "question": "败者树多路归并核心逻辑CreateLoserTree的基本思路是什么？", "type": "code", "reference_answer": "败者树的叶子结点对应k个归并段当前的待比较记录，初始化时先设置初始胜者，再从各叶子结点开始逐层向上进行两两比较，每次比较后败者留在当前结点、胜者继续向上比较，最终树根记录全局最小值对应的归并段编号。", "expected_chapter": "第十一章 外部排序", "expected_source": "数据结构（C语言版）严蔚敏.pdf", "expected_chunk_id": ["ds_ch11_0037"], "is_out_of_scope": false}

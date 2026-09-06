@@ -1,0 +1,773 @@
+{
+  "benchmark": "DataStructureQA",
+  "split": "dev",
+  "version": "v1",
+  "generated_at_utc": "2026-09-02T08:15:07.683099+00:00",
+  "git_commit": "5edbdddb149dae756f4d2abaa8561a250847271a",
+  "annotation_policy": {
+    "0": "irrelevant",
+    "1": "useful supporting evidence but insufficient alone",
+    "2": "primary evidence basically sufficient alone",
+    "gold_chunk_ids": "relevance_label >= 1",
+    "primary_gold_chunk_ids": "relevance_label == 2"
+  },
+  "judgment_scope": "BM25 Top-5 union Dense Top-5 union legacy expected chunks",
+  "formal_evaluation_warning": "The pool is not exhaustive for future methods. If a new method retrieves unjudged chunks, adjudicate them before formal comparison.",
+  "counts": {
+    "questions": 50,
+    "in_scope": 49,
+    "out_of_scope": 1,
+    "judged_pairs": 387,
+    "label_0": 198,
+    "label_1": 142,
+    "label_2": 47,
+    "changed_gold_questions": 38,
+    "questions_without_primary_gold": 11
+  },
+  "statistics": {
+    "avg_judged_chunks_per_question": 7.74,
+    "avg_gold_chunks_per_in_scope_question": 3.8571,
+    "avg_primary_chunks_per_in_scope_question": 0.9592
+  },
+  "questions_without_primary_gold": [
+    "q006",
+    "q017",
+    "q021",
+    "q029",
+    "q032",
+    "q038",
+    "q039",
+    "q041",
+    "q043",
+    "q047",
+    "q048"
+  ],
+  "gold_changes": [
+    {
+      "id": "q002",
+      "legacy_expected_chunk_ids": [
+        "ds_ch01_0005"
+      ],
+      "gold_chunk_ids": [
+        "ds_ch01_0004",
+        "ds_ch01_0005"
+      ],
+      "added": [
+        "ds_ch01_0004"
+      ],
+      "removed": []
+    },
+    {
+      "id": "q006",
+      "legacy_expected_chunk_ids": [
+        "ds_ch02_0002",
+        "ds_ch02_0008"
+      ],
+      "gold_chunk_ids": [
+        "ds_ch02_0002",
+        "ds_ch02_0003",
+        "ds_ch02_0007",
+        "ds_ch02_0008",
+        "ds_ch02_0043",
+        "ds_ex_0001"
+      ],
+      "added": [
+        "ds_ch02_0003",
+        "ds_ch02_0007",
+        "ds_ch02_0043",
+        "ds_ex_0001"
+      ],
+      "removed": []
+    },
+    {
+      "id": "q007",
+      "legacy_expected_chunk_ids": [
+        "ds_ch02_0009"
+      ],
+      "gold_chunk_ids": [
+        "ds_ch02_0009",
+        "ds_ch02_0014",
+        "ds_ch02_0024",
+        "ds_ch02_0031",
+        "ds_ch02_0040"
+      ],
+      "added": [
+        "ds_ch02_0014",
+        "ds_ch02_0024",
+        "ds_ch02_0031",
+        "ds_ch02_0040"
+      ],
+      "removed": []
+    },
+    {
+      "id": "q008",
+      "legacy_expected_chunk_ids": [
+        "ds_ch02_0017",
+        "ds_ch02_0037"
+      ],
+      "gold_chunk_ids": [
+        "ds_ch02_0002",
+        "ds_ch02_0017",
+        "ds_ch02_0018",
+        "ds_ch02_0037"
+      ],
+      "added": [
+        "ds_ch02_0002",
+        "ds_ch02_0018"
+      ],
+      "removed": []
+    },
+    {
+      "id": "q009",
+      "legacy_expected_chunk_ids": [
+        "ds_ch02_0021"
+      ],
+      "gold_chunk_ids": [
+        "ds_ch02_0019",
+        "ds_ch02_0021",
+        "ds_ch02_0028",
+        "ds_ch02_0029",
+        "ds_ex_0003"
+      ],
+      "added": [
+        "ds_ch02_0019",
+        "ds_ch02_0028",
+        "ds_ch02_0029",
+        "ds_ex_0003"
+      ],
+      "removed": []
+    },
+    {
+      "id": "q010",
+      "legacy_expected_chunk_ids": [
+        "ds_ch02_0029"
+      ],
+      "gold_chunk_ids": [
+        "ds_ch02_0019",
+        "ds_ch02_0021",
+        "ds_ch02_0028",
+        "ds_ch02_0029",
+        "ds_ex_0003"
+      ],
+      "added": [
+        "ds_ch02_0019",
+        "ds_ch02_0021",
+        "ds_ch02_0028",
+        "ds_ex_0003"
+      ],
+      "removed": []
+    },
+    {
+      "id": "q011",
+      "legacy_expected_chunk_ids": [
+        "ds_ch03_0001",
+        "ds_ch03_0007",
+        "ds_ch03_0040"
+      ],
+      "gold_chunk_ids": [
+        "ds_ch03_0001",
+        "ds_ch03_0007",
+        "ds_ch03_0040",
+        "ds_ch07_0032",
+        "ds_ex_0002"
+      ],
+      "added": [
+        "ds_ch07_0032",
+        "ds_ex_0002"
+      ],
+      "removed": []
+    },
+    {
+      "id": "q012",
+      "legacy_expected_chunk_ids": [
+        "ds_ch03_0008",
+        "ds_ch03_0046"
+      ],
+      "gold_chunk_ids": [
+        "ds_ch03_0008",
+        "ds_ch03_0009",
+        "ds_ch03_0031",
+        "ds_ch03_0046"
+      ],
+      "added": [
+        "ds_ch03_0009",
+        "ds_ch03_0031"
+      ],
+      "removed": []
+    },
+    {
+      "id": "q013",
+      "legacy_expected_chunk_ids": [
+        "ds_ch03_0009"
+      ],
+      "gold_chunk_ids": [
+        "ds_ch03_0009",
+        "ds_ch03_0010",
+        "ds_ch03_0031",
+        "ds_ch03_0042"
+      ],
+      "added": [
+        "ds_ch03_0010",
+        "ds_ch03_0031",
+        "ds_ch03_0042"
+      ],
+      "removed": []
+    },
+    {
+      "id": "q014",
+      "legacy_expected_chunk_ids": [
+        "ds_ch03_0015"
+      ],
+      "gold_chunk_ids": [
+        "ds_ch03_0006",
+        "ds_ch03_0014",
+        "ds_ch03_0015",
+        "ds_ch03_0016",
+        "ds_ch03_0043"
+      ],
+      "added": [
+        "ds_ch03_0006",
+        "ds_ch03_0014",
+        "ds_ch03_0016",
+        "ds_ch03_0043"
+      ],
+      "removed": []
+    },
+    {
+      "id": "q016",
+      "legacy_expected_chunk_ids": [
+        "ds_ch04_0004",
+        "ds_ch04_0033"
+      ],
+      "gold_chunk_ids": [
+        "ds_ch04_0001",
+        "ds_ch04_0004",
+        "ds_ch04_0026",
+        "ds_ch04_0033"
+      ],
+      "added": [
+        "ds_ch04_0001",
+        "ds_ch04_0026"
+      ],
+      "removed": []
+    },
+    {
+      "id": "q017",
+      "legacy_expected_chunk_ids": [
+        "ds_ch04_0011",
+        "ds_ch04_0014",
+        "ds_ch04_0034"
+      ],
+      "gold_chunk_ids": [
+        "ds_ch04_0009",
+        "ds_ch04_0010",
+        "ds_ch04_0011",
+        "ds_ch04_0012",
+        "ds_ch04_0013",
+        "ds_ch04_0014",
+        "ds_ch04_0015",
+        "ds_ch04_0030",
+        "ds_ch04_0034",
+        "ds_ch04_0039"
+      ],
+      "added": [
+        "ds_ch04_0009",
+        "ds_ch04_0010",
+        "ds_ch04_0012",
+        "ds_ch04_0013",
+        "ds_ch04_0015",
+        "ds_ch04_0030",
+        "ds_ch04_0039"
+      ],
+      "removed": []
+    },
+    {
+      "id": "q018",
+      "legacy_expected_chunk_ids": [
+        "ds_ch04_0015",
+        "ds_ch04_0048"
+      ],
+      "gold_chunk_ids": [
+        "ds_ch04_0012",
+        "ds_ch04_0015",
+        "ds_ch04_0022",
+        "ds_ch04_0048"
+      ],
+      "added": [
+        "ds_ch04_0012",
+        "ds_ch04_0022"
+      ],
+      "removed": []
+    },
+    {
+      "id": "q020",
+      "legacy_expected_chunk_ids": [
+        "ds_ch04_0021"
+      ],
+      "gold_chunk_ids": [
+        "ds_ch04_0011",
+        "ds_ch04_0012",
+        "ds_ch04_0021"
+      ],
+      "added": [
+        "ds_ch04_0011",
+        "ds_ch04_0012"
+      ],
+      "removed": []
+    },
+    {
+      "id": "q021",
+      "legacy_expected_chunk_ids": [
+        "ds_ch05_0004",
+        "ds_ch05_0005",
+        "ds_ch05_0031"
+      ],
+      "gold_chunk_ids": [
+        "ds_ch05_0004",
+        "ds_ch05_0005",
+        "ds_ch05_0031",
+        "ds_ch05_0042"
+      ],
+      "added": [
+        "ds_ch05_0042"
+      ],
+      "removed": []
+    },
+    {
+      "id": "q022",
+      "legacy_expected_chunk_ids": [
+        "ds_ch05_0008",
+        "ds_ch05_0032"
+      ],
+      "gold_chunk_ids": [
+        "ds_ch05_0007",
+        "ds_ch05_0008",
+        "ds_ch05_0009",
+        "ds_ch05_0032",
+        "ds_ch05_0050"
+      ],
+      "added": [
+        "ds_ch05_0007",
+        "ds_ch05_0009",
+        "ds_ch05_0050"
+      ],
+      "removed": []
+    },
+    {
+      "id": "q023",
+      "legacy_expected_chunk_ids": [
+        "ds_ch05_0014",
+        "ds_ch05_0015",
+        "ds_ch05_0034"
+      ],
+      "gold_chunk_ids": [
+        "ds_ch05_0014",
+        "ds_ch05_0015",
+        "ds_ch05_0023",
+        "ds_ch05_0024",
+        "ds_ch05_0034"
+      ],
+      "added": [
+        "ds_ch05_0023",
+        "ds_ch05_0024"
+      ],
+      "removed": []
+    },
+    {
+      "id": "q024",
+      "legacy_expected_chunk_ids": [
+        "ds_ch05_0018",
+        "ds_ch05_0049"
+      ],
+      "gold_chunk_ids": [
+        "ds_ch05_0018",
+        "ds_ch05_0028",
+        "ds_ch05_0035",
+        "ds_ch05_0037",
+        "ds_ch05_0049"
+      ],
+      "added": [
+        "ds_ch05_0028",
+        "ds_ch05_0035",
+        "ds_ch05_0037"
+      ],
+      "removed": []
+    },
+    {
+      "id": "q025",
+      "legacy_expected_chunk_ids": [
+        "ds_ch05_0024"
+      ],
+      "gold_chunk_ids": [
+        "ds_ch05_0015",
+        "ds_ch05_0023",
+        "ds_ch05_0024"
+      ],
+      "added": [
+        "ds_ch05_0015",
+        "ds_ch05_0023"
+      ],
+      "removed": []
+    },
+    {
+      "id": "q026",
+      "legacy_expected_chunk_ids": [
+        "ds_ch06_0006",
+        "ds_ch06_0035"
+      ],
+      "gold_chunk_ids": [
+        "ds_ch06_0006",
+        "ds_ch06_0032",
+        "ds_ch06_0035"
+      ],
+      "added": [
+        "ds_ch06_0032"
+      ],
+      "removed": []
+    },
+    {
+      "id": "q029",
+      "legacy_expected_chunk_ids": [
+        "ds_ch06_0030",
+        "ds_ch06_0031"
+      ],
+      "gold_chunk_ids": [
+        "ds_ch06_0029",
+        "ds_ch06_0030",
+        "ds_ch06_0031"
+      ],
+      "added": [
+        "ds_ch06_0029"
+      ],
+      "removed": []
+    },
+    {
+      "id": "q030",
+      "legacy_expected_chunk_ids": [
+        "ds_ch06_0021"
+      ],
+      "gold_chunk_ids": [
+        "ds_ch03_0012",
+        "ds_ch03_0045",
+        "ds_ch06_0020",
+        "ds_ch06_0021"
+      ],
+      "added": [
+        "ds_ch03_0012",
+        "ds_ch03_0045",
+        "ds_ch06_0020"
+      ],
+      "removed": []
+    },
+    {
+      "id": "q031",
+      "legacy_expected_chunk_ids": [
+        "ds_ch07_0003"
+      ],
+      "gold_chunk_ids": [
+        "ds_ch07_0002",
+        "ds_ch07_0003",
+        "ds_ch07_0030"
+      ],
+      "added": [
+        "ds_ch07_0002",
+        "ds_ch07_0030"
+      ],
+      "removed": []
+    },
+    {
+      "id": "q033",
+      "legacy_expected_chunk_ids": [
+        "ds_ch07_0025",
+        "ds_ch07_0035"
+      ],
+      "gold_chunk_ids": [
+        "ds_ch07_0024",
+        "ds_ch07_0025",
+        "ds_ch07_0035"
+      ],
+      "added": [
+        "ds_ch07_0024"
+      ],
+      "removed": []
+    },
+    {
+      "id": "q034",
+      "legacy_expected_chunk_ids": [
+        "ds_ch07_0040"
+      ],
+      "gold_chunk_ids": [
+        "ds_ch03_0006",
+        "ds_ch07_0015",
+        "ds_ch07_0017",
+        "ds_ch07_0032",
+        "ds_ch07_0040"
+      ],
+      "added": [
+        "ds_ch03_0006",
+        "ds_ch07_0015",
+        "ds_ch07_0017",
+        "ds_ch07_0032"
+      ],
+      "removed": []
+    },
+    {
+      "id": "q035",
+      "legacy_expected_chunk_ids": [
+        "ds_ch07_0022",
+        "ds_ch07_0034"
+      ],
+      "gold_chunk_ids": [
+        "ds_ch07_0022",
+        "ds_ch07_0023",
+        "ds_ch07_0034",
+        "ds_ch07_0051"
+      ],
+      "added": [
+        "ds_ch07_0023",
+        "ds_ch07_0051"
+      ],
+      "removed": []
+    },
+    {
+      "id": "q036",
+      "legacy_expected_chunk_ids": [
+        "ds_ch09_0009"
+      ],
+      "gold_chunk_ids": [
+        "ds_ch09_0009",
+        "ds_ch09_0012"
+      ],
+      "added": [
+        "ds_ch09_0012"
+      ],
+      "removed": []
+    },
+    {
+      "id": "q037",
+      "legacy_expected_chunk_ids": [
+        "ds_ch09_0013",
+        "ds_ch09_0015"
+      ],
+      "gold_chunk_ids": [
+        "ds_ch09_0013",
+        "ds_ch09_0014",
+        "ds_ch09_0015",
+        "ds_ch09_0016"
+      ],
+      "added": [
+        "ds_ch09_0014",
+        "ds_ch09_0016"
+      ],
+      "removed": []
+    },
+    {
+      "id": "q038",
+      "legacy_expected_chunk_ids": [
+        "ds_ch09_0037",
+        "ds_ch09_0038"
+      ],
+      "gold_chunk_ids": [
+        "ds_ch09_0033",
+        "ds_ch09_0037",
+        "ds_ch09_0038",
+        "ds_ch09_0039"
+      ],
+      "added": [
+        "ds_ch09_0033",
+        "ds_ch09_0039"
+      ],
+      "removed": []
+    },
+    {
+      "id": "q039",
+      "legacy_expected_chunk_ids": [
+        "ds_ch09_0045",
+        "ds_ch09_0046",
+        "ds_ch09_0047"
+      ],
+      "gold_chunk_ids": [
+        "ds_ch09_0044",
+        "ds_ch09_0045",
+        "ds_ch09_0046",
+        "ds_ch09_0047",
+        "ds_ch09_0049"
+      ],
+      "added": [
+        "ds_ch09_0044",
+        "ds_ch09_0049"
+      ],
+      "removed": []
+    },
+    {
+      "id": "q041",
+      "legacy_expected_chunk_ids": [
+        "ds_ch10_0006",
+        "ds_ch10_0007"
+      ],
+      "gold_chunk_ids": [
+        "ds_ch10_0005",
+        "ds_ch10_0006",
+        "ds_ch10_0007",
+        "ds_ch10_0044",
+        "ds_ch10_0045"
+      ],
+      "added": [
+        "ds_ch10_0005",
+        "ds_ch10_0044",
+        "ds_ch10_0045"
+      ],
+      "removed": []
+    },
+    {
+      "id": "q042",
+      "legacy_expected_chunk_ids": [
+        "ds_ch10_0018",
+        "ds_ch10_0019"
+      ],
+      "gold_chunk_ids": [
+        "ds_ch10_0003",
+        "ds_ch10_0016",
+        "ds_ch10_0018",
+        "ds_ch10_0019",
+        "ds_ch10_0020",
+        "ds_ch10_0044"
+      ],
+      "added": [
+        "ds_ch10_0003",
+        "ds_ch10_0016",
+        "ds_ch10_0020",
+        "ds_ch10_0044"
+      ],
+      "removed": []
+    },
+    {
+      "id": "q045",
+      "legacy_expected_chunk_ids": [
+        "ds_ch10_0020"
+      ],
+      "gold_chunk_ids": [
+        "ds_ch10_0016",
+        "ds_ch10_0020"
+      ],
+      "added": [
+        "ds_ch10_0016"
+      ],
+      "removed": []
+    },
+    {
+      "id": "q046",
+      "legacy_expected_chunk_ids": [
+        "ds_ch11_0002",
+        "ds_ch11_0031"
+      ],
+      "gold_chunk_ids": [
+        "ds_ch10_0002",
+        "ds_ch11_0001",
+        "ds_ch11_0002",
+        "ds_ch11_0031",
+        "ds_ch11_0043"
+      ],
+      "added": [
+        "ds_ch10_0002",
+        "ds_ch11_0001",
+        "ds_ch11_0043"
+      ],
+      "removed": []
+    },
+    {
+      "id": "q047",
+      "legacy_expected_chunk_ids": [
+        "ds_ch11_0010",
+        "ds_ch11_0011",
+        "ds_ch11_0032"
+      ],
+      "gold_chunk_ids": [
+        "ds_ch11_0010",
+        "ds_ch11_0011",
+        "ds_ch11_0013",
+        "ds_ch11_0032",
+        "ds_ch11_0037"
+      ],
+      "added": [
+        "ds_ch11_0013",
+        "ds_ch11_0037"
+      ],
+      "removed": []
+    },
+    {
+      "id": "q048",
+      "legacy_expected_chunk_ids": [
+        "ds_ch11_0019",
+        "ds_ch11_0020",
+        "ds_ch11_0023",
+        "ds_ch11_0033",
+        "ds_ch11_0045"
+      ],
+      "gold_chunk_ids": [
+        "ds_ch11_0019",
+        "ds_ch11_0020",
+        "ds_ch11_0022",
+        "ds_ch11_0023",
+        "ds_ch11_0033",
+        "ds_ch11_0045",
+        "ds_ch11_0049"
+      ],
+      "added": [
+        "ds_ch11_0022",
+        "ds_ch11_0049"
+      ],
+      "removed": []
+    },
+    {
+      "id": "q049",
+      "legacy_expected_chunk_ids": [
+        "ds_ch11_0027",
+        "ds_ch11_0028",
+        "ds_ch11_0034",
+        "ds_ch11_0041"
+      ],
+      "gold_chunk_ids": [
+        "ds_ch11_0027",
+        "ds_ch11_0028",
+        "ds_ch11_0029",
+        "ds_ch11_0034",
+        "ds_ch11_0041",
+        "ds_ch11_0042"
+      ],
+      "added": [
+        "ds_ch11_0029",
+        "ds_ch11_0042"
+      ],
+      "removed": []
+    },
+    {
+      "id": "q050",
+      "legacy_expected_chunk_ids": [
+        "ds_ch11_0037"
+      ],
+      "gold_chunk_ids": [
+        "ds_ch11_0011",
+        "ds_ch11_0012",
+        "ds_ch11_0013",
+        "ds_ch11_0014",
+        "ds_ch11_0037",
+        "ds_ch11_0047"
+      ],
+      "added": [
+        "ds_ch11_0011",
+        "ds_ch11_0012",
+        "ds_ch11_0013",
+        "ds_ch11_0014",
+        "ds_ch11_0047"
+      ],
+      "removed": []
+    }
+  ],
+  "sha256": {
+    "questions": "40e23d857fb631c048b7f711a3c9335d69a5013b5874d5155a04f146fce4c427",
+    "pool": "6d32648642679421041bdd0e43eb03746a2b3b7a16d3393ca20cc031d64904a4",
+    "knowledge": "d4b2411f1cfeedca6ef318b04888c762d382a3721ded7afe8cb5393951b90727",
+    "benchmark": "00399cbd8636e3aba242ed2a46c8fdca7a0f30d383846cb7c5342574484aa938"
+  }
+}

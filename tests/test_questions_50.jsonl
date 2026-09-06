@@ -72,7 +72,7 @@
 
 {"id": "q037", "question": "分块查找（索引顺序查找）的基本过程是什么？", "type": "algorithm", "reference_answer": "分块查找分两步：先在索引表中查找确定目标记录所在的块（索引表本身有序，可用顺序或折半查找），再在确定的块内进行顺序查找。", "expected_chapter": "第九章 查找", "expected_source": "数据结构（C语言版）严蔚敏.pdf", "expected_chunk_id": ["ds_ch09_0013", "ds_ch09_0015"], "is_out_of_scope": false}
 
-{"id": "q038", "question": "B树和B+树在存储记录信息上有什么核心区别？", "type": "comparison", "reference_answer": "B树的记录信息分布在所有节点（包括非叶子节点）中；B+树则将所有关键字和记录信息全部保存在叶子节点，非叶子节点仅作为索引，且B+树叶子节点通过指针串联成链表，支持区间遍历。", "expected_chapter": "第九章 查找", "expected_source": "数据结构（C语言版）严蔚敏.pdf", "expected_chunk_id": ["ds_ch09_0037", "ds_ch09_0038"], "is_out_of_scope": false}
+{"id": "q038", "question": "B树和B+树在存储记录信息上有什么核心区别？", "type": "comparison", "reference_answer": "B树的叶子节点不含记录信息，仅代表查找失败位置；B+树则将所有关键字和记录信息全部保存在叶子节点，非叶子节点仅作为索引，且叶子节点通过指针串联成链表，支持区间遍历。", "expected_chapter": "第九章 查找", "expected_source": "数据结构（C语言版）严蔚敏.pdf", "expected_chunk_id": ["ds_ch09_0037", "ds_ch09_0038"], "is_out_of_scope": false}
 
 {"id": "q039", "question": "哈希查找中处理冲突的开放定址法和链地址法各有什么特点？", "type": "comparison", "reference_answer": "开放定址法在冲突后于表内继续探测下一个空闲地址，包括线性探测、二次探测、伪随机探测等，容易产生堆积；链地址法将哈希地址相同的元素挂在同一条链表上，适合频繁增删，没有堆积问题。", "expected_chapter": "第九章 查找", "expected_source": "数据结构（C语言版）严蔚敏.pdf", "expected_chunk_id": ["ds_ch09_0045", "ds_ch09_0046", "ds_ch09_0047"], "is_out_of_scope": false}
 

@@ -53,6 +53,7 @@ from rag.retrievers import (  # noqa: E402
 from tests.metrics import (  # noqa: E402
     as_list,
     avg_latency,
+    hit_at_k,
     mrr_at_k,
     ndcg_at_k,
     p95_latency,
@@ -145,7 +146,12 @@ def main() -> None:
 
     for item in questions:
         is_out = bool(item.get("is_out_of_scope", False))
-        expected = as_list(item.get("expected_chunk_id"))
+        # Benchmark v1 优先使用人工复核后的 gold；
+        # 在标注完成前保持对 expected_chunk_id 的向后兼容。
+        expected = as_list(
+            item.get("gold_chunk_ids", item.get("expected_chunk_id"))
+        )
+        primary_gold = as_list(item.get("primary_gold_chunk_ids"))
 
         start = time.perf_counter()
         retrieved = retriever.retrieve(item["question"], chunks,
@@ -158,8 +164,12 @@ def main() -> None:
         record = {
             "id": item.get("id"),
             "question": item["question"],
+            "query_type": item.get("type", ""),
+            "expected_chapter": item.get("expected_chapter", ""),
             "is_out_of_scope": is_out,
             "expected_chunk_ids": expected,
+            "gold_chunk_ids": expected,
+            "primary_gold_chunk_ids": primary_gold,
             "retrieved_chunk_ids": retrieved_ids,
             "retrieval_scores": [round(float(r["score"]), 6) for r in retrieved],
             "top1_score": (round(float(retrieved[0]["score"]), 6)
@@ -173,6 +183,7 @@ def main() -> None:
                 "recall@1": None, "recall@3": None, "recall@5": None,
                 "mrr@3": None, "mrr@5": None,
                 "ndcg@3": None, "ndcg@5": None,
+                "hit@1": None, "hit@3": None, "hit@5": None,
             })
         else:
             record.update({
@@ -183,6 +194,20 @@ def main() -> None:
                 "mrr@5": mrr_at_k(retrieved_ids, expected, 5),
                 "ndcg@3": ndcg_at_k(retrieved_ids, expected, 3),
                 "ndcg@5": ndcg_at_k(retrieved_ids, expected, 5),
+                # primary_gold 尚未建立时保持 None，避免把“未标注”
+                # 错误解释成 Hit=0。
+                "hit@1": (
+                    hit_at_k(retrieved_ids, primary_gold, 1)
+                    if primary_gold else None
+                ),
+                "hit@3": (
+                    hit_at_k(retrieved_ids, primary_gold, 3)
+                    if primary_gold else None
+                ),
+                "hit@5": (
+                    hit_at_k(retrieved_ids, primary_gold, 5)
+                    if primary_gold else None
+                ),
             })
 
         per_query.append(record)
@@ -201,9 +226,13 @@ def main() -> None:
     in_scope = [r for r in per_query
                 if not r["is_out_of_scope"] and r["recall@5"] is not None]
 
-    def metric_mean(field: str) -> float:
-        values = [r[field] for r in in_scope if r[field] is not None]
-        return round(sum(values) / len(values), 4) if values else 0.0
+    def metric_mean(field: str, records=None):
+        records = in_scope if records is None else records
+        values = [
+            r[field] for r in records
+            if r.get(field) is not None
+        ]
+        return round(sum(values) / len(values), 4) if values else None
 
     metrics = {
         "recall@1": metric_mean("recall@1"),
@@ -213,9 +242,45 @@ def main() -> None:
         "mrr@5": metric_mean("mrr@5"),
         "ndcg@3": metric_mean("ndcg@3"),
         "ndcg@5": metric_mean("ndcg@5"),
+        "hit@1": metric_mean("hit@1"),
+        "hit@3": metric_mean("hit@3"),
+        "hit@5": metric_mean("hit@5"),
         "avg_retrieval_latency_ms": round(avg_latency(latencies), 3),
         "p95_retrieval_latency_ms": round(p95_latency(latencies), 3),
         "index_build_latency_ms": round(index_build_ms, 3),
+    }
+
+    # ---------- 按题型 / 章节分组 ----------
+    group_metric_fields = (
+        "recall@1", "recall@3", "recall@5",
+        "mrr@3", "mrr@5",
+        "ndcg@3", "ndcg@5",
+        "hit@1", "hit@3", "hit@5",
+    )
+
+    def summarize_groups(field: str):
+        labels = sorted({
+            str(r.get(field) or "UNKNOWN")
+            for r in in_scope
+        })
+        result = {}
+        for label in labels:
+            records = [
+                r for r in in_scope
+                if str(r.get(field) or "UNKNOWN") == label
+            ]
+            result[label] = {
+                "count": len(records),
+                **{
+                    metric: metric_mean(metric, records)
+                    for metric in group_metric_fields
+                },
+            }
+        return result
+
+    grouped_metrics = {
+        "by_query_type": summarize_groups("query_type"),
+        "by_chapter": summarize_groups("expected_chapter"),
     }
 
     # 检索错误典型案例（top5 未完全召回期望 chunk 的题）
@@ -246,10 +311,17 @@ def main() -> None:
     summary = {
         "experiment": experiment,
         "metrics": metrics,
+        "grouped_metrics": grouped_metrics,
         "failures": failures,
         "total": len(per_query),
         "in_scope_total": len(in_scope),
-        "out_of_scope_total": len(per_query) - len(in_scope),
+        "out_of_scope_total": sum(
+            1 for r in per_query if r["is_out_of_scope"]
+        ),
+        "unscored_total": sum(
+            1 for r in per_query
+            if not r["is_out_of_scope"] and r["recall@5"] is None
+        ),
     }
 
     summary_file = out_dir / "summary.json"

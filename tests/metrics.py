@@ -73,6 +73,18 @@ def ndcg_at_k(retrieved_ids: Sequence[str], expected_ids, k: int) -> float:
     return dcg_value / idcg_value if idcg_value > 0 else 0.0
 
 
+
+def hit_at_k(retrieved_ids: Sequence[str], primary_ids, k: int) -> float:
+    """Hit@K：前 K 条中是否至少命中一个核心证据 chunk。
+
+    返回 1.0 表示命中，0.0 表示未命中。
+    primary_ids 为空时返回 0.0；上层评测器应把无核心标注的题记为 None。
+    """
+    primary = set(as_list(primary_ids))
+    if not primary or k <= 0:
+        return 0.0
+    return 1.0 if any(cid in primary for cid in retrieved_ids[:k]) else 0.0
+
 def avg_latency(latencies: Iterable[float]) -> float:
     """平均检索耗时（毫秒）。"""
     values = list(latencies)

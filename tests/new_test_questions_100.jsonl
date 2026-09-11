@@ -1,0 +1,1626 @@
+[
+  {
+    "id": "h001",
+    "question": "数据元素与数据项是什么关系？请说明二者的层级差异。",
+    "type": "comparison",
+    "reference_answer": "数据元素是数据的基本单位，通常作为一个整体参与运算；数据项是数据不可分割的最小单位，一个数据元素可以由若干个数据项组成，二者是整体与部分的层级关系。",
+    "expected_chapter": "第一章 绪论",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "easy",
+    "core_facets": [
+      "数据元素是数据的基本单位",
+      "数据项是数据的最小不可分割单位",
+      "数据元素由若干数据项组成（整体与部分关系）"
+    ]
+  },
+  {
+    "id": "h002",
+    "question": "逻辑结构与存储结构分别描述数据的哪个层面？二者是否是一一对应关系？",
+    "type": "comparison",
+    "reference_answer": "逻辑结构描述数据元素之间的逻辑关系，与具体存储无关；存储结构（物理结构）是逻辑结构在计算机中的实际表示。二者不是一一对应关系，同一种逻辑结构可以用顺序存储或链式存储等不同的物理结构实现。",
+    "expected_chapter": "第一章 绪论",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "逻辑结构描述数据元素间的逻辑关系，与存储无关",
+      "存储结构是逻辑结构在计算机中的表示",
+      "二者不是一一对应，同一逻辑结构可有多种存储实现"
+    ]
+  },
+  {
+    "id": "h003",
+    "question": "算法评价指标中的正确性与健壮性分别针对什么问题？",
+    "type": "comparison",
+    "reference_answer": "正确性要求算法对合法输入能得到符合要求的正确结果；健壮性要求算法对非法输入能进行适当处理而不会产生崩溃等异常后果，二者分别针对合法输入和异常/非法输入两种情形。",
+    "expected_chapter": "第一章 绪论",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "正确性针对合法输入，要求结果正确",
+      "健壮性针对非法或异常输入，要求妥善处理不崩溃"
+    ]
+  },
+  {
+    "id": "h004",
+    "question": "算法的时间复杂度与空间复杂度分别衡量什么资源开销？",
+    "type": "comparison",
+    "reference_answer": "时间复杂度衡量算法执行所需的计算时间随问题规模增长的变化趋势；空间复杂度衡量算法执行过程中所需辅助存储空间随问题规模增长的变化趋势，二者分别对应时间资源和空间资源两个不同维度。",
+    "expected_chapter": "第一章 绪论",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "easy",
+    "core_facets": [
+      "时间复杂度衡量时间开销随规模增长的趋势",
+      "空间复杂度衡量辅助空间开销随规模增长的趋势",
+      "二者是两个不同的资源维度"
+    ]
+  },
+  {
+    "id": "h005",
+    "question": "数据结构与抽象数据类型（ADT）分别关注的是什么层面？二者是否等价？",
+    "type": "comparison",
+    "reference_answer": "数据结构关注数据的逻辑结构、存储结构及其运算集合的整体研究，可以涉及具体实现；抽象数据类型是一个数学模型及其定义的一组操作，强调使用与实现相分离。二者不等价，ADT是比数据结构更偏重接口抽象、隐藏具体实现细节的概念。",
+    "expected_chapter": "第一章 绪论",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "hard",
+    "core_facets": [
+      "数据结构研究逻辑结构、存储结构和运算集合",
+      "ADT是数学模型及其操作集合，强调使用与实现分离",
+      "二者不等价，ADT更偏重接口抽象、隐藏实现细节"
+    ]
+  },
+  {
+    "id": "h006",
+    "question": "抽象数据类型（ADT）为什么强调“使用与实现相分离”？请说明ADT的定义，并解释这种分离如何支持封装和信息隐藏。",
+    "type": "concept",
+    "reference_answer": "ADT是一个数学模型以及定义在该模型上的一组操作。它强调使用与实现相分离，即使用者只需了解操作的功能和接口，不必关心底层数据如何存储、操作如何实现；这样可以把具体实现细节封装起来，只暴露操作接口，从而实现信息隐藏，降低模块间的依赖，便于修改和复用。",
+    "expected_chapter": "第一章 绪论",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "ADT是数学模型及其上定义的一组操作",
+      "核心特征是使用与实现相分离",
+      "使用者只依赖操作接口，不依赖具体实现",
+      "分离支持封装和信息隐藏，降低依赖、便于修改复用"
+    ]
+  },
+  {
+    "id": "h007",
+    "question": "算法评价通常包括正确性、可读性、健壮性、高效率与低存储量需求。请说明“高效率与低存储量需求”分别对应什么复杂度指标，并解释为什么算法评价不能只追求时间复杂度最低。",
+    "type": "concept",
+    "reference_answer": "高效率对应时间复杂度，衡量算法执行时间随问题规模增长的趋势；低存储量需求对应空间复杂度，衡量算法所需辅助空间随规模增长的趋势。算法评价不能只看时间复杂度，因为一个算法即使时间很快，也可能占用过多辅助空间；同时还需考虑正确性、可读性和健壮性，实际选择要在时间、空间、实现难度等之间权衡。",
+    "expected_chapter": "第一章 绪论",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "算法评价四个指标：正确性、可读性、健壮性、高效率与低存储量需求",
+      "高效率对应时间复杂度",
+      "低存储量需求对应空间复杂度",
+      "算法评价需综合权衡时间、空间及其他指标，不能只看时间复杂度"
+    ]
+  },
+  {
+    "id": "h008",
+    "question": "什么是算法的原地工作？为什么原地工作的空间复杂度为O(1)？请说明“额外辅助空间”与输入数据本身占用空间的区别。",
+    "type": "complexity",
+    "reference_answer": "若算法执行时所需的额外辅助空间相对于输入数据量为常数，则称该算法为原地工作。空间复杂度衡量的是额外辅助空间随问题规模增长的趋势，而不是输入数据本身占用的空间；由于原地工作的额外辅助空间不随n增长，因此其空间复杂度为O(1)。",
+    "expected_chapter": "第一章 绪论",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "原地工作指额外辅助空间相对输入数据量为常数",
+      "空间复杂度衡量额外辅助空间随规模增长的趋势",
+      "输入数据本身占用空间不计入额外辅助空间",
+      "原地工作的空间复杂度为O(1)"
+    ]
+  },
+  {
+    "id": "h009",
+    "question": "数据结构研究数据的逻辑结构、存储结构和运算集合。请说明三者之间的关系，并解释为什么同一种逻辑结构可以采用不同的存储结构。",
+    "type": "concept",
+    "reference_answer": "逻辑结构描述数据元素之间的逻辑关系；存储结构是逻辑结构在计算机中的表示；运算集合是定义在该结构上的操作。三者相互关联：逻辑结构是研究的基础，存储结构影响运算的实现效率，运算又依赖具体存储方式。同一种逻辑结构可以采用不同存储结构，是因为逻辑关系与物理实现不是一一对应的，例如线性表既可用顺序存储，也可用链式存储，只是不同实现下运算效率不同。",
+    "expected_chapter": "第一章 绪论",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "逻辑结构描述数据元素之间的逻辑关系",
+      "存储结构是逻辑结构在计算机中的表示",
+      "运算集合是定义在结构上的操作",
+      "逻辑结构与存储结构不是一一对应，同一逻辑结构可有多种存储实现"
+    ]
+  },
+  {
+    "id": "h010",
+    "question": "大O记法表示时间复杂度时，为什么只取问题规模n增大时增长率最快的那一项？",
+    "type": "concept",
+    "reference_answer": "大O记法反映的是算法执行时间随问题规模增长的渐进趋势，当n足够大时，增长率最快的项对总时间的影响远超其他低阶项，因此只保留增长率最快的一项就能准确刻画算法效率的变化趋势。",
+    "expected_chapter": "第一章 绪论",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "大O记法反映的是渐进增长趋势",
+      "n增大时增长率最快的项起主导作用",
+      "保留最快增长项即可刻画效率变化趋势"
+    ]
+  },
+  {
+    "id": "h011",
+    "question": "顺序表与单链表在插入、删除操作的时间复杂度上有什么区别？",
+    "type": "comparison",
+    "reference_answer": "顺序表插入删除需要移动大量后续元素，平均时间复杂度为O(n)；单链表在已知插入删除位置（如已知前驱指针）时只需修改指针，时间复杂度为O(1)，但查找该位置本身仍需O(n)。",
+    "expected_chapter": "第二章 线性表",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "顺序表插入删除需移动元素，平均O(n)",
+      "单链表已知位置时插入删除只需改指针，O(1)",
+      "单链表查找目标位置仍需O(n)"
+    ]
+  },
+  {
+    "id": "h012",
+    "question": "顺序表与单链表的存储密度分别是多少？为什么？",
+    "type": "comparison",
+    "reference_answer": "顺序表的存储密度等于1，因为全部空间都用于存储数据，没有额外开销；单链表的存储密度小于1，因为每个结点除数据域外还包含指针域，存在额外的空间开销。",
+    "expected_chapter": "第二章 线性表",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "easy",
+    "core_facets": [
+      "顺序表存储密度=1（无额外开销）",
+      "单链表存储密度<1（含指针域开销）"
+    ]
+  },
+  {
+    "id": "h013",
+    "question": "头插法与尾插法建立单链表，生成链表的元素顺序与输入顺序的关系有什么不同？",
+    "type": "comparison",
+    "reference_answer": "头插法每次将新结点插入表头，生成链表的元素顺序与输入顺序相反；尾插法维护尾指针在表尾插入，生成链表的元素顺序与输入顺序一致。",
+    "expected_chapter": "第二章 线性表",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "easy",
+    "core_facets": [
+      "头插法生成顺序与输入顺序相反",
+      "尾插法生成顺序与输入顺序一致"
+    ]
+  },
+  {
+    "id": "h014",
+    "question": "单链表与双向链表访问某结点前驱的时间复杂度有什么区别？",
+    "type": "comparison",
+    "reference_answer": "单链表只有后继指针，访问前驱必须从头指针出发重新遍历，时间复杂度为O(n)；双向链表每个结点同时保存前驱指针prior，已知结点位置时访问其前驱的时间复杂度为O(1)。",
+    "expected_chapter": "第二章 线性表",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "单链表访问前驱需从头遍历，O(n)",
+      "双向链表有prior指针，访问前驱O(1)"
+    ]
+  },
+  {
+    "id": "h015",
+    "question": "顺序表与静态链表在内存组织方式上有什么本质不同？",
+    "type": "comparison",
+    "reference_answer": "顺序表是真正的连续存储，元素通过下标直接对应物理地址，属于顺序存储结构；静态链表借助数组下标（游标）模拟指针，逻辑上仍是链式结构，只是物理空间借助数组预先分配，本质上是用顺序存储模拟链式存储。",
+    "expected_chapter": "第二章 线性表",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "hard",
+    "core_facets": [
+      "顺序表是真正的顺序存储，下标即物理位置",
+      "静态链表用数组下标（游标）模拟指针",
+      "静态链表逻辑上是链式结构，物理上借助数组实现"
+    ]
+  },
+  {
+    "id": "h016",
+    "question": "线性表的定义是什么？其元素之间的逻辑关系有什么特点？请说明“有限序列”和“一对一关系”分别体现在哪里。",
+    "type": "concept",
+    "reference_answer": "线性表是具有相同数据类型的n个数据元素的有限序列。其逻辑关系是一对一：除第一个元素外，每个元素有且仅有一个直接前驱；除最后一个元素外，每个元素有且仅有一个直接后继。“有限序列”说明元素个数有限且有序，“一对一关系”说明相邻元素之间形成唯一的线性次序。",
+    "expected_chapter": "第二章 线性表",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "线性表是n个相同类型数据元素的有限序列",
+      "元素之间是一对一的逻辑关系",
+      "除首元素外每个元素有且仅有一个直接前驱",
+      "除尾元素外每个元素有且仅有一个直接后继"
+    ]
+  },
+  {
+    "id": "h017",
+    "question": "带头结点的单链表中，头结点起什么作用？请结合空表与非空表、表头插入和删除操作说明。",
+    "type": "concept",
+    "reference_answer": "头结点是附加在表头、不存储有效数据的结点，头指针指向头结点。它的作用是统一空表与非空表的处理逻辑：空表时头结点的next为空，非空表时头结点的next指向第一个有效结点。进行表头插入或删除时，不需要对第一个有效结点作特殊边界判断，只需通过头结点修改next指针即可，从而简化操作。",
+    "expected_chapter": "第二章 线性表",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "头结点不存储有效数据，头指针指向头结点",
+      "头结点统一空表与非空表的处理逻辑",
+      "表头插入删除时可通过头结点统一修改指针",
+      "简化对第一个有效结点的边界判断"
+    ]
+  },
+  {
+    "id": "h018",
+    "question": "双向链表在结点p之后插入新结点s，需要修改哪几处指针？具体步骤是什么？",
+    "type": "algorithm",
+    "reference_answer": "共需修改4处指针：s->prior=p；s->next=p->next；若p->next不为空则p->next->prior=s；最后p->next=s，将新结点s正确嵌入p与其原后继之间。",
+    "expected_chapter": "第二章 线性表",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "共需修改4处指针",
+      "设置s的prior指向p、s的next指向p原来的后继",
+      "更新原后继结点的prior指向s",
+      "更新p的next指向s"
+    ]
+  },
+  {
+    "id": "h019",
+    "question": "两个有序顺序表合并算法的基本思路是什么？其时间复杂度是多少？",
+    "type": "algorithm",
+    "reference_answer": "使用双指针分别指向两个有序表的当前元素，每次比较取较小值放入结果表并将对应指针后移，其中一个表遍历完后，将另一个表的剩余元素依次追加到结果表末尾；时间复杂度为O(m+n)。",
+    "expected_chapter": "第二章 线性表",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "双指针分别指向两表当前元素",
+      "每次取较小值放入结果表并后移对应指针",
+      "一表遍历完后追加另一表剩余元素",
+      "时间复杂度O(m+n)"
+    ]
+  },
+  {
+    "id": "h020",
+    "question": "静态链表的备用链表初始化（InitSList）是如何实现的？",
+    "type": "code",
+    "reference_answer": "初始化时将数组中相邻结点依次链接：第i个结点的游标cur指向i+1，形成从0到MAXSIZE-2的连续链接，最后一个结点的游标置为0表示备用链表结束，这样所有结点最初都挂在备用链表上等待分配。",
+    "expected_chapter": "第二章 线性表",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "初始化时把所有结点依次串成备用链表",
+      "每个结点的cur指向下一个结点下标",
+      "最后一个结点cur置0表示备用链表结束"
+    ]
+  },
+  {
+    "id": "h021",
+    "question": "顺序栈与链栈在栈满问题上有什么区别？",
+    "type": "comparison",
+    "reference_answer": "顺序栈使用固定或可扩容的数组空间，若不进行动态扩容则存在栈满溢出的可能；链栈使用动态分配的链式结点，一般不存在栈满问题，只要系统还有可用内存就能继续入栈。",
+    "expected_chapter": "第三章 栈和队列",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "easy",
+    "core_facets": [
+      "顺序栈存在栈满溢出的可能（数组空间有限）",
+      "链栈一般不存在栈满问题（动态分配结点）"
+    ]
+  },
+  {
+    "id": "h022",
+    "question": "循环队列与链队列在判断队满这一问题上有什么区别？",
+    "type": "comparison",
+    "reference_answer": "循环队列容量固定，需要借助牺牲一个存储单元、增设长度计数器或增设标志位等方式来区分队满和队空，常见判定为(rear+1)%MAXSIZE==front；链队列使用动态分配的结点，一般不存在队满问题。",
+    "expected_chapter": "第三章 栈和队列",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "循环队列容量固定，需要专门方式判断队满",
+      "循环队列常用牺牲一个单元法判满",
+      "链队列动态分配结点，一般不存在队满问题"
+    ]
+  },
+  {
+    "id": "h023",
+    "question": "中缀表达式转后缀表达式与后缀表达式直接求值，两个算法各自需要几个栈？分别的作用是什么？",
+    "type": "comparison",
+    "reference_answer": "中缀转后缀算法需要一个运算符栈，用于按优先级暂存运算符并决定何时输出；后缀表达式求值只需要一个操作数栈，遇到数字入栈，遇到运算符弹出两个数计算后将结果重新入栈。",
+    "expected_chapter": "第三章 栈和队列",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "中缀转后缀需要一个运算符栈",
+      "后缀表达式求值只需要一个操作数栈",
+      "两者栈的用途不同：一个暂存运算符，一个暂存操作数"
+    ]
+  },
+  {
+    "id": "h024",
+    "question": "共享栈与两个各自独立的顺序栈相比，在空间利用率上有什么优势？",
+    "type": "comparison",
+    "reference_answer": "两个独立的顺序栈各自拥有固定空间，即使总空间足够，其中一个栈也可能因为局部空间不足而提前溢出；共享栈让两个栈共用同一块连续数组、栈底分设两端向中间增长，只有两栈顶相遇时才算真正栈满，因此空间利用率更高。",
+    "expected_chapter": "第三章 栈和队列",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "hard",
+    "core_facets": [
+      "两个独立顺序栈各自空间固定，可能提前溢出",
+      "共享栈两栈共用同一数组，栈底分设两端",
+      "共享栈仅在两栈顶相遇时才满，空间利用率更高"
+    ]
+  },
+  {
+    "id": "h025",
+    "question": "双端队列的“输入受限”与“输出受限”两种形式分别有什么操作限制？",
+    "type": "comparison",
+    "reference_answer": "输入受限的双端队列只允许在一端进行插入操作，但允许在两端进行删除操作；输出受限的双端队列则相反，允许在两端插入，但只允许在一端进行删除操作。",
+    "expected_chapter": "第三章 栈和队列",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "输入受限：只允许一端插入，两端都可删除",
+      "输出受限：两端都可插入，只允许一端删除"
+    ]
+  },
+  {
+    "id": "h026",
+    "question": "栈的后进先出特性为什么适合括号匹配和函数调用？请结合这两个应用说明。",
+    "type": "concept",
+    "reference_answer": "括号匹配中，遇到左括号入栈，遇到右括号时与栈顶左括号匹配，后出现的左括号先被匹配，符合后进先出；函数调用中，后调用的函数先返回，系统用栈保存返回地址和现场，也符合后进先出。",
+    "expected_chapter": "第三章 栈和队列",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "括号匹配利用栈后进先出：左括号入栈，右括号与栈顶匹配",
+      "函数调用利用栈后进先出：后调用的函数先返回",
+      "栈保存返回地址和现场，支持递归/函数调用"
+    ]
+  },
+  {
+    "id": "h027",
+    "question": "队列的先进先出特性为什么适合广度优先搜索和打印机任务调度？请结合这两个应用说明。",
+    "type": "concept",
+    "reference_answer": "广度优先搜索按层扩展，先发现的顶点先被访问，其邻接点后入队，符合先进先出；打印机任务调度中先提交的打印任务先执行，也符合先进先出，有利于保证按到达顺序公平处理。",
+    "expected_chapter": "第三章 栈和队列",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "BFS按层扩展，先发现顶点先访问，符合先进先出",
+      "打印机任务调度先提交先执行，符合先进先出",
+      "队列保证按到达顺序处理，适合缓冲/调度"
+    ]
+  },
+  {
+    "id": "h028",
+    "question": "中缀表达式转后缀表达式的算符优先算法具体流程是什么？",
+    "type": "algorithm",
+    "reference_answer": "算法维护一个运算符栈：遇到操作数直接输出；遇到运算符时，弹出并输出栈中所有优先级大于等于它的运算符后再将该运算符入栈；遇到左括号直接入栈；遇到右括号则不断弹出运算符输出，直到遇到左括号为止（左括号出栈但不输出）。",
+    "expected_chapter": "第三章 栈和队列",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "遇操作数直接输出",
+      "遇运算符先弹出优先级≥它的运算符再入栈",
+      "遇左括号直接入栈",
+      "遇右括号弹出至左括号（左括号出栈不输出）"
+    ]
+  },
+  {
+    "id": "h029",
+    "question": "汉诺塔问题的递归求解思路是什么？其时间复杂度是多少？",
+    "type": "algorithm",
+    "reference_answer": "将n个盘子从A借助B移动到C的递归思路是：先把上面n-1个盘子借助C移动到B，再把最底下的第n个盘子直接从A移动到C，最后把B上的n-1个盘子借助A移动到C；n个盘子共需移动2ⁿ−1次，时间复杂度为O(2ⁿ)。",
+    "expected_chapter": "第三章 栈和队列",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "递归思路：先移n-1个盘子到辅助柱",
+      "再移动最大的第n个盘子到目标柱",
+      "再将n-1个盘子从辅助柱移到目标柱",
+      "移动次数2ⁿ-1，时间复杂度O(2ⁿ)"
+    ]
+  },
+  {
+    "id": "h030",
+    "question": "顺序栈的入栈操作Push函数是如何处理栈满情况并动态扩容的？",
+    "type": "code",
+    "reference_answer": "Push函数首先判断top与base之差是否达到当前栈容量stacksize，若已达到则通过realloc为base重新分配更大的空间（增加STACKINCREMENT），并根据新base重新设置top指针和stacksize，扩容成功后再将新元素压入栈顶并将top后移。",
+    "expected_chapter": "第三章 栈和队列",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "先判断栈是否已满（top-base是否达到stacksize）",
+      "满时用realloc扩容base指向的空间",
+      "扩容后重新设置top指针和stacksize",
+      "扩容完成后正常执行压栈操作"
+    ]
+  },
+  {
+    "id": "h031",
+    "question": "定长顺序串与堆分配串在长度限制上有什么区别？",
+    "type": "comparison",
+    "reference_answer": "定长顺序串使用静态数组存储，长度超过预先设定的最大长度时通常采用截断策略，超出部分直接舍弃；堆分配串在程序执行时动态申请内存空间，长度可以随需要调整，没有固定的长度限制。",
+    "expected_chapter": "第四章 串",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "easy",
+    "core_facets": [
+      "定长顺序串长度超限时截断舍弃",
+      "堆分配串动态申请内存，长度无固定限制"
+    ]
+  },
+  {
+    "id": "h032",
+    "question": "顺序串与块链串在存储密度上有什么区别？",
+    "type": "comparison",
+    "reference_answer": "顺序串（定长）存储密度为1，字符连续存储没有额外开销；单字符的链串因为每个结点都要有指针域，存储密度较低；块链串通过让每个结点存储多个字符来分摊指针域的开销，从而提高存储密度。",
+    "expected_chapter": "第四章 串",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "顺序串存储密度为1",
+      "单字符链串因指针域开销存储密度低",
+      "块链串增大节点字符容量以提高存储密度"
+    ]
+  },
+  {
+    "id": "h033",
+    "question": "顺序串的插入操作StrInsert和删除操作StrDelete在实现上都需要移动字符，它们的核心步骤分别是什么？",
+    "type": "algorithm",
+    "reference_answer": "StrInsert先判断位置和长度是否合法以及插入后是否超过MAXSTRLEN，然后将pos及之后的字符整体后移T的长度，再把T复制到pos位置，最后更新串长；StrDelete先判断删除位置和长度是否合法，然后将pos+len及之后的字符整体前移len位，最后更新串长。二者都通过字符移动保持顺序存储的连续性。",
+    "expected_chapter": "第四章 串",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "StrInsert先移动pos及之后字符，再插入T并更新长度",
+      "StrDelete将pos+len及之后字符前移len位并更新长度",
+      "两者都通过字符移动保持顺序存储连续性",
+      "操作前需检查位置和长度合法性/是否超MAXSTRLEN"
+    ]
+  },
+  {
+    "id": "h034",
+    "question": "单字符链串与块链（多字符节点）链串，在存储密度与插入删除操作复杂度上各有什么权衡？",
+    "type": "comparison",
+    "reference_answer": "单字符链串每个结点只存一个字符，存储密度低但插入删除时只需调整少量指针，操作简单；块链串每个结点存多个字符，存储密度更高，但插入删除时若跨越块边界，需要移动块内字符，操作复杂度上升。",
+    "expected_chapter": "第四章 串",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "hard",
+    "core_facets": [
+      "单字符链串存储密度低但插入删除操作简单",
+      "块链串存储密度高",
+      "块链串插入删除时可能需要移动块内字符，复杂度更高"
+    ]
+  },
+  {
+    "id": "h035",
+    "question": "串的前缀与后缀分别是如何定义的？在KMP算法中起什么作用？",
+    "type": "comparison",
+    "reference_answer": "前缀是从串首开始、不包含最后一个字符的子串；后缀是到串尾结束、不包含第一个字符的子串。KMP算法利用模式串中“最长相等前后缀”的长度来构造next数组，从而在失配时确定模式串应该跳转到的位置，避免重复比较。",
+    "expected_chapter": "第四章 串",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "前缀是不含尾字符的子串",
+      "后缀是不含首字符的子串",
+      "最长相等前后缀用于构造next数组决定跳转位置"
+    ]
+  },
+  {
+    "id": "h036",
+    "question": "串的模式匹配（子串定位）操作是什么？若匹配失败通常返回什么？为什么它是串的基本操作之一？",
+    "type": "concept",
+    "reference_answer": "串的模式匹配是在主串中查找与给定模式串相等的子串，并返回其在主串中的位置；若不存在则通常返回0表示匹配失败。它又称为子串定位，是串的基本操作之一，因为串的查找、替换、删除、统计等操作往往都要先通过模式匹配确定子串位置。",
+    "expected_chapter": "第四章 串",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "模式匹配是在主串中查找与模式串相等的子串",
+      "返回该子串在主串中的位置，失败通常返回0",
+      "模式匹配又称子串定位",
+      "它是串的查找、替换、删除等操作的基础"
+    ]
+  },
+  {
+    "id": "h037",
+    "question": "串替换操作的实现思路是什么？需要哪几个基本步骤？",
+    "type": "algorithm",
+    "reference_answer": "串替换是将主串中所有与模式串匹配的子串替换为指定的新串，实现上需要循环执行三个基本步骤：先用模式匹配定位下一处匹配位置，再删除该处的模式串子串，然后在该位置插入替换用的新串，直至无法再匹配为止。",
+    "expected_chapter": "第四章 串",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "先定位匹配位置",
+      "再删除原模式串子串并插入新串",
+      "循环直至无法再匹配"
+    ]
+  },
+  {
+    "id": "h038",
+    "question": "BF算法在最坏情况下是如何触发O(nm)时间复杂度的？",
+    "type": "algorithm",
+    "reference_answer": "最坏情况出现在每一趟比较都进行到模式串的最后一位才发生失配，例如主串全部由字符'a'组成，而模式串前m-1个字符是'a'、最后一个字符是'b'，此时每趟都要比较m次，总共需要进行约n-m+1趟，因而时间复杂度达到O(nm)。",
+    "expected_chapter": "第四章 串",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "最坏情况是每趟都比较到模式串最后一位才失配",
+      "举例：主串全a，模式串前m-1位a最后一位b",
+      "每趟比较m次，约n-m+1趟，总复杂度O(nm)"
+    ]
+  },
+  {
+    "id": "h039",
+    "question": "两个串相等的充要条件是什么？串比较大小的规则是什么？若一个串是另一个串的前缀，应如何比较？",
+    "type": "concept",
+    "reference_answer": "两个串相等的充要条件是长度相等且对应位置上的字符完全相同。串的比较按字典序进行，从第一个字符开始逐位比较其ASCII码，第一个不同字符的大小决定两串的大小关系。若一个串是另一个串的前缀，则较长的串更大。",
+    "expected_chapter": "第四章 串",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "两串相等需长度相等且对应字符全部相同",
+      "串按字典序逐位比较ASCII码",
+      "第一个不同字符决定两串大小关系",
+      "前缀关系时较长的串更大"
+    ]
+  },
+  {
+    "id": "h040",
+    "question": "顺序串的串连接操作StrConcat是如何实现的？",
+    "type": "code",
+    "reference_answer": "先判断两串长度之和是否超过最大长度限制MAXSTRLEN，若不超过，则先将第一个串s1的全部字符复制到结果串T中，再紧接着把第二个串s2的字符依次追加到T中，最后更新T的长度为s1和s2长度之和。",
+    "expected_chapter": "第四章 串",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "先检查合并后长度是否超过MAXSTRLEN",
+      "将s1的字符复制到结果串T",
+      "将s2的字符追加到T末尾",
+      "更新T的长度为两串长度之和"
+    ]
+  },
+  {
+    "id": "h041",
+    "question": "二维数组按行优先存储与按列优先存储，元素a[i][j]的地址计算公式分别是什么？",
+    "type": "comparison",
+    "reference_answer": "行优先存储的地址公式为LOC(i,j)=LOC(0,0)+(i*n+j)*L，其中n为列数；列优先存储的地址公式为LOC(i,j)=LOC(0,0)+(j*m+i)*L，其中m为行数，L均为每个元素所占字节数。",
+    "expected_chapter": "第五章 数组和广义表",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "行优先公式：LOC(0,0)+(i*n+j)*L，n为列数",
+      "列优先公式：LOC(0,0)+(j*m+i)*L，m为行数"
+    ]
+  },
+  {
+    "id": "h042",
+    "question": "三元组顺序表与十字链表两种稀疏矩阵存储方式，在支持非零元素动态增删方面有什么区别？",
+    "type": "comparison",
+    "reference_answer": "三元组顺序表以顺序存储组织所有非零元素，插入删除某个非零元时需要移动大量其他三元组，不便于动态增删；十字链表用链式结构把每个非零元同时链入所在行链表和列链表，插入删除只需修改相邻结点的指针，更适合非零元频繁变化的场景。",
+    "expected_chapter": "第五章 数组和广义表",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "三元组顺序表插入删除需移动大量元素，不便于动态增删",
+      "十字链表用链式结构，非零元同时挂在行链和列链上",
+      "十字链表插入删除只需改指针，更适合频繁增删场景"
+    ]
+  },
+  {
+    "id": "h043",
+    "question": "数组与广义表在元素类型是否要求一致这一点上有什么区别？",
+    "type": "comparison",
+    "reference_answer": "数组要求所有元素的数据类型必须相同，是同类型元素的有序集合；广义表的元素可以是原子，也可以是子表（即另一个广义表），元素类型不要求一致，因而广义表被视为线性表在元素类型上的推广。",
+    "expected_chapter": "第五章 数组和广义表",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "easy",
+    "core_facets": [
+      "数组要求所有元素类型必须相同",
+      "广义表元素可以是原子也可以是子表",
+      "广义表是线性表在元素类型上的推广"
+    ]
+  },
+  {
+    "id": "h044",
+    "question": "广义表的“长度”与“深度”分别是如何定义的？以广义表B=(a,b)和C=(a,(b,c))为例说明二者的区别。",
+    "type": "comparison",
+    "reference_answer": "长度指广义表最外层元素的个数，深度指括号嵌套的最大层数。广义表B=(a,b)长度为2、深度为1，因为只有一层括号；广义表C=(a,(b,c))长度也为2（元素a和子表(b,c)），但深度为2，因为存在两层嵌套括号。",
+    "expected_chapter": "第五章 数组和广义表",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "长度指最外层元素个数",
+      "深度指括号嵌套的最大层数",
+      "B=(a,b)长度2深度1",
+      "C=(a,(b,c))长度2深度2"
+    ]
+  },
+  {
+    "id": "h045",
+    "question": "三元组顺序表与十字链表在稀疏矩阵存储中，随机存取单个元素的时间复杂度上有什么区别？",
+    "type": "comparison",
+    "reference_answer": "三元组顺序表按行有序存储，随机存取某个特定位置的元素通常需要遍历查找，时间复杂度为O(t)（t为非零元个数）；十字链表虽然结构上支持沿行链或列链查找，但同样需要遍历相应链表才能定位到目标元素，二者都不具备直接的O(1)随机存取能力，需要通过遍历完成定位。",
+    "expected_chapter": "第五章 数组和广义表",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "hard",
+    "core_facets": [
+      "三元组顺序表随机存取需遍历，复杂度O(t)",
+      "十字链表也需沿行链或列链遍历定位",
+      "二者均不具备O(1)随机存取能力"
+    ]
+  },
+  {
+    "id": "h046",
+    "question": "数组的基本操作主要是什么？为什么数组通常不做插入删除操作？这与数组采用顺序存储有什么关系？",
+    "type": "concept",
+    "reference_answer": "数组的基本操作主要是存取和修改元素。数组通常不做插入删除操作，因为数组元素类型和大小固定，且一般采用顺序存储；若在中间插入或删除，需要移动大量元素，破坏按下标直接定位的优势。因此数组适合顺序存储，通过下标直接计算地址，实现高效存取和修改。",
+    "expected_chapter": "第五章 数组和广义表",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "数组的基本操作主要是存取和修改元素",
+      "数组一般不做插入删除操作",
+      "数组通常采用顺序存储，插入删除需移动大量元素",
+      "顺序存储便于按下标直接计算地址，实现高效存取"
+    ]
+  },
+  {
+    "id": "h047",
+    "question": "对称矩阵按下三角压缩存储时，元素a[i][j]（i≥j）对应一维数组下标k的计算公式是什么？",
+    "type": "algorithm",
+    "reference_answer": "对称矩阵按下三角压缩存储到一维数组sa中时，元素a[i][j]（i≥j）对应的下标为k=i(i+1)/2+j；若i<j，则先交换i、j的值再代入该公式计算。",
+    "expected_chapter": "第五章 数组和广义表",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "下标公式k=i(i+1)/2+j（i≥j情形）",
+      "i<j时需先交换i、j再代入公式"
+    ]
+  },
+  {
+    "id": "h048",
+    "question": "三对角矩阵（带状矩阵）的非零元素分布有什么特点？为什么可以压缩存储到一维数组？每行最多有几个非零元素？",
+    "type": "concept",
+    "reference_answer": "三对角矩阵的非零元素集中分布在主对角线及其相邻的上下两条对角线上，其余位置全部为零。每一行最多只有3个非零元素，因此只需存储这些带状区域中的元素即可，可以按一定顺序压缩到一维数组中，从而大幅节省存储空间。",
+    "expected_chapter": "第五章 数组和广义表",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "非零元素集中在主对角线及相邻两条对角线",
+      "其余位置全部为零",
+      "每行最多3个非零元素",
+      "可只存储带状区域元素并压缩到一维数组"
+    ]
+  },
+  {
+    "id": "h049",
+    "question": "广义表的表头和表尾分别如何定义？以广义表(a,b,c)为例，其表头和表尾分别是什么？表尾为什么通常仍是广义表？",
+    "type": "concept",
+    "reference_answer": "广义表的表头是该广义表的第一个元素，表尾是除去第一个元素后剩余元素组成的表。对于广义表(a,b,c)，其表头是原子a，表尾是子表(b,c)。表尾通常仍是广义表，因为表尾的定义要求把剩余元素组织成一个表，即使只剩一个元素也要写成表的形式。",
+    "expected_chapter": "第五章 数组和广义表",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "表头是广义表的第一个元素",
+      "表尾是除第一个元素外其余元素组成的表",
+      "(a,b,c)的表头是a，表尾是(b,c)",
+      "表尾仍是广义表，剩余元素需组织成表的形式"
+    ]
+  },
+  {
+    "id": "h050",
+    "question": "求广义表深度的递归算法GListDepth是如何实现的？",
+    "type": "code",
+    "reference_answer": "算法先判断广义表是否为空表，空表深度记为1；若当前结点是原子则深度为0；否则对表中每个子表元素递归调用GListDepth求其深度，取所有子表深度的最大值后加1，作为整个广义表的深度。",
+    "expected_chapter": "第五章 数组和广义表",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "空表深度记为1，原子深度为0",
+      "对每个子表递归求深度",
+      "取所有子表深度的最大值",
+      "最终深度为最大子表深度加1"
+    ]
+  },
+  {
+    "id": "h051",
+    "question": "满二叉树与完全二叉树在节点分布上有什么区别？",
+    "type": "comparison",
+    "reference_answer": "满二叉树是深度为k且拥有2^k-1个节点的二叉树，每一层都达到该层的最大节点数，所有叶子节点都集中在最底层；完全二叉树是深度为k、节点数为n的二叉树，其节点编号与同深度满二叉树中编号1~n的节点一一对应，叶子节点只出现在最后两层，且最后一层的叶子结点靠左排列，不要求每一层都填满。",
+    "expected_chapter": "第六章 树和二叉树",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "满二叉树每层都达到最大节点数，叶子全在最底层",
+      "完全二叉树节点与满二叉树前n个编号对应",
+      "完全二叉树叶子只出现在最后两层且靠左排列"
+    ]
+  },
+  {
+    "id": "h052",
+    "question": "一般树与二叉树在每个结点的子树数量限制和左右次序要求上有什么区别？",
+    "type": "comparison",
+    "reference_answer": "一般树中每个结点的子树数量没有最多两棵的限制；二叉树规定每个结点至多有两棵子树，并且严格区分左子树和右子树，即使只有一棵子树也要区分其左右位置。",
+    "expected_chapter": "第六章 树和二叉树",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "一般树中每个结点的子树数量不受最多两棵的限制",
+      "二叉树每个结点至多有两棵子树",
+      "二叉树严格区分左子树和右子树"
+    ]
+  },
+  {
+    "id": "h053",
+    "question": "二叉树的先序遍历与后序遍历在访问顺序以及根节点访问位置上有什么区别？",
+    "type": "comparison",
+    "reference_answer": "先序遍历按照根、左子树、右子树的顺序访问，因此根节点最先访问；后序遍历按照左子树、右子树、根的顺序访问，因此根节点最后访问。",
+    "expected_chapter": "第六章 树和二叉树",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "先序遍历顺序为根-左-右",
+      "先序遍历中根节点最先访问",
+      "后序遍历顺序为左-右-根",
+      "后序遍历中根节点最后访问"
+    ]
+  },
+  {
+    "id": "h054",
+    "question": "树的存储结构中，双亲表示法与孩子兄弟表示法分别是如何表示节点间关系的？",
+    "type": "comparison",
+    "reference_answer": "双亲表示法为每个节点存储其双亲节点在数组中的下标，通过双亲指针间接表达父子关系，便于快速找到双亲但不便于查找孩子；孩子兄弟表示法为每个节点设置两个指针，分别指向其第一个孩子和右边第一个兄弟，能方便地表示任意多叉树结构。",
+    "expected_chapter": "第六章 树和二叉树",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "双亲表示法存储每个节点的双亲下标，便于找双亲",
+      "孩子兄弟表示法设置孩子指针和兄弟指针"
+    ]
+  },
+  {
+    "id": "h055",
+    "question": "二叉树的顺序存储与二叉链表存储，分别适合什么类型的二叉树？对单支树两种方式的空间效率有何区别？",
+    "type": "comparison",
+    "reference_answer": "顺序存储用一维数组按层序存放节点，适合完全二叉树，此时空间利用率最高；对于单支树等非完全二叉树，顺序存储会出现大量空节点造成空间浪费，浪费最为严重。二叉链表用指针连接节点，不受树形态限制，对单支树等任意形态的二叉树都能按实际节点数存储，不会因树形不规则而浪费空间。",
+    "expected_chapter": "第六章 树和二叉树",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "hard",
+    "core_facets": [
+      "顺序存储适合完全二叉树，空间利用率高",
+      "顺序存储对单支树等会造成大量空间浪费",
+      "二叉链表不受树形态限制，按实际节点数存储不浪费"
+    ]
+  },
+  {
+    "id": "h056",
+    "question": "二叉树第i层最多有多少个节点？深度为k的二叉树最多有多少个节点？这两条性质与满二叉树有什么关系？",
+    "type": "concept",
+    "reference_answer": "二叉树第i层上至多有2^(i-1)个节点（i≥1）；深度为k的二叉树至多有2^k-1个节点（k≥1）。满二叉树正好达到这两个最大值，即每一层都达到该层最大节点数，且深度为k时节点总数为2^k-1。",
+    "expected_chapter": "第六章 树和二叉树",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "第i层至多2^(i-1)个节点",
+      "深度为k的二叉树至多2^k-1个节点",
+      "满二叉树每层都达到该层最大节点数",
+      "深度为k的满二叉树节点总数为2^k-1"
+    ]
+  },
+  {
+    "id": "h057",
+    "question": "线索二叉树的ltag和rtag标志分别表示什么含义？",
+    "type": "concept",
+    "reference_answer": "线索二叉树的每个节点增设ltag和rtag两个标志位，用来区分左右指针的实际指向：标志为0表示该指针正常指向左孩子或右孩子；标志为1表示该指针不再指向孩子，而是存放该节点的前驱或后继线索。",
+    "expected_chapter": "第六章 树和二叉树",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "ltag/rtag用于区分指针含义",
+      "标志为0表示指针指向孩子",
+      "标志为1表示指针存放前驱或后继线索"
+    ]
+  },
+  {
+    "id": "h058",
+    "question": "树转换为二叉树的规则是什么？",
+    "type": "algorithm",
+    "reference_answer": "树转换为二叉树的规则是：每个节点的左指针指向其在原树中的第一个孩子节点，右指针指向其在原树中右边第一个兄弟节点，按此规则递归处理全部节点即可完成转换。",
+    "expected_chapter": "第六章 树和二叉树",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "左指针指向第一个孩子",
+      "右指针指向右边第一个兄弟",
+      "递归处理全部节点完成转换"
+    ]
+  },
+  {
+    "id": "h059",
+    "question": "哈夫曼编码为什么是前缀编码？这种特性有什么作用？",
+    "type": "concept",
+    "reference_answer": "哈夫曼编码是从哈夫曼树的根到各个叶子节点的路径生成的，任一字符对应的编码路径都不会经过另一个字符所在的叶子节点，因此任何一个字符的编码都不会是另一个字符编码的前缀，这种前缀编码特性保证了译码过程不会产生二义性。",
+    "expected_chapter": "第六章 树和二叉树",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "哈夫曼编码来自根到叶子的路径",
+      "任一字符编码都不是其他字符编码的前缀",
+      "前缀特性保证译码不产生二义性"
+    ]
+  },
+  {
+    "id": "h060",
+    "question": "二叉树中序遍历的非递归算法InOrderNonRec是如何借助栈实现的？",
+    "type": "code",
+    "reference_answer": "算法用一个辅助栈模拟递归过程：从根节点开始，只要当前节点非空或栈不为空就循环执行——若当前节点非空则将其入栈并转向其左孩子；若当前节点为空则弹出栈顶节点并访问，然后转向该节点的右孩子，如此循环直到遍历完成。",
+    "expected_chapter": "第六章 树和二叉树",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "用栈模拟递归过程",
+      "当前节点非空则入栈并转向左孩子",
+      "当前节点为空则出栈访问并转向右孩子",
+      "循环直至栈空且当前节点为空"
+    ]
+  },
+  {
+    "id": "h061",
+    "question": "Prim算法与Kruskal算法分别适合什么类型的图？时间复杂度各是多少？",
+    "type": "comparison",
+    "reference_answer": "Prim算法从一个顶点出发逐步扩展生成树，其时间复杂度与顶点数相关为O(n²)、与边数无关，适合稠密图；Kruskal算法按权值从小到大依次选边构造生成树，时间复杂度为O(e log e)、依赖于边数，适合稀疏图。",
+    "expected_chapter": "第七章 图",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "Prim算法时间复杂度O(n²)，与边数无关",
+      "Prim适合稠密图",
+      "Kruskal算法时间复杂度O(e log e)",
+      "Kruskal适合稀疏图"
+    ]
+  },
+  {
+    "id": "h062",
+    "question": "在教材常用的邻接矩阵实现下，Dijkstra算法与Floyd算法分别解决什么类型的最短路径问题？时间复杂度各是多少？",
+    "type": "comparison",
+    "reference_answer": "Dijkstra算法解决单源最短路径问题，在邻接矩阵实现下时间复杂度为O(n²)；Floyd算法解决任意两点之间的最短路径问题，时间复杂度为O(n³)。",
+    "expected_chapter": "第七章 图",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "Dijkstra解决单源最短路径问题",
+      "Dijkstra邻接矩阵实现时间复杂度为O(n²)",
+      "Floyd解决任意两点之间的最短路径问题",
+      "Floyd时间复杂度为O(n³)"
+    ]
+  },
+  {
+    "id": "h063",
+    "question": "十字链表与邻接多重表分别是哪种图（有向/无向）的链式存储结构？各自的优势是什么？",
+    "type": "comparison",
+    "reference_answer": "十字链表是有向图的链式存储结构，每个弧结点同时链入出边表和入边表，便于同时求出一个顶点的入度和出度；邻接多重表是无向图的链式存储结构，每条边只用一个结点表示，便于对边进行删除和标记操作，适合边操作频繁的场景。",
+    "expected_chapter": "第七章 图",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "十字链表是有向图的存储结构",
+      "十字链表便于同时求入度和出度",
+      "邻接多重表是无向图的存储结构",
+      "邻接多重表便于边的删除和标记"
+    ]
+  },
+  {
+    "id": "h064",
+    "question": "DFS（深度优先搜索）与BFS（广度优先搜索）分别借助什么数据结构实现？遍历方式上有什么区别？",
+    "type": "comparison",
+    "reference_answer": "DFS借助栈（或递归，本质是系统栈）实现，遍历方式是从起点出发沿一条路径尽量往深处走，走不通再回溯，类似树的先序遍历；BFS借助队列实现，遍历方式是从起点出发先访问所有邻接点，再逐层向外扩展，类似树的层序遍历。",
+    "expected_chapter": "第七章 图",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "DFS借助栈或递归实现，沿路径深入再回溯",
+      "DFS类似树的先序遍历",
+      "BFS借助队列实现，逐层向外扩展",
+      "BFS类似树的层序遍历"
+    ]
+  },
+  {
+    "id": "h065",
+    "question": "连通图的连通分量与有向图的强连通分量，分别是针对什么类型的图定义的？",
+    "type": "comparison",
+    "reference_answer": "连通分量是针对无向图定义的概念，指无向图中的极大连通子图；强连通分量是针对有向图定义的概念，指有向图中任意两顶点间都存在双向路径的极大子图。二者概念相似，但分别对应无向图和有向图两种不同图类型。",
+    "expected_chapter": "第七章 图",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "连通分量针对无向图，是极大连通子图",
+      "强连通分量针对有向图",
+      "强连通分量要求任意两点间双向都有路径"
+    ]
+  },
+  {
+    "id": "h066",
+    "question": "n个顶点的无向完全图与有向完全图，边（弧）数分别是多少？",
+    "type": "concept",
+    "reference_answer": "n个顶点的无向完全图共有n(n-1)/2条边，即任意两个顶点之间都有一条无向边；n个顶点的有向完全图共有n(n-1)条弧，即任意两个顶点之间都有两条方向相反的弧。",
+    "expected_chapter": "第七章 图",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "easy",
+    "core_facets": [
+      "无向完全图边数为n(n-1)/2",
+      "有向完全图弧数为n(n-1)"
+    ]
+  },
+  {
+    "id": "h067",
+    "question": "什么是图的生成树？生成树包含多少条边？",
+    "type": "concept",
+    "reference_answer": "一个连通图的生成树是该图的一个极小连通子图，它包含图中全部n个顶点，且只用n-1条边就能将这些顶点连通；生成树不唯一，不同的遍历顺序可能得到不同的生成树。",
+    "expected_chapter": "第七章 图",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "easy",
+    "core_facets": [
+      "生成树是连通图的极小连通子图",
+      "生成树包含全部n个顶点",
+      "生成树恰好有n-1条边"
+    ]
+  },
+  {
+    "id": "h068",
+    "question": "关键路径中，事件的最早发生时间ve和最迟发生时间vl分别是如何递推计算的？",
+    "type": "algorithm",
+    "reference_answer": "事件的最早发生时间ve从源点开始正向递推：源点ve为0，其余事件的ve取所有前驱活动完成时间的最大值；事件的最迟发生时间vl从汇点开始反向递推：汇点vl等于其ve，其余事件的vl取所有后继活动最迟必须开始时间的最小值。",
+    "expected_chapter": "第七章 图",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "hard",
+    "core_facets": [
+      "ve从源点开始正向递推",
+      "ve取前驱活动完成时间的最大值",
+      "vl从汇点开始反向递推",
+      "vl取后继活动最迟开始时间的最小值"
+    ]
+  },
+  {
+    "id": "h069",
+    "question": "拓扑排序主要用于什么类型的网（AOV网）？其定义是什么？",
+    "type": "concept",
+    "reference_answer": "拓扑排序主要用于AOV网，即用顶点表示活动、用有向边表示活动之间优先关系的有向无环图；拓扑排序对AOV网的顶点进行排序，使得对于任意一条有向边u→v，顶点u都排在顶点v之前，从而反映活动的先后顺序约束。",
+    "expected_chapter": "第七章 图",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "AOV网是顶点表示活动的有向无环图",
+      "拓扑排序保证有向边u→v中u排在v之前",
+      "用于反映活动之间的先后顺序约束"
+    ]
+  },
+  {
+    "id": "h070",
+    "question": "图的广度优先搜索BFS遍历算法的代码实现思路是什么？",
+    "type": "code",
+    "reference_answer": "从起始顶点v出发，先标记其已访问并访问该顶点，然后将其加入队列；只要队列不空，就循环取出队首顶点，依次检查其所有邻接点，将其中未被访问过的邻接点标记为已访问、访问该邻接点并加入队列，直到队列为空遍历结束。",
+    "expected_chapter": "第七章 图",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "起点入队并标记访问",
+      "循环取出队首顶点检查其邻接点",
+      "未访问的邻接点标记访问并入队",
+      "队列空时遍历结束"
+    ]
+  },
+  {
+    "id": "h071",
+    "question": "静态查找表与动态查找表分别支持什么操作？各自的典型实现有哪些？",
+    "type": "comparison",
+    "reference_answer": "静态查找表仅支持查找操作，不支持插入或删除，典型实现包括顺序查找表、折半查找有序表、分块索引表；动态查找表在查找过程中还可以插入不存在的关键字或删除已有关键字，典型实现包括二叉排序树、AVL树、B树以及哈希表。",
+    "expected_chapter": "第九章 查找",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "静态查找表只支持查找，不支持插入删除",
+      "静态查找表典型实现：顺序表/折半有序表/分块索引表",
+      "动态查找表支持插入和删除",
+      "动态查找表典型实现：BST/AVL/B树/哈希表"
+    ]
+  },
+  {
+    "id": "h072",
+    "question": "顺序查找与折半查找，二者的平均查找长度ASL分别是多少量级？对表的存储结构有什么要求？",
+    "type": "comparison",
+    "reference_answer": "顺序查找的平均查找长度是线性量级，无序表成功查找ASL约为(n+1)/2，对存储结构无特殊要求（顺序表、链表均可）；折半查找的平均查找长度是对数量级，成功查找ASL约为log₂(n+1)-1，但要求表必须是有序且顺序存储，不能用于链式存储。",
+    "expected_chapter": "第九章 查找",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "hard",
+    "core_facets": [
+      "顺序查找ASL是线性量级O(n)",
+      "顺序查找对存储结构无特殊要求",
+      "折半查找ASL是对数量级O(logn)",
+      "折半查找要求有序且顺序存储"
+    ]
+  },
+  {
+    "id": "h073",
+    "question": "AVL树的LL型失衡与RR型失衡，分别需要做什么方向的旋转来修复？",
+    "type": "comparison",
+    "reference_answer": "LL型失衡是由于新节点插入在左孩子的左子树导致的，修复时需要对失衡的根节点做一次右旋；RR型失衡是由于新节点插入在右孩子的右子树导致的，修复时需要对失衡的根节点做一次左旋，二者都属于单旋操作。",
+    "expected_chapter": "第九章 查找",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "LL型失衡因新节点插入左孩子的左子树",
+      "LL型失衡做右旋修复",
+      "RR型失衡因新节点插入右孩子的右子树",
+      "RR型失衡做左旋修复"
+    ]
+  },
+  {
+    "id": "h074",
+    "question": "AVL树的LR型失衡与RL型失衡，分别需要经过几次旋转？旋转顺序是怎样的？",
+    "type": "comparison",
+    "reference_answer": "LR型失衡是新节点插入在左孩子的右子树导致的，需要经过两次旋转（双旋）：先对左孩子做左旋转化为LL型，再对根节点做右旋；RL型失衡是新节点插入在右孩子的左子树导致的，同样需要两次旋转：先对右孩子做右旋转化为RR型，再对根节点做左旋。",
+    "expected_chapter": "第九章 查找",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "hard",
+    "core_facets": [
+      "LR型失衡需两次旋转",
+      "LR型：先左孩子左旋转为LL，再整体右旋",
+      "RL型失衡需两次旋转",
+      "RL型：先右孩子右旋转为RR，再整体左旋"
+    ]
+  },
+  {
+    "id": "h075",
+    "question": "B树与二叉排序树（BST）在查找效率的稳定性上有什么区别？",
+    "type": "comparison",
+    "reference_answer": "B树是多路平衡查找树，所有叶子节点都保持在同一层，因此任意一次查找所经历的比较层数基本相当，查找效率稳定；二叉排序树在插入顺序不合理的情况下可能退化为单支链表，最坏情况下查找效率会下降为O(n)，稳定性较差。",
+    "expected_chapter": "第九章 查找",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "hard",
+    "core_facets": [
+      "B树所有叶子节点在同一层，查找层数稳定",
+      "B树查找效率稳定",
+      "BST可能退化为单支链表",
+      "BST最坏查找效率退化为O(n)"
+    ]
+  },
+  {
+    "id": "h076",
+    "question": "什么是平均查找长度（ASL）？它衡量的是什么？",
+    "type": "concept",
+    "reference_answer": "平均查找长度ASL是指在查找过程中，为确定记录在表中的位置所进行的关键字比较次数的期望值，是衡量各种查找算法查找效率的核心指标。",
+    "expected_chapter": "第九章 查找",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "easy",
+    "core_facets": [
+      "ASL是查找过程中关键字比较次数的期望值",
+      "ASL用于衡量查找算法的效率"
+    ]
+  },
+  {
+    "id": "h077",
+    "question": "二叉排序树（BST）删除节点的三种情况分别是如何处理的？",
+    "type": "algorithm",
+    "reference_answer": "删除叶子节点时直接删除该节点；删除只有一个孩子的节点时，直接用其唯一的子树顶替该节点原来的位置；删除有左右两个孩子的节点时，通常用其中序遍历下的前驱（或后继）节点顶替，再删除该前驱（或后继）节点。",
+    "expected_chapter": "第九章 查找",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "叶子节点直接删除",
+      "单孩子节点用其子树直接顶替",
+      "双孩子节点用中序前驱或后继顶替"
+    ]
+  },
+  {
+    "id": "h078",
+    "question": "AVL树的平衡因子是如何定义的？其合法取值范围是什么？",
+    "type": "concept",
+    "reference_answer": "AVL树的平衡因子定义为该节点左子树的高度减去右子树的高度；对于任意一棵合法的AVL树，其所有节点的平衡因子只能取-1、0、1这三个值。",
+    "expected_chapter": "第九章 查找",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "easy",
+    "core_facets": [
+      "平衡因子=左子树高度-右子树高度",
+      "合法取值只能是-1、0、1"
+    ]
+  },
+  {
+    "id": "h079",
+    "question": "B树的非根非叶子节点，关键字个数的下界是多少？",
+    "type": "concept",
+    "reference_answer": "对于m阶B树，非根非叶子节点最少需要包含⌈m/2⌉-1个关键字，以保证除根节点外每个节点至少有⌈m/2⌉棵子树，从而维持B树的平衡性质。",
+    "expected_chapter": "第九章 查找",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "非根非叶子节点最少⌈m/2⌉-1个关键字",
+      "该下界保证每个节点至少有⌈m/2⌉棵子树"
+    ]
+  },
+  {
+    "id": "h080",
+    "question": "二叉排序树的查找算法SearchBST是如何用递归实现的？",
+    "type": "code",
+    "reference_answer": "算法首先判断当前节点是否为空或其关键字是否等于目标key，若满足其一则直接返回当前节点（找到或查找失败）；若目标key小于当前节点关键字，则递归地在左子树中继续查找；否则递归地在右子树中继续查找。",
+    "expected_chapter": "第九章 查找",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "节点为空或关键字相等时直接返回结果",
+      "key小于当前节点关键字时递归查左子树",
+      "key大于当前节点关键字时递归查右子树"
+    ]
+  },
+  {
+    "id": "h081",
+    "question": "简单选择排序与直接插入排序，二者的比较次数是否受原始序列有序程度影响？",
+    "type": "comparison",
+    "reference_answer": "简单选择排序无论原始序列是否有序，每一轮都要在未排序区间中完整扫描一遍找出最小值，比较次数固定为n(n-1)/2，不受初始有序程度影响；直接插入排序的比较次数则与初始有序程度密切相关，序列已基本有序时比较次数很少（最好情况O(n)），逆序时比较次数最多（最坏情况O(n²)）。",
+    "expected_chapter": "第十章 内部排序",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "简单选择排序比较次数固定n(n-1)/2",
+      "简单选择排序不受初始有序程度影响",
+      "直接插入排序比较次数受初始有序程度影响",
+      "直接插入最好O(n)最坏O(n²)"
+    ]
+  },
+  {
+    "id": "h082",
+    "question": "希尔排序与直接插入排序，为什么希尔排序是不稳定的而直接插入排序是稳定的？",
+    "type": "comparison",
+    "reference_answer": "直接插入排序每次只在相邻位置间比较移动，只有当前元素关键字严格小于比较元素时才移动，相等时不移动，因此保持原有相对顺序，是稳定排序；希尔排序按较大的间隔分组进行插入排序，相等关键字的记录可能被分到不同的组中，跨组比较交换会打乱它们原有的相对次序，因此是不稳定排序。",
+    "expected_chapter": "第十章 内部排序",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "直接插入排序相等关键字不移动，保持稳定",
+      "希尔排序按间隔分组，相等关键字可能分到不同组",
+      "跨组交换会打乱相等关键字的相对顺序，希尔不稳定"
+    ]
+  },
+  {
+    "id": "h083",
+    "question": "冒泡排序与简单选择排序，二者的稳定性是否相同？为什么？",
+    "type": "comparison",
+    "reference_answer": "二者稳定性不同。冒泡排序是稳定排序，因为它只在相邻元素出现逆序（严格大于）时才交换，相等关键字不会被交换，相对顺序得以保持；简单选择排序是不稳定排序，因为每轮选出最小值后与当前位置元素进行交换，这种远距离交换可能会跨越并打乱中间相等关键字元素原有的相对次序。",
+    "expected_chapter": "第十章 内部排序",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "冒泡排序是稳定排序，仅相邻逆序才交换",
+      "简单选择排序是不稳定排序",
+      "简单选择的远距离交换会打乱相等关键字的相对顺序"
+    ]
+  },
+  {
+    "id": "h084",
+    "question": "快速排序与堆排序，二者的平均/最坏时间复杂度是否相同？空间复杂度上有什么区别？",
+    "type": "comparison",
+    "reference_answer": "快速排序平均时间复杂度为O(nlogn)，但最坏情况（如输入基本有序时选取不当的基准）会退化为O(n²)；堆排序无论何种输入，时间复杂度都稳定为O(nlogn)。空间复杂度上，快速排序需要递归栈空间，平均为O(logn)、最坏可达O(n)；堆排序只需常数级辅助空间O(1)，属于原地排序。",
+    "expected_chapter": "第十章 内部排序",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "hard",
+    "core_facets": [
+      "快速排序平均O(nlogn)、最坏退化为O(n²)",
+      "堆排序无论何种输入都稳定为O(nlogn)",
+      "快速排序需要递归栈空间O(logn)~O(n)",
+      "堆排序辅助空间为O(1)，属于原地排序"
+    ]
+  },
+  {
+    "id": "h085",
+    "question": "基数排序与快速排序，二者排序过程中是否需要比较关键字大小？",
+    "type": "comparison",
+    "reference_answer": "基数排序属于分配式排序，不需要直接比较关键字的大小，而是依靠关键字每一位的数值进行分配和收集；快速排序属于基于比较的排序算法，整个划分过程都需要不断比较元素关键字与基准值的大小来决定元素的去向。",
+    "expected_chapter": "第十章 内部排序",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "基数排序不比较关键字大小，靠分配收集",
+      "快速排序需要不断比较关键字与基准值大小"
+    ]
+  },
+  {
+    "id": "h086",
+    "question": "排序算法的稳定性是如何定义的？",
+    "type": "concept",
+    "reference_answer": "若排序前后，关键字相等的记录之间的相对次序保持不变，则称该排序算法是稳定的；若可能改变相等关键字记录的原有相对次序，则称该排序算法是不稳定的。",
+    "expected_chapter": "第十章 内部排序",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "easy",
+    "core_facets": [
+      "稳定排序：相等关键字记录相对次序不变",
+      "不稳定排序：相等关键字记录相对次序可能改变"
+    ]
+  },
+  {
+    "id": "h087",
+    "question": "内部排序按实现思想可以分为哪四大类？",
+    "type": "concept",
+    "reference_answer": "内部排序按实现思想主要分为四大类：插入类排序（如直接插入、希尔排序）、交换类排序（如冒泡排序、快速排序）、选择类排序（如简单选择排序、堆排序）、归并分配类排序（如归并排序、基数排序）。",
+    "expected_chapter": "第十章 内部排序",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "easy",
+    "core_facets": [
+      "插入类排序",
+      "交换类排序",
+      "选择类排序",
+      "归并分配类排序"
+    ]
+  },
+  {
+    "id": "h088",
+    "question": "希尔排序（缩小增量排序）的基本思路是什么？",
+    "type": "algorithm",
+    "reference_answer": "希尔排序又称缩小增量排序，先根据设定的间隔序列将待排序记录分成若干组，对每组分别进行直接插入排序，然后逐步缩小分组间隔，重复这一过程，直到间隔缩小为1时进行最后一轮整体的直接插入排序，从而得到有序序列。",
+    "expected_chapter": "第十章 内部排序",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "先按间隔分组，组内直接插入排序",
+      "逐步缩小间隔重复分组排序",
+      "间隔为1时进行最后一轮整体插入排序"
+    ]
+  },
+  {
+    "id": "h089",
+    "question": "基数排序LSD（最低位优先）的处理流程是什么？",
+    "type": "algorithm",
+    "reference_answer": "LSD基数排序从关键字的最低位开始，依次按照每一位的数值将记录分配到对应的桶中，再按桶的顺序收集回序列；完成最低位的分配收集后，再对次低位重复该过程，逐位向高位推进，直到最高位处理完毕，序列即变为有序。",
+    "expected_chapter": "第十章 内部排序",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "从最低位开始按位数值分配到桶中",
+      "按桶顺序收集回序列",
+      "逐位向高位推进重复该过程",
+      "处理完最高位后序列有序"
+    ]
+  },
+  {
+    "id": "h090",
+    "question": "简单选择排序的核心代码SelectSort是如何实现的？",
+    "type": "code",
+    "reference_answer": "算法进行n-1轮循环，每一轮在未排序区间中通过内层循环找出关键字最小的记录所在下标min；若该最小记录不在本轮起始位置i上，则将i位置与min位置的记录交换，从而将当前轮次的最小值放入有序区末尾，逐轮扩大有序区。",
+    "expected_chapter": "第十章 内部排序",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "外层循环执行n-1轮",
+      "内层循环找出未排序区间的最小值下标",
+      "若最小值不在起始位置则交换",
+      "每轮将最小值放入有序区末尾"
+    ]
+  },
+  {
+    "id": "h091",
+    "question": "败者树与胜者树，二者的非叶子节点分别存放什么信息？",
+    "type": "comparison",
+    "reference_answer": "败者树的非叶子节点存放的是本轮比较中的败者（较大值一方）对应的归并段编号，胜者则继续向上一层参与比较；胜者树的非叶子节点存放的是本轮比较中的胜者（较小值一方）对应的归并段编号。",
+    "expected_chapter": "第十一章 外部排序",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "败者树非叶子节点存放败者段编号",
+      "胜者树非叶子节点存放胜者段编号"
+    ]
+  },
+  {
+    "id": "h092",
+    "question": "磁盘访问时间的寻道时间与旋转延迟，二者分别指什么？哪一项开销通常最大？",
+    "type": "comparison",
+    "reference_answer": "寻道时间是指磁头从当前位置移动到目标磁道所消耗的时间；旋转延迟是指盘片旋转、使目标扇区转到磁头下方所消耗的时间。在磁盘一次访问的总时间构成中，寻道时间的开销占比通常最大。",
+    "expected_chapter": "第十一章 外部排序",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "寻道时间：磁头移动到目标磁道的时间",
+      "旋转延迟：目标扇区转到磁头下方的时间",
+      "寻道时间开销通常占比最大"
+    ]
+  },
+  {
+    "id": "h093",
+    "question": "归并路数k增大与初始归并段数r减少，二者对归并趟数的影响方向是否相同？",
+    "type": "comparison",
+    "reference_answer": "二者影响方向相同，都能减少归并趟数。根据归并趟数公式S=⌈logₖr⌉，归并路数k越大，或者初始归并段总数r越少，计算出的趟数S都会相应减小，从而降低总的磁盘IO次数。",
+    "expected_chapter": "第十一章 外部排序",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "归并趟数公式S=⌈logₖr⌉",
+      "k越大趟数越少",
+      "r越小趟数越少",
+      "二者影响方向相同，都能降低磁盘IO次数"
+    ]
+  },
+  {
+    "id": "h094",
+    "question": "最佳归并树中，虚归并段与真实归并段，二者在是否参与实际磁盘IO这一点上有什么区别？",
+    "type": "comparison",
+    "reference_answer": "真实归并段对应磁盘上实际存在的数据，参与整个归并过程中的磁盘读写IO操作；虚归并段是为了满足构造严格k叉树的条件而人为补充的权值为0的叶子节点，只参与最佳归并树的树形构造和WPL计算，不产生任何实际的磁盘读写IO操作。",
+    "expected_chapter": "第十一章 外部排序",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "真实归并段参与实际的磁盘读写IO",
+      "虚归并段权值为0，仅用于构造k叉树满足条件",
+      "虚归并段不产生实际磁盘IO操作"
+    ]
+  },
+  {
+    "id": "h095",
+    "question": "最佳归并树中，为什么权值大的归并段应放在较浅的层次？",
+    "type": "concept",
+    "reference_answer": "归并段的权值代表其记录数量，权值越大的归并段在归并过程中被读取和参与的IO量越大；将其放在较浅层次可以减少它被重复归并的次数，从而降低整棵最佳归并树的带权路径长度WPL，使总磁盘IO开销最小。",
+    "expected_chapter": "第十一章 外部排序",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "归并段权值代表记录数量",
+      "权值大的归并段IO量更大",
+      "放在较浅层次可减少重复归并次数",
+      "降低WPL，减少总磁盘IO开销"
+    ]
+  },
+  {
+    "id": "h096",
+    "question": "什么是k路平衡归并？其至少需要多少个缓冲区？",
+    "type": "concept",
+    "reference_answer": "k路平衡归并是指同时对k个已经有序的初始归并段进行归并，每次比较选出当前的全局最小关键字写入输出文件；k路平衡归并至少需要k个输入缓冲区分别用来读取k个归并段的数据，外加1个输出缓冲区用于写出归并结果。",
+    "expected_chapter": "第十一章 外部排序",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "easy",
+    "core_facets": [
+      "k路平衡归并同时对k个有序归并段进行归并",
+      "至少需要k个输入缓冲区",
+      "外加1个输出缓冲区"
+    ]
+  },
+  {
+    "id": "h097",
+    "question": "磁盘一次访问的总时间由哪几部分构成？",
+    "type": "concept",
+    "reference_answer": "磁盘一次访问的总时间由寻道时间、旋转延迟、数据传输时间三部分构成，这三部分共同决定了一次磁盘IO操作所需的实际耗时。",
+    "expected_chapter": "第十一章 外部排序",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "easy",
+    "core_facets": [
+      "寻道时间",
+      "旋转延迟",
+      "数据传输时间"
+    ]
+  },
+  {
+    "id": "h098",
+    "question": "置换-选择排序中，读入新记录后如何判断该记录应归入当前归并段还是下一个归并段？",
+    "type": "algorithm",
+    "reference_answer": "置换-选择排序在读入一条新记录后，将其关键字与刚刚输出的记录的关键字进行比较：若新记录的关键字大于等于刚输出的记录，则说明它仍可以并入当前正在生成的归并段；若新记录的关键字小于刚输出的记录，则说明它不能再放入当前归并段，只能留待归入下一个归并段。",
+    "expected_chapter": "第十一章 外部排序",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "新记录与刚输出记录的关键字比较",
+      "大于等于刚输出记录则留在当前归并段",
+      "小于刚输出记录则归入下一个归并段"
+    ]
+  },
+  {
+    "id": "h099",
+    "question": "最佳归并树的构造策略是什么？其目标是使什么指标最小？",
+    "type": "concept",
+    "reference_answer": "最佳归并树采用贪心构造策略：每次从当前所有归并段（含虚归并段）中选取长度最小的k个进行合并，产生一个新的权值节点，重复这一过程直到只剩下一个根节点为止；其构造目标是使整棵归并树的带权路径长度WPL达到最小，从而使总的磁盘IO开销最小。",
+    "expected_chapter": "第十一章 外部排序",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "medium",
+    "core_facets": [
+      "贪心策略：每次选权值最小的k个归并段合并",
+      "重复合并直到只剩根节点",
+      "目标是使带权路径长度WPL最小"
+    ]
+  },
+  {
+    "id": "h100",
+    "question": "虚归并段数量的计算公式是什么？以r=10、k=3路归并为例，需要补充多少个虚段？",
+    "type": "complexity",
+    "reference_answer": "当现有归并段数量r满足(r-1) mod (k-1)不等于0时，需要补充的虚归并段数量为k-1-((r-1) mod (k-1))。以r=10、k=3为例：(10-1) mod (3-1) = 9 mod 2 = 1，虚段数为(3-1)-1=1，即需要补充1个虚归并段。",
+    "expected_chapter": "第十一章 外部排序",
+    "expected_source": "数据结构（C语言版）严蔚敏.pdf",
+    "expected_chunk_id": [],
+    "is_out_of_scope": false,
+    "difficulty": "hard",
+    "core_facets": [
+      "虚段数量公式：k-1-((r-1) mod (k-1))",
+      "公式仅在(r-1) mod (k-1)≠0时适用",
+      "r=10、k=3时计算得需补充1个虚段"
+    ]
+  }
+]

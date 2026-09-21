@@ -16,15 +16,29 @@ from rag.config import (
     PROJECT_ROOT,
 )
 from rag.generators.qwen_generator import QwenGenerator
-from rag.retrievers import BM25Retriever, DenseRetriever, load_chunks_from_jsonl
+from rag.retrievers import (
+    BM25Retriever,
+    DenseRetriever,
+    DenseRerankRetriever,
+    load_chunks_from_jsonl,
+)
 
 
 # Load project-level environment variables.
-load_dotenv(PROJECT_ROOT / ".env", override=False)
+load_dotenv(PROJECT_ROOT / ".env", override=True)
 if os.getenv("DASHSCOPE_API_KEY"):
     dashscope.api_key = os.getenv("DASHSCOPE_API_KEY")
 
+_workspace_id = os.getenv("DASHSCOPE_WORKSPACE_ID")
+_region = os.getenv("DASHSCOPE_REGION")
+
+if _workspace_id and _region:
+    dashscope.base_http_api_url = (
+        f"https://{_workspace_id}.{_region}.maas.aliyuncs.com/api/v1"
+    )
+
 _DENSE = DenseRetriever()
+_DENSE_RERANK = DenseRerankRetriever(dense=_DENSE)
 _BM25 = BM25Retriever()
 _GENERATOR: QwenGenerator | None = None
 
@@ -33,6 +47,8 @@ def get_retriever(name: str):
     normalized = (name or "dense").strip().lower()
     if normalized == "dense":
         return _DENSE
+    if normalized == "dense_rerank":
+        return _DENSE_RERANK
     if normalized == "bm25":
         return _BM25
     raise ValueError(f"未知 retriever：{name}")
@@ -59,7 +75,7 @@ def prepare_retriever(
     use_cache: bool = True,
 ) -> None:
     retriever = get_retriever(retriever_name)
-    if retriever_name.lower() == "dense":
+    if retriever_name.lower() in {"dense", "dense_rerank"}:
         retriever.prepare(chunks, use_cache=use_cache)
     else:
         retriever.prepare(chunks)
@@ -125,17 +141,36 @@ def answer_question(
         scores = [float(item["score"]) for item in retrieved]
         top1_score = scores[0]
 
+        normalized_retriever = retriever_name.lower()
+        threshold_score = top1_score
+
+        if normalized_retriever == "dense_rerank":
+            threshold_score = float(
+                retrieved[0].get(
+                    "dense_top1_score",
+                    retrieved[0].get(
+                        "dense_score",
+                        top1_score,
+                    ),
+                )
+            )
+
         threshold = min_retrieval_score
-        if threshold is None and retriever_name.lower() == "dense":
+        if (
+            threshold is None
+            and normalized_retriever
+            in {"dense", "dense_rerank"}
+        ):
             threshold = MIN_RETRIEVAL_SCORE
 
-        if threshold is not None and top1_score < threshold:
+        if threshold is not None and threshold_score < threshold:
             return {
                 "answer": "根据当前资料无法确定",
                 "sources": [],
                 "retrieved_chunks": retrieved,
                 "retrieval_scores": scores,
                 "top1_score": top1_score,
+                "threshold_score": threshold_score,
                 "out_of_scope": True,
                 "latency_ms": int((time.perf_counter() - start) * 1000),
                 "error": None,
@@ -158,6 +193,7 @@ def answer_question(
             "retrieved_chunks": retrieved,
             "retrieval_scores": scores,
             "top1_score": top1_score,
+            "threshold_score": threshold_score,
             "out_of_scope": False,
             "latency_ms": int((time.perf_counter() - start) * 1000),
             "error": None,

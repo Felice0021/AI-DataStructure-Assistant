@@ -48,6 +48,8 @@ from rag.config import DEFAULT_TOP_K, KNOWLEDGE_BASE_PATH  # noqa: E402
 from rag.retrievers import (  # noqa: E402
     BM25Retriever,
     DenseRetriever,
+    DenseRerankRetriever,
+    HybridRetriever,
     load_chunks_from_jsonl,
 )
 from tests.system.metrics import (  # noqa: E402
@@ -72,12 +74,12 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="统一检索评测")
     parser.add_argument(
         "--retriever",
-        choices=("dense", "bm25"),
+        choices=("dense", "bm25", "hybrid", "dense_rerank"),
         required=True,
-        help="检索器类型；新增 Hybrid 时在此扩展",
+        help="检索器类型",
     )
     parser.add_argument("--top-k", type=int, default=DEFAULT_TOP_K,
-                        help="实验配置里记录的 top_k（默认 3）")
+                        help="实验配置里记录的 top_k（默认 5）")
     parser.add_argument("--k1", type=float, default=1.5)
     parser.add_argument("--b", type=float, default=0.75)
     parser.add_argument("--knowledge-file", type=Path, default=KNOWLEDGE_BASE_PATH)
@@ -108,6 +110,16 @@ def build_retriever(name: str, args: argparse.Namespace):
         return DenseRetriever()
     if name == "bm25":
         return BM25Retriever(k1=args.k1, b=args.b)
+    if name == "hybrid":
+        return HybridRetriever(
+            bm25=BM25Retriever(k1=args.k1, b=args.b),
+            candidate_k=10,
+            rrf_k=60,
+        )
+    if name == "dense_rerank":
+        return DenseRerankRetriever(
+            candidate_k=10,
+        )
     raise ValueError(f"未知 retriever：{name}")
 
 

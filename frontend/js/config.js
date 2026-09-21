@@ -10,9 +10,6 @@ const CONFIG = {
         HEALTH: '/api/v1/health'
     },
     
-    // 默认 top_k 值（统一为 3）
-    DEFAULT_TOP_K: 3,
-    
     // 请求超时时间（毫秒）
     TIMEOUT: 30000,
     

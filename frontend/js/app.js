@@ -254,8 +254,7 @@ class ChatApp {
         const startTime = performance.now();
         
         try {
-            const topK = CONFIG.DEFAULT_TOP_K;
-            const response = await apiClient.ask(question, topK);
+            const response = await apiClient.ask(question);
             const endTime = performance.now();
             const elapsed = Math.round(endTime - startTime);
             

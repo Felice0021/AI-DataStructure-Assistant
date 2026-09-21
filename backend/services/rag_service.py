@@ -113,7 +113,11 @@ class RAGService:
                 )
 
         try:
-            logger.info(f"问答请求 [{request_id}]: {question[:30]}...")
+            logger.info(
+                f"问答请求 [{request_id}] "
+                f"retriever={settings.rag_retriever}: "
+                f"{question[:30]}..."
+            )
 
             # 调用重构后的 answer_question
             loop = asyncio.get_event_loop()
@@ -122,7 +126,8 @@ class RAGService:
                 answer_question,
                 question,
                 cls._chunks,
-                top_k
+                top_k,
+                settings.rag_retriever
             )
 
             # 检查RAG返回是否有错误

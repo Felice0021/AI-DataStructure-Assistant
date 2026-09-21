@@ -8,7 +8,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Callable, Dict, Iterable, List, Sequence
 
-from rag.config import KNOWLEDGE_BASE_PATH
+from rag.config import DEFAULT_TOP_K, KNOWLEDGE_BASE_PATH
 from rag.retrievers.base import BaseRetriever
 
 
@@ -192,7 +192,7 @@ class BM25Retriever(BaseRetriever):
         self,
         query: str,
         chunks: Sequence[Dict] | None = None,
-        top_k: int = 3,
+        top_k: int = DEFAULT_TOP_K,
     ) -> List[Dict]:
         query = (query or "").strip()
         if not query or top_k <= 0:

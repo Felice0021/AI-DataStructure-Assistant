@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 
 class AskRequest(BaseModel):
     question: str = Field(..., min_length=1)
-    top_k: Optional[int] = Field(3, ge=1, le=20)
+    top_k: Optional[int] = Field(None, ge=1, le=20)
 
 
 class SourceInfo(BaseModel):

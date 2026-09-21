@@ -11,7 +11,8 @@ class Settings(BaseSettings):
     knowledge_file: str = "knowledge_base/ds_chunks.jsonl"
 
     # RAG 配置
-    rag_top_k: int = 3
+    rag_top_k: int = 5
+    rag_retriever: str = "dense_rerank"
     rag_use_cache: bool = True
 
     class Config:

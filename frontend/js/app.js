@@ -13,6 +13,7 @@ class ChatApp {
             loadingText: document.getElementById('loadingText'),
             loadingTime: document.getElementById('loadingTime'),
             answerSection: document.getElementById('answerSection'),
+            questionDisplayContent: document.getElementById('questionDisplayContent'),
             answerContent: document.getElementById('answerContent'),
             answerLatency: document.getElementById('answerLatency'),
             sourcesList: document.getElementById('sourcesList'),
@@ -242,7 +243,7 @@ class ChatApp {
         this.currentAnswer = null;
         this.currentSources = null;
         this.currentLatency = null;
-        
+
         // 显示加载状态
         this.showLoading('正在检索知识库并生成回答...');
         
@@ -260,10 +261,14 @@ class ChatApp {
             
             this.hideLoading();
             this.handleResponse(response, question, elapsed);
+
+            // 回答成功返回并渲染后再清空输入框。
+            this.elements.questionInput.value = '';
+            this.autoResizeTextarea();
             
         } catch (error) {
             this.hideLoading();
-            
+
             // 检查是否是后端返回的标准错误格式
             if (error.data && error.data.error) {
                 const backendError = error.data.error;
@@ -313,25 +318,10 @@ class ChatApp {
             let answer = data.answer || '';
             const sources = data.sources || [];
             const latency = data.latency_ms || elapsed;
+
+            // 输入框会在回答成功后清空，因此将本轮问题保留在回答卡片中。
+            this.elements.questionDisplayContent.textContent = question;
             
-            // 检测是否是模型调用失败的兜底话术
-            const fallbackPhrases = [
-                '根据当前资料无法确定',
-                '无法确定',
-                '没有找到相关内容',
-                '抱歉，我无法回答'
-            ];
-            
-            const isFallbackAnswer = fallbackPhrases.some(phrase => 
-                answer.includes(phrase)
-            );
-            
-            if (isFallbackAnswer) {
-                // 回答保留原样，只隐藏来源
-                this.showAnswer(answer, latency);  // ← 保留原回答
-                this.showSources([]);              // ← 只隐藏来源
-                return;
-            }
             // 正常显示
             this.currentAnswer = answer;
             this.currentSources = sources;

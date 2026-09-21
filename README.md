@@ -473,14 +473,14 @@ http://localhost:5500
 统一检索评测：
 
 ```text
-tests/run_retrieval_eval.py
+tests/system/run_retrieval_eval.py
 ```
 
 支持：
 
 ```bash
-python3 tests/run_retrieval_eval.py --retriever dense
-python3 tests/run_retrieval_eval.py --retriever bm25
+python3 tests/system/run_retrieval_eval.py --retriever dense
+python3 tests/system/run_retrieval_eval.py --retriever bm25
 ```
 
 当前主要检索指标包括：

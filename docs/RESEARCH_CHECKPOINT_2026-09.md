@@ -117,10 +117,10 @@ Comparison 组中 multi-evidence 现象更加明显。
 后续系统开发仍可以直接使用：
 
 - `knowledge_base/ds_chunks.jsonl`
-- `tests/new_test_questions_100.jsonl`
-- `tests/heldout_annotation_facets_v1.csv`
-- `tests/heldout_annotation_working_v1.csv`
-- `tests/run_retrieval_eval.py`
+- `tests/benchmarks/heldout/heldout_100_v1.jsonl`
+- `tests/annotations/heldout/heldout_annotation_facets_v1.csv`
+- `tests/annotations/heldout/heldout_annotation_labeled_v1.csv`
+- `tests/system/run_retrieval_eval.py`
 - BM25 Retriever
 - Dense Retriever
 - facet coverage / Full-Facet 等评测思想

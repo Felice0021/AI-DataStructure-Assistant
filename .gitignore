@@ -14,6 +14,5 @@ backend/logs/
 
 # Local experiment outputs
 tests/results/
-tests/heldout_annotation_working_v1.csv
-tests/heldout_annotation_working_v1.csv.tmp
-tests/heldout_annotation_working_v1.last.bak
+tests/annotations/heldout/*.tmp
+tests/annotations/heldout/*.last.bak

@@ -2,191 +2,468 @@
 
 ## 数据结构课程智能助教系统
 
-AI-DataStructure-Assistant 是一个面向《数据结构》课程的 RAG（Retrieval-Augmented Generation，检索增强生成）智能助教项目。
+AI-DataStructure-Assistant 是一个面向本科《数据结构》课程的 RAG（Retrieval-Augmented Generation，检索增强生成）智能助教系统。
 
-系统以课程教材和整理后的结构化知识库为主要知识来源。当前生产检索链路首先使用 Dense Retriever 召回 Top-10 候选，再通过 Qwen Reranker 重排，并融合 Dense 与 Rerank 分数得到最终 Top-5 Evidence，随后调用大语言模型生成回答并返回知识来源。BM25 与 Hybrid Retrieval 保留为实验和对比基线。
+系统以课程教材、课程资料和结构化知识库为主要知识来源，通过 Query Processing（查询处理）、Hybrid Retrieval（混合检索）、Reranking（重排序）和大语言模型生成，为学生提供概念问答、习题讲解和代码分析能力。
 
-当前项目已经从早期 RAG Demo 进入完整系统开发阶段。
+当前项目已从早期 RAG Demo 和论文型实验阶段转入完整系统开发阶段。
 
-> 当前开发重点：系统稳定性、知识库建设、检索质量、前后端体验和可演示性。
-> 论文型 evidence-set research 已阶段性冻结，研究记录见 `docs/RESEARCH_CHECKPOINT_2026-09.md`。
+> 当前重点：知识库建设、RAG 稳定性、前后端集成、系统测试和最终演示。
+> 历史论文型研究记录见 `docs/RESEARCH_CHECKPOINT_2026-09.md`。
 
 ---
 
-## 1. 当前功能
+## 1. 当前系统架构
 
-目前已经实现：
+当前冻结的 RAG V1 主链路：
+
+```text
+Raw Query
+    ↓
+Query Router
+    ↓
+Query Expansion Gate
+    │
+    ├── 简单问题
+    │     └── Original Query
+    │
+    └── 复杂问题
+          └── Original Query + ≤3 Subqueries
+    ↓
+Batched Dense Retrieval + BM25 Retrieval
+    ↓
+Single-query RRF
+    ↓
+Multi-query RRF
+    ↓
+Scope Gate
+只使用 Original Query 的 Dense Top-1 Score
+    ↓
+Qwen Reranker
+只使用 Original Query
+    ↓
+Top-K Evidence
+    ↓
+Mode-specific Generator
+    ↓
+Answer + Sources
+```
+
+核心原则：
+
+- 原始 Query 始终保留；
+- 简单问题不做无意义 Query Expansion；
+- 比较类、多要求类问题可拆为多个检索子 Query；
+- 多 Query 的 Dense Embedding 使用批量 API 请求；
+- Dense 与 BM25 使用 RRF（Reciprocal Rank Fusion，倒数排名融合）；
+- 多 Query 结果再次进行 RRF 融合；
+- Scope Gate 只使用原始 Query，避免查询扩展导致范围漂移；
+- Reranker 同样使用原始 Query；
+- Query Expansion 或 Reranker 异常时采用 fail-open（故障降级），避免整个问答链路中断。
+
+---
+
+## 2. 当前功能
+
+当前已经实现：
 
 - 数据结构课程结构化知识库；
 - Dense semantic retrieval（稠密语义检索）；
+- BM25 lexical retrieval（词法检索）；
+- Dense + BM25 Hybrid Retrieval（混合检索）；
+- RRF 排名融合；
+- Query Router（查询模式路由）；
+- Query Expansion Gate（查询扩展判断）；
+- LLM Query Decomposition（复杂查询拆解）；
+- Multi-query Retrieval（多查询检索）；
+- Query Embedding 批量调用；
 - Qwen Reranking（文本重排序）；
-- Dense + Rerank score fusion（分数融合）；
-- BM25 lexical retrieval（词法检索，对比基线）；
-- Hybrid Dense + BM25 Retrieval（实验基线）；
-- 文档 Embedding 本地缓存；
-- Dense Top-10 候选召回 + Fusion Top-5；
-- Reranker 故障自动回退 Dense Top-5；
-- 基于原始 Dense Top-1 分数的范围控制；
-- Qwen 大语言模型回答生成；
-- 回答知识来源返回；
-- FastAPI 后端服务；
-- 前端问答页面；
-- Markdown 与数学公式展示；
-- 后端健康检查；
-- 请求异常处理；
-- 检索评测框架；
-- Benchmark 与人工相关性标注资产。
+- 范围外问题拒答；
+- `qa / exercise / code` 三种回答模式；
+- Qwen 大语言模型生成；
+- 来源信息返回；
+- Dense 文档 Embedding 本地缓存；
+- 检索 Benchmark 与评测框架；
+- 历史人工相关性和 facet 标注资产；
+- FastAPI 后端基础框架；
+- Web 前端基础页面。
+
+当前正在进行：
+
+- FastAPI 后端接入新的 `rag.main.run()`；
+- 前端适配新的后端响应结构；
+- 知识库继续扩充和清洗；
+- 系统级回归测试。
 
 ---
 
-## 2. 系统架构
+## 3. Query Processing
 
-当前生产主链路：
+### 3.1 Query Router
+
+文件：
 
 ```text
-用户
- ↓
-Web Frontend
- ↓
-FastAPI
- ↓
-RAG Service
- ↓
+rag/query_router.py
+```
+
+Query Router 将用户问题路由为：
+
+```text
+qa
+exercise
+code
+```
+
+含义：
+
+- `qa`：概念解释、知识问答；
+- `exercise`：习题、算法推演、计算过程；
+- `code`：代码阅读、错误定位、实现分析。
+
+生产接口默认支持：
+
+```text
+mode = auto
+```
+
+由系统自动判断回答模式。
+
+---
+
+### 3.2 Query Expansion
+
+文件：
+
+```text
+rag/query_processor.py
+```
+
+系统不会对所有问题强制扩展。
+
+简单问题：
+
+```text
+AVL树为什么需要旋转？
+```
+
+保持为：
+
+```text
+[
+  "AVL树为什么需要旋转？"
+]
+```
+
+复杂问题：
+
+```text
+Prim和Kruskal算法在基本思想和适用场景上有什么区别？
+```
+
+可能被拆解为：
+
+```text
+[
+  "Prim和Kruskal算法在基本思想和适用场景上有什么区别？",
+  "Prim算法的基本思想",
+  "Kruskal算法的基本思想",
+  "Prim和Kruskal算法的适用场景区别"
+]
+```
+
+其中第一个 Query 永远是用户原始问题。
+
+当前最多生成：
+
+```text
+3 subqueries
+```
+
+代码模式默认不进行 Query Expansion，避免代码内容被错误改写。
+
+Query Expansion 当前复用系统生成模型，不需要单独部署查询模型。
+
+---
+
+## 4. Hybrid Retrieval
+
+当前生产 Retriever 使用：
+
+```text
+Dense + BM25
+```
+
+### Dense Retrieval
+
+Dense Retriever 使用 Qwen Embedding 和 cosine similarity（余弦相似度）。
+
+当前配置：
+
+```text
+Embedding Model:
+qwen3.7-text-embedding
+
+Embedding Dimension:
+1024
+
+Embedding Batch Size:
+10
+```
+
+文档 Embedding 会持久化缓存到：
+
+```text
+.cache/rag/
+```
+
+当知识库内容和 Embedding 配置不变时，无需重复生成全部文档向量。
+
+对于 Multi-query Retrieval，多条 Query 的 Embedding 会尽量通过一次批量 API 请求生成，减少网络调用延迟。
+
+---
+
+### BM25 Retrieval
+
+BM25 用于 lexical retrieval（词法检索），用于补充 Dense Retrieval 对：
+
+- 专有名词；
+- 算法名称；
+- 代码符号；
+- 精确关键词；
+
+等内容的召回能力。
+
+---
+
+### RRF Fusion
+
+Dense 与 BM25 不直接比较原始分数，而通过：
+
+```text
+RRF
+Reciprocal Rank Fusion
+倒数排名融合
+```
+
+按照排名进行融合。
+
+对于复杂问题：
+
+```text
+Original Query
++ Subqueries
+```
+
+每个 Query 都独立进行 Hybrid Retrieval，然后再进行第二层 Multi-query RRF 融合。
+
+---
+
+## 5. Scope Control
+
+当前范围控制使用：
+
+```text
+MIN_RETRIEVAL_SCORE = 0.58
+```
+
+该阈值对应：
+
+```text
+Original Query
+→ Dense Retrieval
+→ Dense Top-1 cosine similarity
+```
+
+不会使用：
+
+```text
+BM25 score
+RRF score
+Multi-query score
+Rerank score
+```
+
+作为范围判断依据。
+
+原因是这些分数属于不同尺度，不能直接与 Dense cosine score 比较。
+
+当原始 Query 的 Dense Top-1 分数低于阈值时，系统直接返回：
+
+```text
+根据当前资料无法确定
+```
+
+同时：
+
+```text
+sources = []
+```
+
+并跳过 Rerank 与 Generation。
+
+例如当前测试：
+
+```text
+TCP为什么需要三次握手？
+```
+
+可被正确判断为当前数据结构知识库范围外问题。
+
+当前阈值 `0.58` 属于系统开发阶段配置，后续知识库扩大后应通过独立测试集重新标定。
+
+---
+
+## 6. Reranking
+
+Reranker：
+
+```text
+qwen3.7-text-rerank
+```
+
+Hybrid / Multi-query Retrieval 生成候选池后，使用用户的：
+
+```text
+Original Query
+```
+
+进行重排序。
+
+这样可以避免子 Query 对最终问题语义产生过强影响。
+
+如果 Reranker 调用异常，系统采用 fail-open 策略，使用已有检索结果继续工作。
+
+---
+
+## 7. Answer Generation
+
+生成模块：
+
+```text
+rag/generators/qwen_generator.py
+```
+
+当前生成模型：
+
+```text
+qwen3.7-flash
+```
+
+Temperature：
+
+```text
+0.2
+```
+
+系统根据 Query Router 的结果使用不同回答模式。
+
+### QA
+
+主要结构：
+
+```text
+直接回答
+→ 必要原理
+→ 相关说明
+```
+
+### Exercise
+
+主要结构：
+
+```text
+题目分析
+→ 解题过程
+→ 最终答案
+```
+
+### Code
+
+主要结构：
+
+```text
+代码作用
+→ 问题定位
+→ 修改建议
+→ 复杂度 / 边界条件
+```
+
+生成模型应优先依据检索得到的课程 Evidence，不应把模型自身知识伪装成课程材料。
+
+---
+
+## 8. RAG 统一入口
+
+当前生产 RAG 入口：
+
+```text
 rag/main.py
- ↓
-Dense Retriever
- ↓
-Dense Top-10 Candidates
- ↓
-Qwen Reranker
- ↓
-Score Fusion
-  0.60 × normalized Dense
-+ 0.40 × normalized Rerank
- ↓
-Top-5 Evidence
- ↓
-Scope Check
-(raw Dense Top-1 score)
- ↓
-Qwen Generator
- ↓
-Answer + Sources
+```
+
+主要接口：
+
+```python
+run(
+    query,
+    chunks,
+    top_k=5,
+    mode="auto"
+)
+```
+
+核心流程：
+
+```text
+Query
+→ Router
+→ Query Processing
+→ Hybrid Retrieval
+→ Scope Gate
+→ Reranker
+→ Generator
+```
+
+主要返回字段包括：
+
+```text
+answer
+sources
+retrieved_chunks
+retrieval_queries
+mode
+out_of_scope
+threshold_score
+rerank_fallback
+latency_ms
+error
 ```
 
 其中：
 
-- `rag/main.py` 是当前统一 RAG 入口；
-- 生产 Retriever 为 `dense_rerank`；
-- Dense 文档向量支持持久化缓存；
-- Query Embedding 在线计算；
-- Reranker 异常时自动 fail-open（故障降级）到 Dense Top-5；
-- 范围判断仍使用原始 Dense Top-1 similarity（相似度），不使用 fusion score；
-- BM25 和 Hybrid Retriever 保留用于实验与回归比较；
-- 当前生成模型由 `rag/config.py` 统一配置。
+```text
+retrieved_chunks
+retrieval_queries
+threshold_score
+rerank_fallback
+```
+
+主要用于内部调试和系统评测。
+
+后端面向前端主要暴露：
+
+```text
+answer
+sources
+mode
+out_of_scope
+latency_ms
+error
+```
 
 ---
 
-## 3. 仓库结构
-
-```text
-AI-DataStructure-Assistant/
-├── backend/
-│   ├── main.py
-│   ├── config.py
-│   ├── logging_config.py
-│   ├── schemas.py
-│   ├── routers/
-│   ├── services/
-│   └── requirements.txt
-│
-├── frontend/
-│   ├── index.html
-│   ├── css/
-│   └── js/
-│
-├── knowledge_base/
-│   ├── ds_chunks.jsonl
-│   └── validate_chunks.py
-│
-├── rag/
-│   ├── main.py
-│   ├── config.py
-│   ├── retrievers/
-│   │   ├── base.py
-│   │   ├── dense.py
-│   │   ├── dense_rerank.py
-│   │   ├── bm25.py
-│   │   └── hybrid.py
-│   ├── rerankers/
-│   │   └── qwen_reranker.py
-│   └── generators/
-│       └── qwen_generator.py
-│
-├── tests/
-│   ├── system/
-│   ├── benchmarks/
-│   ├── annotations/
-│   ├── research/
-│   └── ...
-│
-├── docs/
-│   └── RESEARCH_CHECKPOINT_2026-09.md
-│
-└── README.md
-```
-
-`tests/system/` 保存当前系统单元测试与统一检索评测代码；`tests/research/` 保存已经归档的历史研究实验；Benchmark 与人工标注分别保存在 `tests/benchmarks/` 和 `tests/annotations/`。
-
----
-
-## 4. 知识库
-
-正式知识库：
-
-```text
-knowledge_base/ds_chunks.jsonl
-```
-
-当前知识库共有：
-
-```text
-463 chunks
-```
-
-每个 Chunk 主要包含：
-
-```json
-{
-  "chunk_id": "ds_ch06_0001",
-  "text": "知识正文",
-  "chapter": "第六章 树和二叉树",
-  "section": "6.x",
-  "source_file": "数据结构（C语言版）严蔚敏.pdf",
-  "page": 1,
-  "content_type": "concept"
-}
-```
-
-当前 `content_type` 包括概念、算法、代码、习题等类型。
-
-知识库质量检查：
-
-```bash
-python3 knowledge_base/validate_chunks.py
-```
-
-严格检查：
-
-```bash
-python3 knowledge_base/validate_chunks.py --fail-on-warning
-```
-
-系统可回答范围由当前知识库实际覆盖内容决定，而不是由“数据结构课程”这一大类概念决定。
-
----
-
-## 5. RAG 配置
+## 9. 当前 RAG 配置
 
 主要配置文件：
 
@@ -194,24 +471,17 @@ python3 knowledge_base/validate_chunks.py --fail-on-warning
 rag/config.py
 ```
 
-当前生产配置：
+当前关键配置：
 
 ```text
-Production Retriever:
-dense_rerank
-
-Dense Candidate-K:
-10
-
 Final Top-K:
 5
 
-Rerank Fusion Alpha:
-0.40
+Hybrid Candidate-K:
+10
 
-Fusion:
-0.60 × normalized Dense
-+ 0.40 × normalized Rerank
+Scope Threshold:
+0.58
 
 Embedding Model:
 qwen3.7-text-embedding
@@ -230,195 +500,178 @@ qwen3.7-flash
 
 Generation Temperature:
 0.2
+
+Query Expansion:
+Enabled
+
+Max Subqueries:
+3
+
+Multi-query Candidate Pool:
+20
 ```
-
-### Dense Retriever
-
-Dense Retriever 使用 Qwen Embedding，并通过 cosine similarity（余弦相似度）排序。
-
-文档 Embedding 会根据：
-
-- Corpus 内容；
-- Embedding model；
-- Embedding dimension；
-
-生成 fingerprint，并缓存到：
-
-```text
-.cache/rag/
-```
-
-知识库和 Embedding 配置不变时，无需重复生成全部文档向量。Query Embedding 仍在每次请求时在线计算。
-
-### Dense + Rerank Retriever
-
-当前生产 Retriever 为 `DenseRerankRetriever`。
-
-执行流程：
-
-```text
-Query
- ↓
-Dense Top-10
- ↓
-Qwen Reranker
- ↓
-Query-level Min-Max Normalization
- ↓
-0.60 × Dense + 0.40 × Rerank
- ↓
-Final Top-5
-```
-
-其中：
-
-- `candidate_k = 10`；
-- `final_k = 5`；
-- `fusion_alpha = 0.40`；
-- Dense 权重为 0.60；
-- Rerank 权重为 0.40。
-
-如果 Reranker 调用失败，生产系统采用 fail-open（故障降级）策略，自动返回原始 Dense Top-5，不因 Reranker 服务异常中断问答。
-
-### BM25 / Hybrid Retriever
-
-项目同时保留：
-
-- Okapi BM25 lexical retrieval（词法检索）；
-- Dense + BM25 RRF（Reciprocal Rank Fusion，倒数排名融合）Hybrid Retriever。
-
-二者主要用于实验、回归测试和检索方案对比。
-
-当前实验中 Hybrid RRF 未超过 Dense baseline，因此没有进入生产链路。
-
-## 6. 范围控制
-
-当前历史 Dense baseline 使用：
-
-```text
-MIN_RETRIEVAL_SCORE = 0.62
-```
-
-该阈值对应 Dense cosine score（稠密检索余弦相似度）的分数尺度。
-
-虽然当前生产检索已经升级为 Dense + Rerank fusion，但范围判断仍使用：
-
-```text
-原始 Dense Top-1 score
-```
-
-而不是：
-
-```text
-fusion score
-rerank score
-BM25 score
-```
-
-原因是这些分数属于不同尺度，不能直接与 Dense 阈值 `0.62` 比较。
-
-当用于范围判断的 Dense Top-1 score 低于阈值时，系统返回：
-
-```text
-根据当前资料无法确定
-```
-
-并返回：
-
-```text
-sources = []
-```
-
-随着知识库持续变化，该阈值仍应通过独立 Benchmark 定期重新标定。
-
-## 7. 大语言模型生成
-
-生成模块：
-
-```text
-rag/generators/qwen_generator.py
-```
-
-当前模型：
-
-```text
-qwen3.7-flash
-```
-
-回答生成原则：
-
-- 优先依据检索到的课程资料；
-- 避免将模型自身知识伪装成课程资料；
-- 回答适合本科《数据结构》学习场景；
-- 可以输出 Markdown、公式和代码；
-- 当资料不足时应明确拒答。
 
 ---
 
-## 8. 后端
+## 10. 知识库
 
-后端使用 FastAPI。
-
-主入口：
+正式知识库：
 
 ```text
-backend/main.py
+knowledge_base/ds_chunks.jsonl
 ```
 
-核心服务：
+当前约有：
 
 ```text
-backend/services/rag_service.py
+463 chunks
 ```
 
-当前生产 Retriever：
-
-```text
-dense_rerank
-```
-
-默认：
-
-```text
-candidate_k = 10
-top_k = 5
-```
-
-主要接口：
-
-### 健康检查
-
-```http
-GET /api/v1/health
-```
-
-### 问答
-
-```http
-POST /api/v1/ask
-```
-
-请求：
+Chunk Schema：
 
 ```json
 {
-  "question": "什么是循环单链表？"
+  "chunk_id": "ds_ch06_0001",
+  "text": "知识正文",
+  "chapter": "第六章 树和二叉树",
+  "section": "6.x",
+  "source_file": "数据结构（C语言版）严蔚敏.pdf",
+  "page": 1,
+  "content_type": "concept"
 }
 ```
 
-`top_k` 为可选参数；未传入时由后端配置统一使用默认值 5。
+当前固定字段：
 
-响应包含：
+```text
+chunk_id
+text
+chapter
+section
+source_file
+page
+content_type
+```
 
-- answer；
-- sources；
-- latency；
-- request id；
-- error state。
+`content_type` 主要包括：
 
-后端问答服务显式选择生产 Retriever，并通过统一的 `rag/main.py` 调用检索与生成链路。
+```text
+concept
+algorithm
+code
+exercise
+```
 
-## 9. 前端
+知识库后续可以继续扩充，但不应随意修改字段结构。
+
+质量检查：
+
+```bash
+python3 knowledge_base/validate_chunks.py
+```
+
+严格模式：
+
+```bash
+python3 knowledge_base/validate_chunks.py --fail-on-warning
+```
+
+---
+
+## 11. 仓库结构
+
+```text
+AI-DataStructure-Assistant/
+├── backend/
+│   ├── main.py
+│   ├── config.py
+│   ├── schemas.py
+│   ├── routers/
+│   ├── services/
+│   └── requirements.txt
+│
+├── frontend/
+│   ├── index.html
+│   ├── css/
+│   └── js/
+│
+├── knowledge_base/
+│   ├── ds_chunks.jsonl
+│   └── validate_chunks.py
+│
+├── rag/
+│   ├── main.py
+│   ├── config.py
+│   ├── query_router.py
+│   ├── query_processor.py
+│   │
+│   ├── retrievers/
+│   │   ├── base.py
+│   │   ├── dense.py
+│   │   ├── bm25.py
+│   │   ├── hybrid.py
+│   │   └── dense_rerank.py
+│   │
+│   ├── rerankers/
+│   │   └── qwen_reranker.py
+│   │
+│   └── generators/
+│       └── qwen_generator.py
+│
+├── tests/
+│   ├── system/
+│   ├── benchmarks/
+│   ├── annotations/
+│   └── research/
+│
+├── docs/
+│   └── RESEARCH_CHECKPOINT_2026-09.md
+│
+└── README.md
+```
+
+---
+
+## 12. 后端
+
+后端基于：
+
+```text
+FastAPI
+```
+
+主要目录：
+
+```text
+backend/
+```
+
+当前已有接口：
+
+```http
+GET /api/v1/health
+POST /api/v1/ask
+```
+
+当前开发阶段正在将原有后端 RAG 调用迁移至：
+
+```text
+rag.main.run()
+```
+
+后端不应重复实现：
+
+- Query Router；
+- Query Expansion；
+- Retrieval；
+- Scope Gate；
+- Reranking。
+
+这些逻辑统一由 RAG 层负责。
+
+---
+
+## 13. 前端
 
 前端位于：
 
@@ -426,31 +679,35 @@ POST /api/v1/ask
 frontend/
 ```
 
-当前采用原生 HTML / CSS / JavaScript。
+当前采用：
 
-已经实现：
+```text
+HTML
+CSS
+JavaScript
+```
+
+已有基础能力：
 
 - 问题输入；
 - API 请求；
-- 加载状态；
-- 回答展示；
-- Markdown；
+- Loading 状态；
+- Markdown 展示；
 - MathJax；
 - 来源展示；
-- 延迟展示；
 - 历史记录；
-- 后端健康检查；
 - 异常提示。
 
-默认 API：
+后续将根据新的后端 API 增加：
 
-```text
-http://localhost:8000
-```
+- QA / Exercise / Code 模式状态；
+- Out-of-scope 状态；
+- 新 Sources 格式；
+- 新 Latency 信息。
 
 ---
 
-## 10. 环境配置
+## 14. 环境配置
 
 克隆仓库：
 
@@ -472,7 +729,7 @@ source .venv/bin/activate
 pip install -r backend/requirements.txt
 ```
 
-项目当前主要依赖包括：
+主要依赖包括：
 
 ```text
 fastapi
@@ -488,15 +745,15 @@ jieba
 
 ---
 
-## 11. API 与 Workspace 配置
+## 15. 模型服务配置
 
-在项目根目录创建：
+项目根目录创建：
 
 ```text
 .env
 ```
 
-当前生产链路需要：
+配置：
 
 ```text
 DASHSCOPE_API_KEY=YOUR_API_KEY
@@ -504,21 +761,24 @@ DASHSCOPE_WORKSPACE_ID=YOUR_WORKSPACE_ID
 DASHSCOPE_REGION=cn-beijing
 ```
 
-其中：
+禁止提交：
 
-- `DASHSCOPE_API_KEY`：模型服务 API Key；
-- `DASHSCOPE_WORKSPACE_ID`：Reranker / Embedding 所使用的 Workspace；
-- `DASHSCOPE_REGION`：Workspace 所在区域。
+```text
+API Key
+Token
+Workspace 私有信息
+其他凭证
+```
 
-RAG 主入口从项目根目录读取 `.env`。
+`.env` 应保持在 Git ignore 中。
 
-禁止提交真实 API Key、Workspace ID 或其他私有凭证。`.env` 已通过 Git ignore 排除。
+---
 
-## 12. 启动系统
+## 16. 启动系统
 
 ### 后端
 
-从仓库根目录运行：
+从项目根目录：
 
 ```bash
 source .venv/bin/activate
@@ -559,7 +819,7 @@ http://localhost:5500
 
 ---
 
-## 13. 评测
+## 17. 评测
 
 统一检索评测入口：
 
@@ -567,7 +827,7 @@ http://localhost:5500
 tests/system/run_retrieval_eval.py
 ```
 
-当前支持：
+支持：
 
 ```bash
 python3 tests/system/run_retrieval_eval.py --retriever dense
@@ -576,203 +836,158 @@ python3 tests/system/run_retrieval_eval.py --retriever hybrid
 python3 tests/system/run_retrieval_eval.py --retriever dense_rerank
 ```
 
-主要指标包括：
+常用指标：
 
 - Recall@K（前 K 条相关证据召回率）；
 - MRR@K（平均倒数排名）；
 - nDCG@K（归一化折损累计增益）；
 - Hit@K（前 K 条是否命中）；
 - Facet Coverage@K（答案要点覆盖率）；
-- Full Coverage@K（全部答案要点覆盖率）；
+- Full Coverage@K（完整答案要点覆盖率）；
 - retrieval latency（检索延迟）。
 
-### Dev Set
-
-Dev Set 中共有 50 道问题，其中 49 道有效问题用于检索方案选择与参数冻结。
-
-最终比较：
+当前已经保留：
 
 ```text
-                           Dense       Fusion       Delta
-Recall@3                  0.7448       0.7618     +0.0170
-Recall@5                  0.9132       0.9391     +0.0259
-nDCG@3                    0.9717       0.9873     +0.0156
-nDCG@5                    0.9513       0.9728     +0.0215
+Dev Benchmark
+Held-out Benchmark
+人工 question-chunk 标注
+facet 标注
+历史检索实验结果
 ```
 
-Recall@5 query-level：
+这些资产主要用于后续系统回归测试，而不是当前生产逻辑的一部分。
+
+---
+
+## 18. 历史研究资产
+
+项目曾围绕：
 
 ```text
-better = 6
-worse  = 0
+evidence-set construction
+comparison query
+facet coverage
+adaptive evidence selection
 ```
 
-据此冻结：
+开展论文型实验。
 
-```text
-candidate_k = 10
-final_k = 5
-fusion_alpha = 0.40
-```
+当前该研究路线已经暂停。
 
-Dev Set 在参数冻结后不再继续用于调节 `fusion_alpha`。
-
-### Held-out Set
-
-Held-out Benchmark 共有：
-
-```text
-100 questions
-```
-
-人工 facet coverage（答案要点覆盖）检查结果：
-
-```text
-single_complete   = 39
-combined_complete = 33
-corpus_gap        = 28
-```
-
-因此：
-
-```text
-72 questions
-```
-
-具有完整知识库证据覆盖，用于冻结参数后的泛化验证；另外 28 道保留为知识库缺口诊断集，不用于评价 Retriever 本身。
-
-72 道 Held-out 最终结果：
-
-```text
-                           Dense       Fusion       Delta
-Recall@3                  0.7856       0.8027     +0.0171
-Recall@5                  0.8732       0.8780     +0.0048
-nDCG@3                    0.8537       0.8709     +0.0171
-nDCG@5                    0.8662       0.8732     +0.0070
-Facet Coverage@3          0.9132       0.9329     +0.0197
-Facet Coverage@5          0.9676       0.9688     +0.0012
-Full Coverage@3           0.8056       0.8472     +0.0417
-Full Coverage@5           0.9028       0.9167     +0.0139
-```
-
-Recall@5 query-level：
-
-```text
-better = 3
-worse  = 1
-same   = 68
-```
-
-Full Coverage@5 query-level：
-
-```text
-better = 1
-worse  = 0
-same   = 71
-```
-
-Held-out Reranker-only latency：
-
-```text
-average = 975.7 ms
-p95     = 1232.5 ms
-```
-
-最终生产配置没有根据 Held-out 结果再次调参。
-
-实验输出保存在：
-
-```text
-tests/results/
-```
-
-该目录被 Git 忽略，不作为源码提交。
-
-## 14. 研究资产
-
-2026 年 9 月曾针对 evidence-set construction 开展论文型探索。
-
-目前该路线已经冻结，详细记录：
+研究总结：
 
 ```text
 docs/RESEARCH_CHECKPOINT_2026-09.md
 ```
 
-已经保留：
+历史代码保存在：
 
-- 100-question held-out benchmark；
-- comparison / non-comparison 划分；
-- core facets；
-- 1546 条人工 question-chunk 标注；
-- Dense / BM25 pooling；
-- SetR-inspired 实验代码；
-- evidence coverage 分析。
+```text
+tests/research/
+```
 
-这些资产不会删除，但当前不继续投入论文级 qrels 扩充和人工 annotation。
+这些代码不作为当前生产 RAG 入口。
 
 ---
 
-## 15. 当前开发重点
-
-检索主链路已经完成一轮系统化优化：
+## 19. 当前开发状态
 
 ```text
-Dense Top-10
-→ Qwen Rerank
-→ Dense/Rerank Score Fusion
-→ Top-5
+Knowledge Base              ~463 chunks
+
+Query Router                Production
+Query Expansion             Production
+Multi-query Retrieval       Production
+
+Dense Retrieval             Production
+BM25 Retrieval              Production
+Hybrid RRF                  Production
+Multi-query RRF             Production
+
+Scope Gate                  Production
+Qwen Reranker               Production
+Mode-specific Generation    Production
+
+Embedding Cache             Available
+Batch Query Embedding       Available
+
+RAG V1 Core                 Frozen
+
+FastAPI Backend             Adapting to new RAG
+Frontend                    Waiting for new API
+Knowledge Base              Expanding
+System Regression           Preparing
+
+Paper-oriented Research     Paused
+System Development          Active
 ```
 
-并已通过 Dev、Held-out、单元测试和真实 Backend 端到端验证。
+---
 
-后续优先级：
+## 20. 当前验证结果
 
-1. 完善知识库覆盖，重点处理 Held-out 中识别出的 28 道 corpus-gap 问题；
-2. 改进 Chunking 与知识组织质量；
-3. 优化端到端问答延迟，重点分析生成阶段耗时；
-4. 完善前端交互和来源展示；
-5. 建立稳定 regression benchmark（回归基准）；
-6. 完善部署、日志、健康检查和异常处理；
-7. 持续保留 Dense / BM25 / Hybrid baseline 做回归比较；
-8. evidence-set 相关方法作为可选研究资产保留。
+当前已完成基础真实链路验证。
 
-当前不继续投入论文级 qrels 扩充和大规模人工 annotation。
-
-## 16. 当前项目状态
+### 简单知识问题
 
 ```text
-Knowledge Base          463 chunks
-
-Dense Retrieval         Available
-Qwen Reranking          Production
-Dense + Rerank Fusion   Production
-BM25 Retrieval          Baseline
-Hybrid RRF Retrieval    Experimental
-
-Dense Candidate-K       10
-Final Evidence Top-K    5
-Fusion Alpha            0.40
-
-Embedding Cache         Available
-Qwen Generation         Available
-
-FastAPI Backend         Available
-Frontend                Available
-Source Attribution      Available
-
-Evaluation Framework    Available
-Dev Benchmark           Available
-Held-out Benchmark      Available
-
-Paper-oriented Research Paused
-System Development      Active
+AVL树为什么需要旋转？
 ```
 
-当前项目定位：
+结果：
 
-> 一个持续开发中的数据结构课程 RAG 智能助教系统，而不是单一论文实验仓库。
+```text
+Query Expansion: No
+Mode: qa
+Out of Scope: False
+Rerank Fallback: False
+```
 
-## 17. 团队分工
+### 复杂比较问题
+
+```text
+Prim和Kruskal算法在基本思想和适用场景上有什么区别？
+```
+
+系统能够拆解为多个检索 Query，并同时召回 Prim、Kruskal 和比较类 Evidence。
+
+批量 Query Embedding 优化后，复杂 Query Retrieval 延迟相比串行多次 Embedding 明显下降。
+
+### 代码问题
+
+单链表空指针问题可以正确进入：
+
+```text
+mode = code
+```
+
+并完成：
+
+```text
+代码作用
+→ 问题定位
+→ 修改建议
+→ 边界分析
+```
+
+### 范围外问题
+
+```text
+TCP为什么需要三次握手？
+```
+
+能够在 Scope Gate 阶段拒答：
+
+```text
+根据当前资料无法确定
+```
+
+不会继续调用 Reranker 和 Generator。
+
+---
+
+## 21. 团队分工
 
 项目由 5 名成员协作：
 
@@ -782,23 +997,54 @@ System Development      Active
 - 张圣江：前端；
 - 常慧思：材料、测试和评测支持。
 
-后续开发以统一主分支和稳定接口为基础推进。
+当前开发依赖关系：
+
+```text
+RAG Core
+   ├── Knowledge Base
+   │
+   └── Backend
+          ↓
+       Frontend
+          ↓
+   End-to-End Testing
+```
 
 ---
 
-## 18. 安全说明
+## 22. 安全说明
 
 禁止提交：
 
-- `.env`
-- API Key / Token
-- `.venv`
-- `__pycache__`
-- `.pyc`
-- 本地日志
-- 临时实验结果
-- 私有凭证
+```text
+.env
+API Key
+Token
+.venv
+__pycache__
+*.pyc
+本地日志
+临时实验结果
+私有凭证
+```
 
-API Key 只能通过环境变量或本地 `.env` 加载。
+如果历史提交中曾暴露真实凭证，应立即在对应服务平台撤销并重新生成。
 
-如果历史提交中曾出现真实 Key，应立即在服务提供方撤销并重新生成。
+---
+
+## 23. 项目定位
+
+当前项目定位：
+
+> 一个持续开发中的数据结构课程 RAG 智能助教系统。
+
+现阶段目标不是继续扩大论文实验，而是完成：
+
+```text
+稳定知识库
+→ 稳定 RAG
+→ 后端集成
+→ 前端集成
+→ 系统回归测试
+→ 可部署 / 可演示版本
+```

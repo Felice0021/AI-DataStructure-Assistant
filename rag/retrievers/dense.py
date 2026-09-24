@@ -205,19 +205,45 @@ class DenseRetriever(BaseRetriever):
             self._save_cache(chunks, cache_path)
         self._prepared_chunks_object_id = id(chunks)
 
-    def retrieve(
+    def retrieve_many(
         self,
-        query: str,
+        queries: Sequence[str],
         chunks: Sequence[Dict],
         top_k: int = DEFAULT_TOP_K,
-    ) -> List[Dict]:
-        query = (query or "").strip()
-        if not query or top_k <= 0 or not chunks:
+    ) -> List[List[Dict]]:
+        """Batch-retrieve multiple queries with one embedding API call."""
+        cleaned = [(q or "").strip() for q in queries]
+
+        if not cleaned:
             return []
 
+        if top_k <= 0 or not chunks:
+            return [[] for _ in cleaned]
+
         self.prepare(chunks, use_cache=True)
-        query_embedding = np.asarray(
-            self._embed_texts([query], text_type="query")[0],
+
+        nonempty_indices = [
+            i for i, q in enumerate(cleaned)
+            if q
+        ]
+
+        results: List[List[Dict]] = [
+            [] for _ in cleaned
+        ]
+
+        if not nonempty_indices:
+            return results
+
+        active_queries = [
+            cleaned[i]
+            for i in nonempty_indices
+        ]
+
+        query_embeddings = np.asarray(
+            self._embed_texts(
+                active_queries,
+                text_type="query",
+            ),
             dtype=np.float32,
         )
 
@@ -225,31 +251,96 @@ class DenseRetriever(BaseRetriever):
             [chunk["embedding"] for chunk in chunks],
             dtype=np.float32,
         )
-        query_norm = np.linalg.norm(query_embedding)
-        doc_norms = np.linalg.norm(matrix, axis=1)
-        denominators = doc_norms * query_norm
+
+        doc_norms = np.linalg.norm(
+            matrix,
+            axis=1,
+        )
+
+        query_norms = np.linalg.norm(
+            query_embeddings,
+            axis=1,
+        )
+
+        numerators = query_embeddings @ matrix.T
+        denominators = (
+            query_norms[:, None]
+            * doc_norms[None, :]
+        )
+
         similarities = np.divide(
-            matrix @ query_embedding,
+            numerators,
             denominators,
-            out=np.zeros(len(chunks), dtype=np.float32),
+            out=np.zeros_like(
+                numerators,
+                dtype=np.float32,
+            ),
             where=denominators != 0,
         )
 
-        order = np.argsort(-similarities, kind="stable")[: min(top_k, len(chunks))]
-        results: List[Dict] = []
-        for index in order:
-            chunk = chunks[int(index)]
-            results.append(
-                {
-                    "score": float(similarities[int(index)]),
-                    "chunk_id": chunk.get("chunk_id", "unknown"),
-                    "text": chunk.get("text", ""),
-                    "chapter": chunk.get("chapter", ""),
-                    "section": chunk.get("section", ""),
-                    "source_file": chunk.get("source_file", ""),
-                    "page": chunk.get("page"),
-                    "content_type": chunk.get("content_type", "other"),
-                }
+        limit = min(top_k, len(chunks))
+
+        for row_index, original_index in enumerate(
+            nonempty_indices
+        ):
+            row = similarities[row_index]
+
+            order = np.argsort(
+                -row,
+                kind="stable",
+            )[:limit]
+
+            query_results: List[Dict] = []
+
+            for index in order:
+                chunk = chunks[int(index)]
+
+                query_results.append(
+                    {
+                        "score": float(row[int(index)]),
+                        "chunk_id": chunk.get(
+                            "chunk_id",
+                            "unknown",
+                        ),
+                        "text": chunk.get(
+                            "text",
+                            "",
+                        ),
+                        "chapter": chunk.get(
+                            "chapter",
+                            "",
+                        ),
+                        "section": chunk.get(
+                            "section",
+                            "",
+                        ),
+                        "source_file": chunk.get(
+                            "source_file",
+                            "",
+                        ),
+                        "page": chunk.get("page"),
+                        "content_type": chunk.get(
+                            "content_type",
+                            "other",
+                        ),
+                    }
+                )
+
+            results[original_index] = (
+                query_results
             )
 
         return results
+
+    def retrieve(
+        self,
+        query: str,
+        chunks: Sequence[Dict],
+        top_k: int = DEFAULT_TOP_K,
+    ) -> List[Dict]:
+        results = self.retrieve_many(
+            [query],
+            chunks,
+            top_k=top_k,
+        )
+        return results[0] if results else []

@@ -13,6 +13,119 @@ AI-DataStructure-Assistant 是一个面向本科《数据结构》课程的 RAG�
 
 ---
 
+## 当前开发阶段：第二阶段——系统集成与完善
+
+### 阶段目标
+
+第一阶段已经完成 RAG V1 核心链路的设计、实现与基础验证，当前项目正式进入第二阶段开发。
+
+第二阶段的核心目标是：
+
+> 在已经冻结的 RAG V1 基础上，完成知识库、后端、前端和测试体系的整合，形成一个功能完整、运行稳定、可测试、可部署、可演示的数据结构课程智能助教系统。
+
+本阶段原则上不再进行大规模 RAG 架构调整。除非发现明确的功能错误或系统级性能问题，否则后续工作优先围绕工程集成、数据质量、系统稳定性和用户体验展开。
+
+### 本阶段主要实现内容
+
+1. **知识库完善**
+   - 清洗现有 `ds_chunks.jsonl`；
+   - 检查重复、空内容和错误 metadata；
+   - 继续补充概念、算法、代码、习题和比较类知识；
+   - 优先处理已有 Benchmark 暴露出的 corpus gap（知识库缺口）；
+   - 保持现有 Chunk Schema 不变。
+
+2. **后端集成**
+   - 将 FastAPI 后端统一接入新的 `rag.main.run()`；
+   - 保留 `/api/v1/ask` 和 `/api/v1/health`；
+   - 统一处理 `answer、sources、mode、out_of_scope、latency_ms、error`；
+   - 后端不重复实现 Query Router、Query Expansion、Retrieval、Scope Gate 或 Reranking；
+   - 完善异常处理、日志和接口稳定性。
+
+3. **前端适配**
+   - 接入新版 `/api/v1/ask`；
+   - 展示 `qa / exercise / code` 三种回答模式；
+   - 正确展示 Answer 和 Sources；
+   - 对 `out_of_scope` 提供正常的范围外提示，而不是作为系统错误处理；
+   - 适配新的分阶段 `latency_ms`；
+   - 保留并完善 Markdown、数学公式、代码块、Loading、Error 和历史记录功能；
+   - 在功能稳定后再进行进一步 UI 优化。
+
+4. **系统测试与回归**
+   - 复用现有 Dev / Held-out Benchmark 和人工标注资产；
+   - 建立面向完整系统的 regression test set（回归测试集）；
+   - 覆盖概念题、习题、代码题、比较类问题、多要求问题和范围外问题；
+   - 检查 Query Router、Scope Gate、检索结果和最终回答；
+   - 对知识库更新和代码修改进行持续回归测试。
+
+5. **系统稳定性与性能**
+   - 持续监控 Retrieval、Rerank、Generation 和 Total latency；
+   - 优先解决明显的异常延迟和重复模型调用；
+   - 保证 Query Expansion、Reranker 等增强模块发生异常时可以安全降级；
+   - 避免单个模块异常导致整个问答服务不可用。
+
+6. **部署与演示准备**
+   - 完善运行配置和环境说明；
+   - 保证项目可以按照 README 从零启动；
+   - 整理正式演示问题和典型使用场景；
+   - 完成最终端到端验收；
+   - 为后续本地部署、服务器部署和大创成果展示做好准备。
+
+### 第二阶段完成标准
+
+第二阶段完成时，系统应形成完整链路：
+
+```text
+Knowledge Base
+    ↓
+RAG V1
+    ↓
+FastAPI Backend
+    ↓
+Web Frontend
+    ↓
+System Regression
+    ↓
+Deployable / Demonstrable System
+```
+
+具体要求：
+
+- 数据结构课程主要章节具有较完整的知识覆盖；
+- 普通知识问答、习题讲解和代码分析均可正常工作；
+- 复杂问题能够使用 Multi-query Retrieval；
+- 范围外问题能够稳定拒答；
+- 后端与 RAG 接口稳定；
+- 前端能够完整展示回答、来源、模式和系统状态；
+- 核心测试集能够稳定通过；
+- 系统不存在阻塞演示的严重错误；
+- 项目具备完整的启动、测试和演示流程。
+
+### 当前阶段任务依赖
+
+```text
+RAG V1 Core（已完成）
+        │
+        ├── Knowledge Base 扩充与清洗
+        │
+        ├── Backend 接入新版 RAG
+        │          ↓
+        │       Frontend 适配
+        │          ↓
+        └──── System Regression
+                   ↓
+             Deployment / Demo
+```
+
+当前项目状态：
+
+```text
+Stage 1  RAG Core Development        Completed
+Stage 2  System Integration          Active
+Stage 3  Final Validation / Release  Pending
+```
+
+---
+
 ## 1. 当前系统架构
 
 当前冻结的 RAG V1 主链路：

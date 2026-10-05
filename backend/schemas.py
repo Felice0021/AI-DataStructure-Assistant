@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 
 class AskRequest(BaseModel):
     question: str = Field(..., min_length=1)
-    top_k: Optional[int] = Field(None, ge=1, le=20)
+    top_k: Optional[int] = Field(3, ge=1, le=20)
 
 
 class SourceInfo(BaseModel):
@@ -15,10 +15,19 @@ class SourceInfo(BaseModel):
     page: Optional[int] = None
 
 
+class LatencyInfo(BaseModel):
+    retrieval: int = 0
+    rerank: int = 0
+    generation: int = 0
+    total: int = 0
+
+
 class AskData(BaseModel):
     answer: str
     sources: List[SourceInfo]
-    latency_ms: int
+    mode: str = ""
+    out_of_scope: bool = False
+    latency_ms: LatencyInfo
 
 
 class ErrorInfo(BaseModel):
@@ -33,25 +42,27 @@ class AskResponse(BaseModel):
     error: Optional[ErrorInfo] = None
 
     @classmethod
-    def ok(cls, request_id: str, answer: str, sources: List[SourceInfo], latency_ms: float):
+    def ok(cls, request_id, answer, sources, mode, out_of_scope, latency_ms):
         return cls(
             request_id=request_id,
             success=True,
             data=AskData(
                 answer=answer,
                 sources=sources,
-                latency_ms=round(latency_ms)
+                mode=mode,
+                out_of_scope=out_of_scope,
+                latency_ms=latency_ms,
             ),
-            error=None
+            error=None,
         )
 
     @classmethod
-    def fail(cls, request_id: str, code: str, message: str):
+    def fail(cls, request_id, code, message):
         return cls(
             request_id=request_id,
             success=False,
             data=None,
-            error=ErrorInfo(code=code, message=message)
+            error=ErrorInfo(code=code, message=message),
         )
 
 

@@ -1,72 +1,83 @@
 """
-RAG问答服务 - 调用重构后的 rag 模块
+RAG问答服务 - 接入新版 rag.main.run()
 """
 import time
 import asyncio
 import uuid
 from pathlib import Path
+from typing import Any, Dict, List
 
-from backend.schemas import AskResponse, SourceInfo
+from backend.schemas import AskResponse, SourceInfo, LatencyInfo
 from backend.logging_config import get_logger
 from backend.config import get_settings
 
 logger = get_logger(__name__)
 settings = get_settings()
 
-# 记录项目根目录
 project_root = Path(__file__).parent.parent.parent
 logger.info(f"项目根目录: {project_root}")
 
-# 导入重构后的 RAG 模块
 try:
-    from rag.main import prepare_knowledge_base, answer_question
+    import rag.main as rag_main
     RAG_AVAILABLE = True
-    logger.info("RAG模块导入成功")
+    logger.info(f"RAG模块导入成功: {rag_main.__file__}")
 except ImportError as e:
     RAG_AVAILABLE = False
     logger.error(f"RAG模块导入失败: {e}")
 
-# 也尝试导入 rag 模块本身来打印路径
-try:
-    import rag
-    logger.info(f"rag 包路径: {rag.__file__}")
-except ImportError:
-    pass
+
+def _normalize_sources(raw_sources: List[Dict]) -> List[SourceInfo]:
+    return [
+        SourceInfo(
+            chunk_id=s.get("chunk_id", "unknown"),
+            chapter=s.get("chapter", ""),
+            section=s.get("section", ""),
+            source_file=s.get("source_file", ""),
+            page=s.get("page"),
+        )
+        for s in (raw_sources or [])
+    ]
+
+
+def _normalize_latency(raw: Any) -> LatencyInfo:
+    if isinstance(raw, dict):
+        return LatencyInfo(
+            retrieval=int(raw.get("retrieval", 0) or 0),
+            rerank=int(raw.get("rerank", 0) or 0),
+            generation=int(raw.get("generation", 0) or 0),
+            total=int(raw.get("total", 0) or 0),
+        )
+    if isinstance(raw, (int, float)):
+        return LatencyInfo(total=int(raw))
+    return LatencyInfo()
 
 
 class RAGService:
-    """RAG问答服务"""
-
-    _chunks = None
     _is_initialized = False
     _chunk_count = 0
+    _chunks = None
 
     @classmethod
-    async def initialize(cls):
-        """初始化RAG服务（只执行一次）"""
+    async def initialize(cls) -> bool:
         if cls._is_initialized:
             return True
-
         if not RAG_AVAILABLE:
-            logger.error("RAG模块不可用")
             return False
 
         try:
             logger.info("开始加载知识库...")
-
-            # 使用重构后的 prepare_knowledge_base
-            # 支持缓存：第二次启动直接读取缓存，不请求 embedding API
-            cls._chunks = prepare_knowledge_base(
-                file_path=Path(settings.knowledge_file),
-                use_cache=settings.rag_use_cache
+            loop = asyncio.get_event_loop()
+            cls._chunks = await loop.run_in_executor(
+                None,
+                lambda: rag_main.prepare_knowledge_base(
+                    file_path=Path(settings.knowledge_file),
+                    use_cache=settings.rag_use_cache,
+                ),
             )
-
             cls._chunk_count = len(cls._chunks) if cls._chunks else 0
             cls._is_initialized = True
-
-            logger.info(f"知识库加载成功，共 {cls._chunk_count} 个片段")
+            logger.info(f"知识库加载成功: {cls._chunk_count} 个片段")
             return True
-
         except Exception as e:
             logger.error(f"知识库加载失败: {e}")
             cls._is_initialized = False
@@ -75,97 +86,87 @@ class RAGService:
 
     @classmethod
     def is_ready(cls) -> bool:
-        """检查RAG是否就绪"""
         return RAG_AVAILABLE and cls._is_initialized
 
     @classmethod
     def get_chunk_count(cls) -> int:
-        """获取知识库片段数量"""
         return cls._chunk_count
 
     @classmethod
     async def answer(cls, question: str, top_k: int = None) -> AskResponse:
-        """问答接口"""
         request_id = str(uuid.uuid4())[:8]
-        start_time = time.time()
+        start = time.time()
 
-        # 使用配置的默认值
         if top_k is None:
             top_k = settings.rag_top_k
 
-        # 检查RAG是否可用
         if not RAG_AVAILABLE:
             return AskResponse.fail(
-                request_id=request_id,
-                code="RAG_UNAVAILABLE",
-                message="RAG模块未正确导入，请检查 rag/main.py 是否存在"
+                request_id, "RAG_UNAVAILABLE", "RAG模块未正确导入"
             )
 
-        # 检查是否已初始化
         if not cls._is_initialized:
-            logger.warning(f"RAG服务未初始化 [{request_id}]，尝试初始化...")
-            init_success = await cls.initialize()
-            if not init_success:
+            ok = await cls.initialize()
+            if not ok:
                 return AskResponse.fail(
-                    request_id=request_id,
-                    code="RAG_INIT_FAILED",
-                    message=f"知识库加载失败，请检查 {settings.knowledge_file} 是否存在"
+                    request_id, "RAG_INIT_FAILED",
+                    f"知识库加载失败，请检查 {settings.knowledge_file}"
                 )
 
         try:
-            logger.info(
-                f"问答请求 [{request_id}] "
-                f"retriever={settings.rag_retriever}: "
-                f"{question[:30]}..."
-            )
+            logger.info(f"问答请求 [{request_id}]: {question[:30]}...")
 
-            # 调用重构后的 answer_question
             loop = asyncio.get_event_loop()
             result = await loop.run_in_executor(
                 None,
-                answer_question,
-                question,
-                cls._chunks,
-                top_k,
-                settings.rag_retriever
+                lambda: rag_main.run(
+                    query=question,
+                    chunks=cls._chunks,
+                    top_k=top_k,
+                    mode="auto",
+                ),
             )
 
-            # 检查RAG返回是否有错误
+            # RAG 内部错误
             if result.get("error"):
-                error_msg = result["error"].get("message", str(result["error"]))
-                logger.warning(f"RAG返回错误 [{request_id}]: {error_msg}")
-                return AskResponse.fail(
-                    request_id=request_id,
-                    code=result["error"].get("code", "RAG_ERROR"),
-                    message=error_msg
-                )
+                err = result["error"]
+                if isinstance(err, dict):
+                    code = err.get("code", "RAG_ERROR")
+                    message = err.get("message", str(err))
+                else:
+                    code = "RAG_ERROR"
+                    message = str(err)
+                logger.warning(f"RAG错误 [{request_id}]: {code} - {message}")
+                return AskResponse.fail(request_id, code, message)
 
-            # 构建来源列表
-            sources = []
-            for source in result.get("sources", []):
-                sources.append(SourceInfo(
-                    chunk_id=source.get("chunk_id", "unknown"),
-                    chapter=source.get("chapter", ""),
-                    section=source.get("section", ""),
-                    source_file=source.get("source_file", ""),
-                    page=source.get("page")
-                ))
+            fallback_ms = (time.time() - start) * 1000
+            latency = _normalize_latency(result.get("latency_ms"))
+            if latency.total == 0:
+                latency.total = int(fallback_ms)
 
-            latency_ms = result.get("latency_ms", (time.time() - start_time) * 1000)
-
-            logger.info(f"问答成功 [{request_id}]: {len(sources)} 个来源, {latency_ms:.0f}ms")
-
-            return AskResponse.ok(
+            resp = AskResponse.ok(
                 request_id=request_id,
                 answer=result.get("answer", ""),
-                sources=sources,
-                latency_ms=latency_ms
+                sources=_normalize_sources(result.get("sources", [])),
+                mode=result.get("mode", ""),
+                out_of_scope=bool(result.get("out_of_scope", False)),
+                latency_ms=latency,
             )
+
+            logger.info(
+                f"问答完成 [{request_id}]: mode={resp.data.mode}, "
+                f"out_of_scope={resp.data.out_of_scope}, "
+                f"sources={len(resp.data.sources)}, "
+                f"retrieval={latency.retrieval}ms, "
+                f"rerank={latency.rerank}ms, "
+                f"generation={latency.generation}ms, "
+                f"total={latency.total}ms"
+            )
+            return resp
 
         except Exception as e:
             logger.error(f"问答异常 [{request_id}]: {e}")
             return AskResponse.fail(
-                request_id=request_id,
-                code="RAG_EXCEPTION",
-                message=f"问答过程发生异常: {str(e)}"
+                request_id, "RAG_EXCEPTION",
+                f"问答过程发生异常: {str(e)}"
             )

@@ -34,6 +34,7 @@ def _normalize_sources(raw_sources: List[Dict]) -> List[SourceInfo]:
             section=s.get("section", ""),
             source_file=s.get("source_file", ""),
             page=s.get("page"),
+            content_type=s.get("content_type", ""),   # 新增
         )
         for s in (raw_sources or [])
     ]

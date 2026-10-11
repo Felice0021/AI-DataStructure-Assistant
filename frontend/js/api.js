@@ -116,17 +116,22 @@ class ApiClient {
     }
     
     // 问答接口
-    async ask(question, topK = 3) {
+    async ask(question, topK = null) {
         if (this.useMock) {
-            return mockAsk(question, topK);
+            return mockAsk(question, topK ?? 5);
+        }
+
+        const payload = {
+            question: question
+        };
+
+        if (topK !== null && topK !== undefined) {
+            payload.top_k = topK;
         }
         
         return this.request(this.endpoints.ASK, {
             method: 'POST',
-            body: JSON.stringify({
-                question: question,
-                top_k: topK
-            })
+            body: JSON.stringify(payload)
         });
     }
     

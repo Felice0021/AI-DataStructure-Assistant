@@ -7,6 +7,13 @@ from typing import List, Dict
 from rag.config import GENERATION_MODEL, GENERATION_TEMPERATURE
 
 
+_MODE_INSTRUCTIONS = {
+    "qa": "先直接回答问题，再在必要时补充原理或例子；避免无关扩展。",
+    "exercise": "按“题目分析 → 解题过程 → 最终答案”的顺序回答；不要跳过关键推导。",
+    "code": "按“代码作用 → 问题定位 → 修改建议 → 复杂度/边界条件”的顺序回答；代码结论必须有资料依据。",
+}
+
+
 class QwenGenerator:
     def __init__(self, api_key: str = None):
         if api_key is None:
@@ -22,7 +29,13 @@ class QwenGenerator:
         self.model = GENERATION_MODEL
         self.temperature = GENERATION_TEMPERATURE
 
-    def generate(self, query: str, retrieved_chunks: List[Dict]) -> str:
+    def generate(
+        self,
+        query: str,
+        retrieved_chunks: List[Dict],
+        *,
+        mode: str = "qa",
+    ) -> str:
         if not retrieved_chunks:
             return "抱歉，在课程资料中没有找到相关内容。"
 
@@ -39,14 +52,17 @@ class QwenGenerator:
             )
 
         context = "\n\n".join(context_blocks)
+        mode_instruction = _MODE_INSTRUCTIONS.get(mode, _MODE_INSTRUCTIONS["qa"])
 
-        system_prompt = """
+        system_prompt = f"""
 你是一个数据结构课程智能助教。
 
 回答规则：
 1. 只使用给定课程资料中能够直接支持的内容回答。
 2. 回答应自然、准确、适合本科生理解。
 3. 如果现有资料不足以回答，只回答"根据当前资料无法确定"。
+4. 当前回答模式：{mode}。
+5. {mode_instruction}
 """
 
         user_prompt = f"""

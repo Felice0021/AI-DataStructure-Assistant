@@ -1,232 +1,600 @@
 # AI-DataStructure-Assistant
 
-## 基于大语言模型和 RAG 技术的数据结构课程智能助教系统
+## 数据结构课程智能助教系统
 
-本项目为大学生创新训练项目，面向《数据结构》课程学习场景，构建一个基于 RAG（Retrieval-Augmented Generation，检索增强生成）和大语言模型的课程智能助教系统。
+AI-DataStructure-Assistant 是一个面向本科《数据结构》课程的 RAG（Retrieval-Augmented Generation，检索增强生成）智能助教系统。
 
-系统将课程教材、PPT 等资料整理为结构化知识片段，通过 Embedding 向量化和语义检索获取与问题相关的课程内容，再结合大语言模型生成回答，并向前端返回对应的知识来源。
+系统以课程教材、课程资料和结构化知识库为主要知识来源，通过 Query Processing（查询处理）、Hybrid Retrieval（混合检索）、Reranking（重排序）和大语言模型生成，为学生提供概念问答、习题讲解和代码分析能力。
 
-当前已完成可运行的系统原型，包括：
+当前项目已从早期 RAG Demo 和论文型实验阶段转入完整系统开发阶段。
 
-- 结构化课程知识库；
-- RAG 检索与生成流程；
-- 相似度阈值与范围外问题拒答机制；
-- FastAPI 后端接口；
-- 前端问答页面；
-- Markdown 与数学公式渲染；
-- 知识来源展示；
-- 后端健康检查和异常状态提示；
-- 自动化测试与评测流程；
-- 前端、后端、RAG 三部分联调。
+> 当前重点：知识库建设、RAG 稳定性、前后端集成、系统测试和最终演示。
+> 历史论文型研究记录见 `docs/RESEARCH_CHECKPOINT_2026-09.md`。
 
 ---
 
-## 一、项目目标
+## 当前开发阶段：第二阶段——系统集成与完善
 
-项目主要目标包括：
+### 阶段目标
 
-1. 构建数据结构课程知识库；
-2. 对课程资料进行结构化整理；
-3. 实现文本 Embedding 与语义检索；
-4. 基于检索结果调用大语言模型回答课程问题；
-5. 返回回答对应的课程知识来源；
-6. 对超出当前知识库覆盖范围的问题进行识别和拒答；
-7. 提供可交互的前端问答页面；
-8. 建立自动化评测流程，对检索质量、范围控制和响应性能进行评估。
+第一阶段已经完成 RAG V1 核心链路的设计、实现与基础验证，当前项目正式进入第二阶段开发。
 
----
+第二阶段的核心目标是：
 
-## 二、系统架构
+> 在已经冻结的 RAG V1 基础上，完成知识库、后端、前端和测试体系的整合，形成一个功能完整、运行稳定、可测试、可部署、可演示的数据结构课程智能助教系统。
 
-当前系统主要由四部分组成：
+本阶段原则上不再进行大规模 RAG 架构调整。除非发现明确的功能错误或系统级性能问题，否则后续工作优先围绕工程集成、数据质量、系统稳定性和用户体验展开。
+
+### 本阶段主要实现内容
+
+1. **知识库完善**
+   - 清洗现有 `ds_chunks.jsonl`；
+   - 检查重复、空内容和错误 metadata；
+   - 继续补充概念、算法、代码、习题和比较类知识；
+   - 优先处理已有 Benchmark 暴露出的 corpus gap（知识库缺口）；
+   - 保持现有 Chunk Schema 不变。
+
+2. **后端集成**
+   - 将 FastAPI 后端统一接入新的 `rag.main.run()`；
+   - 保留 `/api/v1/ask` 和 `/api/v1/health`；
+   - 统一处理 `answer、sources、mode、out_of_scope、latency_ms、error`；
+   - 后端不重复实现 Query Router、Query Expansion、Retrieval、Scope Gate 或 Reranking；
+   - 完善异常处理、日志和接口稳定性。
+
+3. **前端适配**
+   - 接入新版 `/api/v1/ask`；
+   - 展示 `qa / exercise / code` 三种回答模式；
+   - 正确展示 Answer 和 Sources；
+   - 对 `out_of_scope` 提供正常的范围外提示，而不是作为系统错误处理；
+   - 适配新的分阶段 `latency_ms`；
+   - 保留并完善 Markdown、数学公式、代码块、Loading、Error 和历史记录功能；
+   - 在功能稳定后再进行进一步 UI 优化。
+
+4. **系统测试与回归**
+   - 复用现有 Dev / Held-out Benchmark 和人工标注资产；
+   - 建立面向完整系统的 regression test set（回归测试集）；
+   - 覆盖概念题、习题、代码题、比较类问题、多要求问题和范围外问题；
+   - 检查 Query Router、Scope Gate、检索结果和最终回答；
+   - 对知识库更新和代码修改进行持续回归测试。
+
+5. **系统稳定性与性能**
+   - 持续监控 Retrieval、Rerank、Generation 和 Total latency；
+   - 优先解决明显的异常延迟和重复模型调用；
+   - 保证 Query Expansion、Reranker 等增强模块发生异常时可以安全降级；
+   - 避免单个模块异常导致整个问答服务不可用。
+
+6. **部署与演示准备**
+   - 完善运行配置和环境说明；
+   - 保证项目可以按照 README 从零启动；
+   - 整理正式演示问题和典型使用场景；
+   - 完成最终端到端验收；
+   - 为后续本地部署、服务器部署和大创成果展示做好准备。
+
+### 第二阶段完成标准
+
+第二阶段完成时，系统应形成完整链路：
 
 ```text
-课程资料 / 知识库
-        ↓
-RAG 检索与生成模块
-        ↓
-FastAPI 后端服务
-        ↓
-前端问答页面
-        ↓
-用户
+Knowledge Base
+    ↓
+RAG V1
+    ↓
+FastAPI Backend
+    ↓
+Web Frontend
+    ↓
+System Regression
+    ↓
+Deployable / Demonstrable System
 ```
 
-一次完整问答的处理过程为：
+具体要求：
+
+- 数据结构课程主要章节具有较完整的知识覆盖；
+- 普通知识问答、习题讲解和代码分析均可正常工作；
+- 复杂问题能够使用 Multi-query Retrieval；
+- 范围外问题能够稳定拒答；
+- 后端与 RAG 接口稳定；
+- 前端能够完整展示回答、来源、模式和系统状态；
+- 核心测试集能够稳定通过；
+- 系统不存在阻塞演示的严重错误；
+- 项目具备完整的启动、测试和演示流程。
+
+### 当前阶段任务依赖
 
 ```text
-用户输入问题
-        ↓
-前端发送请求
-        ↓
-POST /api/v1/ask
-        ↓
-问题 Embedding
-        ↓
-知识库相似度检索
-        ↓
-Top-K 排序
-        ↓
-检查 Top-1 Similarity Score
-        ↓
-┌─────────────────────────┐
-│ score >= threshold      │
-└─────────────────────────┘
-        ↓ 是
-构造课程上下文
-        ↓
-调用大语言模型
-        ↓
-生成回答
-        ↓
-返回 answer + sources
+RAG V1 Core（已完成）
+        │
+        ├── Knowledge Base 扩充与清洗
+        │
+        ├── Backend 接入新版 RAG
+        │          ↓
+        │       Frontend 适配
+        │          ↓
+        └──── System Regression
+                   ↓
+             Deployment / Demo
+```
 
-        ↓ 否
+当前项目状态：
 
-直接返回：
-“根据当前资料无法确定”
+```text
+Stage 1  RAG Core Development        Completed
+Stage 2  System Integration          Active
+Stage 3  Final Validation / Release  Pending
+```
+
+---
+
+## 1. 当前系统架构
+
+当前冻结的 RAG V1 主链路：
+
+```text
+Raw Query
+    ↓
+Query Router
+    ↓
+Query Expansion Gate
+    │
+    ├── 简单问题
+    │     └── Original Query
+    │
+    └── 复杂问题
+          └── Original Query + ≤3 Subqueries
+    ↓
+Batched Dense Retrieval + BM25 Retrieval
+    ↓
+Single-query RRF
+    ↓
+Multi-query RRF
+    ↓
+Scope Gate
+只使用 Original Query 的 Dense Top-1 Score
+    ↓
+Qwen Reranker
+只使用 Original Query
+    ↓
+Top-K Evidence
+    ↓
+Mode-specific Generator
+    ↓
+Answer + Sources
+```
+
+核心原则：
+
+- 原始 Query 始终保留；
+- 简单问题不做无意义 Query Expansion；
+- 比较类、多要求类问题可拆为多个检索子 Query；
+- 多 Query 的 Dense Embedding 使用批量 API 请求；
+- Dense 与 BM25 使用 RRF（Reciprocal Rank Fusion，倒数排名融合）；
+- 多 Query 结果再次进行 RRF 融合；
+- Scope Gate 只使用原始 Query，避免查询扩展导致范围漂移；
+- Reranker 同样使用原始 Query；
+- Query Expansion 或 Reranker 异常时采用 fail-open（故障降级），避免整个问答链路中断。
+
+---
+
+## 2. 当前功能
+
+当前已经实现：
+
+- 数据结构课程结构化知识库；
+- Dense semantic retrieval（稠密语义检索）；
+- BM25 lexical retrieval（词法检索）；
+- Dense + BM25 Hybrid Retrieval（混合检索）；
+- RRF 排名融合；
+- Query Router（查询模式路由）；
+- Query Expansion Gate（查询扩展判断）；
+- LLM Query Decomposition（复杂查询拆解）；
+- Multi-query Retrieval（多查询检索）；
+- Query Embedding 批量调用；
+- Qwen Reranking（文本重排序）；
+- 范围外问题拒答；
+- `qa / exercise / code` 三种回答模式；
+- Qwen 大语言模型生成；
+- 来源信息返回；
+- Dense 文档 Embedding 本地缓存；
+- 检索 Benchmark 与评测框架；
+- 历史人工相关性和 facet 标注资产；
+- FastAPI 后端基础框架；
+- Web 前端基础页面。
+
+当前正在进行：
+
+- FastAPI 后端接入新的 `rag.main.run()`；
+- 前端适配新的后端响应结构；
+- 知识库继续扩充和清洗；
+- 系统级回归测试。
+
+---
+
+## 3. Query Processing
+
+### 3.1 Query Router
+
+文件：
+
+```text
+rag/query_router.py
+```
+
+Query Router 将用户问题路由为：
+
+```text
+qa
+exercise
+code
+```
+
+含义：
+
+- `qa`：概念解释、知识问答；
+- `exercise`：习题、算法推演、计算过程；
+- `code`：代码阅读、错误定位、实现分析。
+
+生产接口默认支持：
+
+```text
+mode = auto
+```
+
+由系统自动判断回答模式。
+
+---
+
+### 3.2 Query Expansion
+
+文件：
+
+```text
+rag/query_processor.py
+```
+
+系统不会对所有问题强制扩展。
+
+简单问题：
+
+```text
+AVL树为什么需要旋转？
+```
+
+保持为：
+
+```text
+[
+  "AVL树为什么需要旋转？"
+]
+```
+
+复杂问题：
+
+```text
+Prim和Kruskal算法在基本思想和适用场景上有什么区别？
+```
+
+可能被拆解为：
+
+```text
+[
+  "Prim和Kruskal算法在基本思想和适用场景上有什么区别？",
+  "Prim算法的基本思想",
+  "Kruskal算法的基本思想",
+  "Prim和Kruskal算法的适用场景区别"
+]
+```
+
+其中第一个 Query 永远是用户原始问题。
+
+当前最多生成：
+
+```text
+3 subqueries
+```
+
+代码模式默认不进行 Query Expansion，避免代码内容被错误改写。
+
+Query Expansion 当前复用系统生成模型，不需要单独部署查询模型。
+
+---
+
+## 4. Hybrid Retrieval
+
+当前生产 Retriever 使用：
+
+```text
+Dense + BM25
+```
+
+### Dense Retrieval
+
+Dense Retriever 使用 Qwen Embedding 和 cosine similarity（余弦相似度）。
+
+当前配置：
+
+```text
+Embedding Model:
+qwen3.7-text-embedding
+
+Embedding Dimension:
+1024
+
+Embedding Batch Size:
+10
+```
+
+文档 Embedding 会持久化缓存到：
+
+```text
+.cache/rag/
+```
+
+当知识库内容和 Embedding 配置不变时，无需重复生成全部文档向量。
+
+对于 Multi-query Retrieval，多条 Query 的 Embedding 会尽量通过一次批量 API 请求生成，减少网络调用延迟。
+
+---
+
+### BM25 Retrieval
+
+BM25 用于 lexical retrieval（词法检索），用于补充 Dense Retrieval 对：
+
+- 专有名词；
+- 算法名称；
+- 代码符号；
+- 精确关键词；
+
+等内容的召回能力。
+
+---
+
+### RRF Fusion
+
+Dense 与 BM25 不直接比较原始分数，而通过：
+
+```text
+RRF
+Reciprocal Rank Fusion
+倒数排名融合
+```
+
+按照排名进行融合。
+
+对于复杂问题：
+
+```text
+Original Query
++ Subqueries
+```
+
+每个 Query 都独立进行 Hybrid Retrieval，然后再进行第二层 Multi-query RRF 融合。
+
+---
+
+## 5. Scope Control
+
+当前范围控制使用：
+
+```text
+MIN_RETRIEVAL_SCORE = 0.58
+```
+
+该阈值对应：
+
+```text
+Original Query
+→ Dense Retrieval
+→ Dense Top-1 cosine similarity
+```
+
+不会使用：
+
+```text
+BM25 score
+RRF score
+Multi-query score
+Rerank score
+```
+
+作为范围判断依据。
+
+原因是这些分数属于不同尺度，不能直接与 Dense cosine score 比较。
+
+当原始 Query 的 Dense Top-1 分数低于阈值时，系统直接返回：
+
+```text
+根据当前资料无法确定
+```
+
+同时：
+
+```text
 sources = []
 ```
 
-通过在生成阶段之前增加检索相关性判断，可以避免明显无关的知识片段被送入大语言模型后产生似是而非的回答。
+并跳过 Rerank 与 Generation。
+
+例如当前测试：
+
+```text
+TCP为什么需要三次握手？
+```
+
+可被正确判断为当前数据结构知识库范围外问题。
+
+当前阈值 `0.58` 属于系统开发阶段配置，后续知识库扩大后应通过独立测试集重新标定。
 
 ---
 
-## 三、目录结构
+## 6. Reranking
+
+Reranker：
 
 ```text
-AI-DataStructure-Assistant/
-├── backend/
-│   └── backend/
-│       ├── backend/
-│       │   ├── main.py
-│       │   ├── config.py
-│       │   ├── routers/
-│       │   ├── schemas/
-│       │   └── services/
-│       └── requirements.txt
-│
-├── frontend/
-│   ├── index.html
-│   ├── css/
-│   └── js/
-│
-├── knowledge_base/
-│   └── ds_chunks.jsonl
-│
-├── rag/
-│   ├── config.py
-│   ├── calibrate_threshold.py
-│   ├── threshold_calibration.json
-│   └── rag_demo/
-│       ├── main.py
-│       └── requirements.txt
-│
-├── tests/
-│   ├── test_questions.jsonl
-│   ├── run_evaluation.py
-│   ├── test_results.jsonl
-│   └── evaluation_summary.json
-│
-├── docs/
-├── data/
-├── assessment_materials/
-└── README.md
+qwen3.7-text-rerank
 ```
 
-其中当前正式运行所使用的知识库为：
+Hybrid / Multi-query Retrieval 生成候选池后，使用用户的：
 
 ```text
-knowledge_base/ds_chunks.jsonl
+Original Query
 ```
 
-当前仓库仅保留正式知识库 `ds_chunks.jsonl`，旧版 Demo 知识库文件已移除。
+进行重排序。
+
+这样可以避免子 Query 对最终问题语义产生过强影响。
+
+如果 Reranker 调用异常，系统采用 fail-open 策略，使用已有检索结果继续工作。
 
 ---
 
-## 四、正式知识库
+## 7. Answer Generation
 
-当前正式知识库：
-
-```text
-knowledge_base/ds_chunks.jsonl
-```
-
-当前版本共包含：
+生成模块：
 
 ```text
-55 个知识片段
+rag/generators/qwen_generator.py
 ```
 
-每一行是一个独立 JSON 对象。标准 Chunk 包含以下 7 个字段：
+当前生成模型：
 
-```json
-{
-  "chunk_id": "tree_001",
-  "text": "知识片段正文",
-  "chapter": "第六章 树和二叉树",
-  "section": "相关小节",
-  "source_file": "课程资料.pdf",
-  "page": 12,
-  "content_type": "concept"
-}
+```text
+qwen3.7-flash
 ```
 
-字段含义：
+Temperature：
 
-- `chunk_id`：知识片段唯一标识；
-- `text`：实际用于 Embedding 和回答生成的文本；
-- `chapter`：所属章节；
-- `section`：所属小节；
-- `source_file`：原始课程资料；
-- `page`：原始资料页码；
-- `content_type`：知识内容类型。
+```text
+0.2
+```
 
-当前系统的问答范围由正式知识库实际覆盖内容决定，而不是由“大数据结构课程”这一概念范围决定。
+系统根据 Query Router 的结果使用不同回答模式。
 
-因此，例如某个知识点虽然属于数据结构课程，但如果当前正式知识库中尚未包含对应资料，系统仍应将其视为当前知识库范围外问题。
+### QA
+
+主要结构：
+
+```text
+直接回答
+→ 必要原理
+→ 相关说明
+```
+
+### Exercise
+
+主要结构：
+
+```text
+题目分析
+→ 解题过程
+→ 最终答案
+```
+
+### Code
+
+主要结构：
+
+```text
+代码作用
+→ 问题定位
+→ 修改建议
+→ 复杂度 / 边界条件
+```
+
+生成模型应优先依据检索得到的课程 Evidence，不应把模型自身知识伪装成课程材料。
 
 ---
 
+## 8. RAG 统一入口
 
-### 知识库质量校验
-
-项目提供 `knowledge_base/validate_chunks.py` 用于检查正式知识库 `knowledge_base/ds_chunks.jsonl` 的数据质量。
-
-脚本会检查 JSONL 格式、7 字段 Schema、字段类型、重复 chunk_id、重复正文、空文本、page 合法性、source_file 路径污染、metadata 完整性和 content_type，并统计章节、来源及文本长度分布。
-
-直接运行：`python3 knowledge_base/validate_chunks.py`
-
-严格模式：`python3 knowledge_base/validate_chunks.py --fail-on-warning`
-
-生成 JSON 报告：`python3 knowledge_base/validate_chunks.py knowledge_base/ds_chunks.jsonl --report knowledge_base/validation_report.json`
-
-当前正式知识库共 55 个 Chunk，最近一次校验结果为 ERROR=0、WARNING=0、PASS。机器可读结果保存在 `knowledge_base/validation_report.json`。
-
-知识库更新后，应先通过该脚本校验，再提交新的数据。
-
-## 五、RAG 检索模块
-
-RAG 主程序：
+当前生产 RAG 入口：
 
 ```text
-rag/rag_demo/main.py
+rag/main.py
 ```
 
-全局配置：
+主要接口：
+
+```python
+run(
+    query,
+    chunks,
+    top_k=5,
+    mode="auto"
+)
+```
+
+核心流程：
+
+```text
+Query
+→ Router
+→ Query Processing
+→ Hybrid Retrieval
+→ Scope Gate
+→ Reranker
+→ Generator
+```
+
+主要返回字段包括：
+
+```text
+answer
+sources
+retrieved_chunks
+retrieval_queries
+mode
+out_of_scope
+threshold_score
+rerank_fallback
+latency_ms
+error
+```
+
+其中：
+
+```text
+retrieved_chunks
+retrieval_queries
+threshold_score
+rerank_fallback
+```
+
+主要用于内部调试和系统评测。
+
+后端面向前端主要暴露：
+
+```text
+answer
+sources
+mode
+out_of_scope
+latency_ms
+error
+```
+
+---
+
+## 9. 当前 RAG 配置
+
+主要配置文件：
 
 ```text
 rag/config.py
 ```
 
-当前关键配置包括：
+当前关键配置：
 
 ```text
-Knowledge Base:
-knowledge_base/ds_chunks.jsonl
+Final Top-K:
+5
 
-Top-K:
-3
+Hybrid Candidate-K:
+10
+
+Scope Threshold:
+0.58
 
 Embedding Model:
 qwen3.7-text-embedding
@@ -234,283 +602,189 @@ qwen3.7-text-embedding
 Embedding Dimension:
 1024
 
+Embedding Batch Size:
+10
+
+Rerank Model:
+qwen3.7-text-rerank
+
 Generation Model:
-qwen3.7-plus-2026-05-26
+qwen3.7-flash
 
-Minimum Retrieval Score:
-0.62
+Generation Temperature:
+0.2
+
+Query Expansion:
+Enabled
+
+Max Subqueries:
+3
+
+Multi-query Candidate Pool:
+20
 ```
-
-基本检索过程：
-
-```text
-用户问题
-→ Query Embedding
-→ 与所有知识片段 Embedding 计算余弦相似度
-→ 按 Score 从高到低排序
-→ 返回 Top-K = 3
-```
-
-每个内部检索结果除知识片段原有字段外，还保留：
-
-```text
-score
-```
-
-用于后续范围判断和实验分析。
 
 ---
 
-## 六、范围外问题拒答机制
+## 10. 知识库
 
-仅依赖 Prompt 让大语言模型自行判断“资料是否足够”容易出现以下问题：
-
-```text
-问题实际上超出知识库
-→ 检索器仍返回三个最相似但实际无关的片段
-→ 大模型根据无关片段或自身知识继续回答
-→ 前端同时显示错误来源
-```
-
-因此当前系统在大语言模型生成之前增加了显式相似度阈值。
-
-当前阈值：
+正式知识库：
 
 ```text
-MIN_RETRIEVAL_SCORE = 0.62
+knowledge_base/ds_chunks.jsonl
 ```
 
-判断逻辑：
+当前约有：
 
 ```text
-Top-1 Score >= 0.62
-
-→ 当前资料与问题具有较高相关性
-→ 将 Top-K 片段交给生成模型
-→ 返回回答和 sources
+463 chunks
 ```
 
-否则：
+Chunk Schema：
+
+```json
+{
+  "chunk_id": "ds_ch06_0001",
+  "text": "知识正文",
+  "chapter": "第六章 树和二叉树",
+  "section": "6.x",
+  "source_file": "数据结构（C语言版）严蔚敏.pdf",
+  "page": 1,
+  "content_type": "concept"
+}
+```
+
+当前固定字段：
 
 ```text
-Top-1 Score < 0.62
-
-→ 不调用大语言模型
-→ 直接返回：
-
-根据当前资料无法确定
-
-→ sources = []
+chunk_id
+text
+chapter
+section
+source_file
+page
+content_type
 ```
 
-这样可以保证：
-
-1. 范围外问题不会继续消耗生成模型调用；
-2. 不会向用户展示与问题无关的伪来源；
-3. 前端回答和来源状态保持一致。
-
----
-
-## 七、检索阈值标定
-
-阈值标定脚本：
+`content_type` 主要包括：
 
 ```text
-rag/calibrate_threshold.py
+concept
+algorithm
+code
+exercise
 ```
 
-标定结果：
+知识库后续可以继续扩充，但不应随意修改字段结构。
 
-```text
-rag/threshold_calibration.json
-```
-
-当前测试数据得到：
-
-```text
-范围内问题数量：
-18
-
-范围外问题数量：
-2
-
-范围内 Top-1 最低值：
-0.777295
-
-范围内 Top-1 最高值：
-0.941849
-
-范围内 Top-1 平均值：
-0.867041
-
-范围外 Top-1 最低值：
-0.435564
-
-范围外 Top-1 最高值：
-0.455821
-
-范围外 Top-1 平均值：
-0.445693
-```
-
-当前样本上两类数据完全可分。
-
-两类边界中点为：
-
-```text
-(0.777295 + 0.455821) / 2
-≈ 0.616558
-```
-
-因此当前系统使用：
-
-```text
-MIN_RETRIEVAL_SCORE = 0.62
-```
-
-作为第一版基线阈值。
-
-运行标定：
+质量检查：
 
 ```bash
-cd AI-DataStructure-Assistant
-source .venv/bin/activate
-PYTHONPATH=. python3 rag/calibrate_threshold.py
+python3 knowledge_base/validate_chunks.py
 ```
 
-需要说明的是，目前范围外样本数量仍较少，因此 `0.62` 不是永久固定阈值。
+严格模式：
 
-后续随着知识库扩大，需要增加更多：
-
-- 范围内改写问题；
-- 边界问题；
-- 其他章节问题；
-- 课程信息问题；
-- 完全无关问题；
-
-重新统计分布并调整阈值。
+```bash
+python3 knowledge_base/validate_chunks.py --fail-on-warning
+```
 
 ---
 
-## 八、大语言模型生成
-
-当前生成模型：
+## 11. 仓库结构
 
 ```text
-qwen3.7-plus-2026-05-26
+AI-DataStructure-Assistant/
+├── backend/
+│   ├── main.py
+│   ├── config.py
+│   ├── schemas.py
+│   ├── routers/
+│   ├── services/
+│   └── requirements.txt
+│
+├── frontend/
+│   ├── index.html
+│   ├── css/
+│   └── js/
+│
+├── knowledge_base/
+│   ├── ds_chunks.jsonl
+│   └── validate_chunks.py
+│
+├── rag/
+│   ├── main.py
+│   ├── config.py
+│   ├── query_router.py
+│   ├── query_processor.py
+│   │
+│   ├── retrievers/
+│   │   ├── base.py
+│   │   ├── dense.py
+│   │   ├── bm25.py
+│   │   ├── hybrid.py
+│   │   └── dense_rerank.py
+│   │
+│   ├── rerankers/
+│   │   └── qwen_reranker.py
+│   │
+│   └── generators/
+│       └── qwen_generator.py
+│
+├── tests/
+│   ├── system/
+│   ├── benchmarks/
+│   ├── annotations/
+│   └── research/
+│
+├── docs/
+│   └── RESEARCH_CHECKPOINT_2026-09.md
+│
+└── README.md
 ```
-
-生成模型只接收已经通过检索相关性判断的课程知识片段。
-
-当前 Prompt 主要约束：
-
-1. 只使用当前课程资料能够直接支持的内容回答；
-2. 不得利用资料外常识自行补充核心事实；
-3. 回答应自然、准确，并适合本科生理解；
-4. 必要时可以使用分点、公式或代码；
-5. 不在正文中使用“资料1”“资料2”“片段1”等内部检索编号；
-6. 当前资料不足时回答“根据当前资料无法确定”。
 
 ---
 
-## 九、后端 API
+## 12. 后端
 
-后端使用 FastAPI 实现。
+后端基于：
 
-### 1. 健康检查
+```text
+FastAPI
+```
 
-接口：
+主要目录：
+
+```text
+backend/
+```
+
+当前已有接口：
 
 ```http
 GET /api/v1/health
-```
-
-当前正常响应示例：
-
-```json
-{
-  "status": "healthy",
-  "version": "1.0.0",
-  "rag_ready": true,
-  "chunk_count": 55,
-  "knowledge_file": "knowledge_base/ds_chunks.jsonl"
-}
-```
-
-其中：
-
-- `status`：服务总体状态；
-- `rag_ready`：RAG 模块是否初始化成功；
-- `chunk_count`：当前加载知识片段数量；
-- `knowledge_file`：当前正式知识库。
-
-如果 RAG 初始化失败：
-
-```text
-status = degraded
-```
-
----
-
-### 2. 问答接口
-
-接口：
-
-```http
 POST /api/v1/ask
 ```
 
-请求示例：
+当前开发阶段正在将原有后端 RAG 调用迁移至：
 
-```json
-{
-  "question": "什么是循环单链表？"
-}
+```text
+rag.main.run()
 ```
 
-正常响应结构：
+后端不应重复实现：
 
-```json
-{
-  "request_id": "e0067611",
-  "success": true,
-  "data": {
-    "answer": "回答内容",
-    "sources": [
-      {
-        "chunk_id": "chunk_id",
-        "chapter": "章节",
-        "section": "小节",
-        "source_file": "来源文件",
-        "page": 18
-      }
-    ],
-    "latency_ms": 5572
-  },
-  "error": null
-}
-```
+- Query Router；
+- Query Expansion；
+- Retrieval；
+- Scope Gate；
+- Reranking。
 
-范围外问题示例：
-
-```json
-{
-  "request_id": "request_id",
-  "success": true,
-  "data": {
-    "answer": "根据当前资料无法确定",
-    "sources": [],
-    "latency_ms": 1000
-  },
-  "error": null
-}
-```
-
-内部 RAG 会保留检索相似度分数用于评测，但当前公开 API 不额外暴露 `score` 字段，以保持接口结构稳定。
+这些逻辑统一由 RAG 层负责。
 
 ---
 
-## 十、前端
+## 13. 前端
 
 前端位于：
 
@@ -518,75 +792,57 @@ POST /api/v1/ask
 frontend/
 ```
 
-当前已实现：
+当前采用：
+
+```text
+HTML
+CSS
+JavaScript
+```
+
+已有基础能力：
 
 - 问题输入；
-- 后端接口调用；
-- 加载状态；
-- 回答展示；
-- Markdown 渲染；
-- MathJax 数学公式渲染；
-- 来源信息展示；
-- 请求延迟展示；
+- API 请求；
+- Loading 状态；
+- Markdown 展示；
+- MathJax；
+- 来源展示；
 - 历史记录；
-- 后端健康状态检测；
-- 后端断开提示；
-- 范围外问题无来源展示。
+- 异常提示。
 
-前端默认请求：
+后续将根据新的后端 API 增加：
 
-```text
-http://localhost:8000
-```
-
-当前真实接口：
-
-```text
-/api/v1/ask
-/api/v1/health
-```
-
-默认：
-
-```text
-Top-K = 3
-USE_MOCK = false
-```
+- QA / Exercise / Code 模式状态；
+- Out-of-scope 状态；
+- 新 Sources 格式；
+- 新 Latency 信息。
 
 ---
 
-## 十一、环境配置
+## 14. 环境配置
 
-### 1. 克隆仓库
+克隆仓库：
 
 ```bash
 git clone https://github.com/Felice0021/AI-DataStructure-Assistant.git
 cd AI-DataStructure-Assistant
 ```
 
-### 2. 创建 Python 虚拟环境
-
-macOS / Linux：
+创建虚拟环境：
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 ```
 
-Windows：
+安装依赖：
 
 ```bash
-python -m venv .venv
-.venv\Scripts\activate
+pip install -r backend/requirements.txt
 ```
 
-### 3. 安装后端及 RAG 依赖
-
-```bash
-pip install -r backend/backend/requirements.txt
-```
-
-当前后端 requirements 已包含完整服务运行所需的主要依赖，包括：
+主要依赖包括：
 
 ```text
 fastapi
@@ -597,73 +853,61 @@ openai
 dashscope
 numpy
 python-dotenv
+jieba
 ```
 
 ---
 
-## 十二、API Key 配置
+## 15. 模型服务配置
 
-在：
-
-```text
-rag/rag_demo/
-```
-
-目录下创建：
+项目根目录创建：
 
 ```text
 .env
 ```
 
-内容：
+配置：
 
 ```text
 DASHSCOPE_API_KEY=YOUR_API_KEY
+DASHSCOPE_WORKSPACE_ID=YOUR_WORKSPACE_ID
+DASHSCOPE_REGION=cn-beijing
 ```
 
-禁止将真实 API Key 提交到 GitHub。
+禁止提交：
 
-`.env` 应仅保存在本地环境中。
+```text
+API Key
+Token
+Workspace 私有信息
+其他凭证
+```
+
+`.env` 应保持在 Git ignore 中。
 
 ---
 
-## 十三、运行系统
+## 16. 启动系统
 
-### 1. 启动后端
+### 后端
 
-从项目根目录进入：
-
-```bash
-cd backend/backend
-```
-
-激活根目录虚拟环境：
+从项目根目录：
 
 ```bash
-source ../../.venv/bin/activate
+source .venv/bin/activate
+python3 -m backend.main
 ```
 
-启动：
-
-```bash
-PYTHONPATH="../..:." python3 -m backend.main
-```
-
-正常启动时应看到：
-
-```text
-正在初始化RAG服务...
-正在读取标准知识片段...
-共读取 55 个知识片段。
-正在生成知识片段向量...
-RAG初始化成功
-Application startup complete.
-```
-
-默认服务地址：
+默认地址：
 
 ```text
 http://127.0.0.1:8000
+```
+
+API 文档：
+
+```text
+http://127.0.0.1:8000/docs
 ```
 
 健康检查：
@@ -672,11 +916,9 @@ http://127.0.0.1:8000
 curl http://127.0.0.1:8000/api/v1/health
 ```
 
----
+### 前端
 
-### 2. 启动前端
-
-另开一个终端，在项目根目录运行：
+新终端运行：
 
 ```bash
 python3 -m http.server 5500 -d frontend
@@ -688,305 +930,234 @@ python3 -m http.server 5500 -d frontend
 http://localhost:5500
 ```
 
-前端将自动连接：
-
-```text
-http://localhost:8000
-```
-
-的后端服务。
-
 ---
 
-## 十四、自动化评测
+## 17. 评测
 
-测试问题：
-
-```text
-tests/test_questions.jsonl
-```
-
-评测脚本：
+统一检索评测入口：
 
 ```text
-tests/run_evaluation.py
+tests/system/run_retrieval_eval.py
 ```
 
-详细测试结果：
-
-```text
-tests/test_results.jsonl
-```
-
-汇总结果：
-
-```text
-tests/evaluation_summary.json
-```
-
-运行方式：
+支持：
 
 ```bash
-cd AI-DataStructure-Assistant
-source .venv/bin/activate
-PYTHONPATH=. python3 tests/run_evaluation.py
+python3 tests/system/run_retrieval_eval.py --retriever dense
+python3 tests/system/run_retrieval_eval.py --retriever bm25
+python3 tests/system/run_retrieval_eval.py --retriever hybrid
+python3 tests/system/run_retrieval_eval.py --retriever dense_rerank
 ```
 
-运行评测前需要保证后端服务已经启动。
+常用指标：
 
-当前评测同时进行：
+- Recall@K（前 K 条相关证据召回率）；
+- MRR@K（平均倒数排名）；
+- nDCG@K（归一化折损累计增益）；
+- Hit@K（前 K 条是否命中）；
+- Facet Coverage@K（答案要点覆盖率）；
+- Full Coverage@K（完整答案要点覆盖率）；
+- retrieval latency（检索延迟）。
+
+当前已经保留：
 
 ```text
-本地直接检索
-+
-后端 API 完整问答
+Dev Benchmark
+Held-out Benchmark
+人工 question-chunk 标注
+facet 标注
+历史检索实验结果
 ```
 
-因此既可以获得真实检索相似度，又不需要改变公开 API 返回结构。
+这些资产主要用于后续系统回归测试，而不是当前生产逻辑的一部分。
 
 ---
 
-## 十五、评测指标
+## 18. 历史研究资产
 
-当前主要指标包括：
+项目曾围绕：
 
-### Request Success Rate
+```text
+evidence-set construction
+comparison query
+facet coverage
+adaptive evidence selection
+```
 
-API 请求成功率。
+开展论文型实验。
 
-### Chapter Hit@3
+当前该研究路线已经暂停。
 
-对于范围内问题，Top-3 检索结果中是否存在预期章节。
+研究总结：
 
-### Source Hit@3
+```text
+docs/RESEARCH_CHECKPOINT_2026-09.md
+```
 
-对于范围内问题，Top-3 中是否存在预期来源文件。
+历史代码保存在：
 
-### Chunk Hit@3
+```text
+tests/research/
+```
 
-对于范围内问题，Top-3 中是否命中预先标注的目标 Chunk。
-
-该指标比章节级和来源级指标更加严格。
-
-由于同一知识点可能由多个语义等价或互补 Chunk 支撑，因此未命中唯一预设 Chunk 并不一定代表实际检索错误。
-
-### Out-of-Scope Refuse Accuracy
-
-范围外问题是否正确拒答。
-
-### Out-of-Scope Sources Empty Rate
-
-范围外问题返回的 `sources` 是否正确为空。
-
-### Average Latency
-
-20 道测试问题的平均 API 响应延迟。
-
-### P95 Latency
-
-95% 请求完成所需的延迟上界，用于观察较慢请求。
+这些代码不作为当前生产 RAG 入口。
 
 ---
 
-## 十六、当前最终评测结果
-
-当前正式评测集：
+## 19. 当前开发状态
 
 ```text
-总问题数：20
-范围内问题：18
-范围外问题：2
-正式知识片段：55
-Top-K：3
-Similarity Threshold：0.62
+Knowledge Base              ~463 chunks
+
+Query Router                Production
+Query Expansion             Production
+Multi-query Retrieval       Production
+
+Dense Retrieval             Production
+BM25 Retrieval              Production
+Hybrid RRF                  Production
+Multi-query RRF             Production
+
+Scope Gate                  Production
+Qwen Reranker               Production
+Mode-specific Generation    Production
+
+Embedding Cache             Available
+Batch Query Embedding       Available
+
+RAG V1 Core                 Frozen
+
+FastAPI Backend             Adapting to new RAG
+Frontend                    Waiting for new API
+Knowledge Base              Expanding
+System Regression           Preparing
+
+Paper-oriented Research     Paused
+System Development          Active
 ```
-
-评测结果：
-
-| 指标 | 结果 |
-|---|---:|
-| Request Success Rate | 100% |
-| Chapter Hit@3 | 100% |
-| Source Hit@3 | 100% |
-| Chunk Hit@3 | 88.89% |
-| Out-of-Scope Refuse Accuracy | 100% |
-| Out-of-Scope Sources Empty Rate | 100% |
-| Average Latency | 4932.30 ms |
-| P95 Latency | 7912.23 ms |
-| Failed Questions | 0 |
-
-其中：
-
-```text
-18 / 18
-```
-
-范围内问题均在 Top-3 中命中正确章节和正确来源。
-
-范围外测试：
-
-```text
-哈希表的基本原理是什么？如何解决哈希冲突？
-
-Top-1 Score ≈ 0.4558
-→ 低于 0.62
-→ 正确拒答
-→ sources = []
-```
-
-以及：
-
-```text
-这门数据结构课程的授课教师是谁？
-
-Top-1 Score ≈ 0.4354
-→ 低于 0.62
-→ 正确拒答
-→ sources = []
-```
-
-当前测试集中没有出现范围内问题被阈值误拒答。
 
 ---
 
-## 十七、当前阶段结论
+## 20. 当前验证结果
 
-当前版本已经完成从早期 RAG Demo 到可运行系统原型的基本闭环：
+当前已完成基础真实链路验证。
 
-```text
-正式课程知识库
-        ↓
-Embedding
-        ↓
-Top-K 检索
-        ↓
-范围判断
-        ↓
-LLM 回答生成
-        ↓
-FastAPI
-        ↓
-前端页面
-        ↓
-来源展示
-        ↓
-自动化评测
-```
-
-已经解决的主要问题包括：
-
-- 正式知识库接入；
-- RAG 参数集中配置；
-- 检索 Score 保留；
-- Top-K 参数统一；
-- 范围外问题仍生成答案的问题；
-- 范围外问题仍返回错误来源的问题；
-- Prompt 中机械引用“资料1/资料2”的问题；
-- 前端与后端真实接口联调；
-- 后端健康状态检测；
-- 检索指标统计口径不统一；
-- 范围内和范围外评测分母混用的问题。
-
-因此，当前版本已经具备：
+### 简单知识问题
 
 ```text
-可运行
-可联调
-可演示
-可评测
-可追溯
+AVL树为什么需要旋转？
 ```
 
-的系统原型能力。
-
----
-
-## 十八、当前局限
-
-目前系统仍存在以下限制：
-
-1. 正式知识库规模仍较小，目前为 55 个 Chunk；
-2. 当前知识库尚未覆盖整门数据结构课程；
-3. 范围外标定样本数量仍不足；
-4. 当前 Embedding 在服务启动时重新计算，尚未实现持久化向量索引；
-5. 当前采用线性余弦相似度搜索，知识库扩大后效率会下降；
-6. 尚未接入专门的向量数据库；
-7. `Chunk Hit@3` 仍有提升空间；
-8. 当前自动化评测重点覆盖检索和范围控制，对生成答案语义质量的自动评价仍较有限；
-9. 当前实验集规模仍不足以证明系统在完整课程范围内的泛化性能。
-
-因此当前评测结果应理解为：
+结果：
 
 ```text
-当前知识库 + 当前测试集 + 当前模型配置
+Query Expansion: No
+Mode: qa
+Out of Scope: False
+Rerank Fallback: False
 ```
 
-下的阶段性实验结果，而不是对完整数据结构课程所有问题的最终性能结论。
-
----
-
-## 十九、后续计划
-
-下一阶段可重点推进：
-
-1. 扩充线性表之外的课程章节；
-2. 建立覆盖栈、队列、树、图、查找、排序等内容的正式知识库；
-3. 增加范围内和范围外测试问题；
-4. 使用独立开发集重新标定相似度阈值；
-5. 增加更困难的改写问题和边界问题；
-6. 优化 Chunk 划分粒度；
-7. 分析未命中预期 Chunk 的测试问题；
-8. 引入向量索引或向量数据库；
-9. 对 Embedding 结果进行缓存或持久化；
-10. 增加生成答案正确性、完整性、引用一致性等评测指标；
-11. 完善系统部署和演示流程；
-12. 为后续项目总结和论文实验积累更完整的数据。
-
----
-
-## 二十、团队分工
-
-当前项目由 5 名成员协作完成：
-
-- 李均乐：项目协调、RAG 核心流程、系统联调与最终验收；
-- 郭星辰：课程知识库和数据整理；
-- 祝晟译：FastAPI 后端接口；
-- 张圣江：前端问答页面；
-- 常慧思：测试、评测、文档相关工作。
-
-各模块最终通过统一仓库和接口进行集成。
-
----
-
-## 二十一、安全说明
-
-开发和使用过程中需要注意：
-
-- 不提交 `.env`；
-- 不提交真实 API Key；
-- 不在 README、实验日志、截图或提交记录中暴露 Token；
-- 不提交 `.venv`；
-- 不提交 `__pycache__`；
-- 不提交 `.pyc`；
-- API Key 应通过环境变量加载；
-- 对外展示实验结果时应明确当前知识库和测试集范围。
-
----
-
-## 二十二、当前项目状态
-
-当前状态：
+### 复杂比较问题
 
 ```text
-RAG 核心流程：已完成
-正式知识库接入：已完成
-相似度阈值机制：已完成
-FastAPI 后端：已完成
-前端页面：已完成
-前后端联调：已完成
-范围外问题处理：已完成
-自动化评测：已完成
-20 题阶段性验收：通过
+Prim和Kruskal算法在基本思想和适用场景上有什么区别？
 ```
 
-当前代码已形成一个可以继续扩充知识库、优化检索算法和开展后续实验的数据结构课程 RAG 智能助教系统原型。
+系统能够拆解为多个检索 Query，并同时召回 Prim、Kruskal 和比较类 Evidence。
+
+批量 Query Embedding 优化后，复杂 Query Retrieval 延迟相比串行多次 Embedding 明显下降。
+
+### 代码问题
+
+单链表空指针问题可以正确进入：
+
+```text
+mode = code
+```
+
+并完成：
+
+```text
+代码作用
+→ 问题定位
+→ 修改建议
+→ 边界分析
+```
+
+### 范围外问题
+
+```text
+TCP为什么需要三次握手？
+```
+
+能够在 Scope Gate 阶段拒答：
+
+```text
+根据当前资料无法确定
+```
+
+不会继续调用 Reranker 和 Generator。
+
+---
+
+## 21. 团队分工
+
+项目由 5 名成员协作：
+
+- 李均乐：项目负责人、RAG 核心流程、系统集成；
+- 郭星辰：知识库与数据整理；
+- 祝晟译：FastAPI 后端；
+- 张圣江：前端；
+- 常慧思：材料、测试和评测支持。
+
+当前开发依赖关系：
+
+```text
+RAG Core
+   ├── Knowledge Base
+   │
+   └── Backend
+          ↓
+       Frontend
+          ↓
+   End-to-End Testing
+```
+
+---
+
+## 22. 安全说明
+
+禁止提交：
+
+```text
+.env
+API Key
+Token
+.venv
+__pycache__
+*.pyc
+本地日志
+临时实验结果
+私有凭证
+```
+
+如果历史提交中曾暴露真实凭证，应立即在对应服务平台撤销并重新生成。
+
+---
+
+## 23. 项目定位
+
+当前项目定位：
+
+> 一个持续开发中的数据结构课程 RAG 智能助教系统。
+
+现阶段目标不是继续扩大论文实验，而是完成：
+
+```text
+稳定知识库
+→ 稳定 RAG
+→ 后端集成
+→ 前端集成
+→ 系统回归测试
+→ 可部署 / 可演示版本
+```

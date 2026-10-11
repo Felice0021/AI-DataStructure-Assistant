@@ -4,6 +4,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Sequence
 
+from rag.config import DEFAULT_TOP_K
+
 
 class BaseRetriever(ABC):
     """Base class for retrievers used by the RAG system and experiments."""
@@ -19,7 +21,7 @@ class BaseRetriever(ABC):
         self,
         query: str,
         chunks: Sequence[Dict],
-        top_k: int = 3,
+        top_k: int = DEFAULT_TOP_K,
     ) -> List[Dict]:
         """Return ranked chunks with a numeric ``score`` field."""
         raise NotImplementedError

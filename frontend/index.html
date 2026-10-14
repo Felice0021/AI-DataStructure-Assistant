@@ -7,13 +7,19 @@
     <title>数据结构课程智能助教</title>
     
     <!-- 样式 -->
-    <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/style.css?v=20261013" />
     
-    <!-- DOMPurify - 用于清洗 HTML -->
-    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+    <!-- 第三方库：优先加载本地副本（frontend/js/vendor），加载不到再回退到 CDN。
+         本地化是为了避免 CDN 不可达时 marked 缺失，导致 Markdown 整体退化成纯文本。 -->
+    <script src="js/vendor/purify.min.js?v=20261013"></script>
+    <script>
+        window.DOMPurify || document.write('<script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"><\/script>');
+    </script>
     
-    <!-- marked - 成熟的 Markdown 解析库 -->
-    <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+    <script src="js/vendor/marked.min.js?v=20261013"></script>
+    <script>
+        window.marked || document.write('<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"><\/script>');
+    </script>
     
     <!-- MathJax 配置和加载 -->
     <script>
@@ -89,8 +95,23 @@
                 <div class="question-display-content" id="questionDisplayContent"></div>
             </div>
 
+            <!-- 渲染降级提示：Markdown 组件不可用时展示，避免用户只看到原始文本却不知道为什么 -->
+            <div class="render-notice" id="renderNotice" style="display:none;">
+                <span class="render-notice-icon">⚠️</span>
+                <span>Markdown 渲染组件未加载，当前以纯文本显示，请刷新页面重试。</span>
+            </div>
+
+            <!-- 范围外提示：out_of_scope=true 时展示，不属于系统错误 -->
+            <div class="scope-notice" id="scopeNotice" style="display:none;">
+                <span class="scope-notice-icon">ℹ️</span>
+                <span class="scope-notice-text" id="scopeNoticeText">当前知识库暂无足够资料</span>
+            </div>
+
             <div class="answer-header">
-                <span class="label">💬 回答</span>
+                <span class="answer-header-left">
+                    <span class="label">💬 回答</span>
+                    <span class="mode-badge" id="modeBadge" style="display:none;"></span>
+                </span>
                 <span class="latency" id="answerLatency"></span>
             </div>
             <div class="answer-content" id="answerContent"></div>
@@ -137,10 +158,13 @@
         </section>
     </div>
     
-    <!-- ===== JavaScript ===== -->
-    <script src="js/config.js"></script>
-    <script src="js/mock.js"></script>
-    <script src="js/api.js"></script>
-    <script src="js/app.js"></script>
+    <!-- ===== JavaScript =====
+         ?v= 是缓存版本号。静态服务（python -m http.server / Live Server）不发 Cache-Control，
+         浏览器会启发式缓存 JS/CSS，改完代码刷新后可能还在跑旧版本。
+         改动前端后把这里的版本号一起改掉即可强制拉新。 -->
+    <script src="js/config.js?v=20261013"></script>
+    <script src="js/mock.js?v=20261013"></script>
+    <script src="js/api.js?v=20261013"></script>
+    <script src="js/app.js?v=20261014c"></script>
 </body>
 </html>

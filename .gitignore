@@ -16,3 +16,6 @@ backend/logs/
 tests/results/
 tests/annotations/heldout/*.tmp
 tests/annotations/heldout/*.last.bak
+
+# WorkBuddy 工作区数据（会话记忆、计划文件）
+.workbuddy/

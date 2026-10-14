@@ -28,28 +28,44 @@ class ApiClient {
             
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
-                throw {
-                    status: response.status,
-                    statusText: response.statusText,
-                    data: errorData
-                };
+                const apiError = new Error(
+                    (errorData.error && errorData.error.message) || `HTTP ${response.status}`
+                );
+                apiError.code = (errorData.error && errorData.error.code) || `HTTP_${response.status}`;
+                apiError.status = response.status;
+                apiError.statusText = response.statusText;
+                apiError.data = errorData;
+                throw apiError;
             }
             
             return await response.json();
         } catch (error) {
             clearTimeout(timeoutId);
+            
             if (error.name === 'AbortError') {
-                throw {
-                    status: 408,
-                    statusText: 'Request Timeout',
-                    data: {
-                        error: {
-                            code: 'TIMEOUT',
-                            message: '请求超时，请稍后重试'
-                        }
+                // 超出 CONFIG.TIMEOUT 后由 AbortController 中断
+                const timeoutError = new Error('请求超时，请稍后重试');
+                timeoutError.code = 'TIMEOUT';
+                timeoutError.status = 408;
+                timeoutError.statusText = 'Request Timeout';
+                timeoutError.isTimeout = true;
+                timeoutError.data = {
+                    error: {
+                        code: 'TIMEOUT',
+                        message: '请求超时，请稍后重试'
                     }
                 };
+                throw timeoutError;
             }
+            
+            if (!error.status) {
+                // fetch 层失败：DNS 解析失败 / 连接被拒 / 断网
+                const networkError = new Error(error.message || '网络连接失败');
+                networkError.code = 'NETWORK_ERROR';
+                networkError.isNetworkError = true;
+                throw networkError;
+            }
+            
             throw error;
         }
     }
@@ -116,6 +132,13 @@ class ApiClient {
     }
     
     // 问答接口
+    // 后端 /api/v1/ask 返回结构：
+    //   { request_id, success, error,
+    //     data: { answer, sources[], mode, out_of_scope, latency_ms } }
+    //   sources[]  : { chunk_id, chapter, section, source_file, page, content_type }
+    //   mode       : 'qa' | 'exercise' | 'code'
+    //   latency_ms : { retrieval, rerank, generation, total }
+    // top_k 为可选参数，不传时由后端按自身配置决定，因此这里默认不发送。
     async ask(question, topK = null) {
         if (this.useMock) {
             return mockAsk(question, topK ?? 5);

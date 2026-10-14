@@ -14,7 +14,8 @@ DEFAULT_TOP_K = 5
 MIN_RETRIEVAL_SCORE = 0.58
 
 # Embedding
-EMBEDDING_MODEL = "qwen3.7-text-embedding"
+# qwen3.7-text-embedding 已到期下线，改用 flash 版本；维度仍为 1024，已实测确认。
+EMBEDDING_MODEL = "qwen3.7-text-embedding-flash"
 EMBEDDING_DIMENSION = 1024
 EMBEDDING_BATCH_SIZE = 10
 RAG_CACHE_DIR = PROJECT_ROOT / ".cache" / "rag"

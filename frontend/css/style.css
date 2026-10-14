@@ -299,53 +299,168 @@ body {
     color: #6b7a8f;
 }
 
+.answer-header .answer-header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
 .answer-header .latency {
     font-size: 13px;
     color: #aab5c5;
 }
 
-/* ===== 回答内容 - 优化间距 ===== */
+/* ===== 回答模式徽章 ===== */
+.mode-badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.6;
+}
+
+.mode-badge.mode-qa {
+    background: #eef4ff;
+    color: #3b66e0;
+}
+
+.mode-badge.mode-exercise {
+    background: #eaf6ee;
+    color: #2f8f4e;
+}
+
+.mode-badge.mode-code {
+    background: #fdf1e6;
+    color: #b4671c;
+}
+
+/* 未知模式兜底：中性灰，避免因为没有样式而失去区分度 */
+.mode-badge:not(.mode-qa):not(.mode-exercise):not(.mode-code) {
+    background: #eef1f5;
+    color: #6b7a8f;
+}
+
+/* ===== 范围外提示 =====
+   out_of_scope 是正常业务结果，用提示色而非 error-section 的红色 */
+.scope-notice {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    margin-bottom: 14px;
+    background: #fff8e6;
+    border-radius: 8px;
+    border-left: 4px solid #f0c040;
+    color: #8a6d1f;
+    font-size: 13px;
+}
+
+.scope-notice .scope-notice-icon {
+    font-size: 16px;
+}
+
+/* ===== 回答内容 =====
+   排版原则：标题有字号层级、区块之间有呼吸感、首尾不留多余外边距 */
 .answer-content {
     font-size: 15px;
-    line-height: 1.6;
+    line-height: 1.75;
     color: #1a2332;
     word-wrap: break-word;
+    overflow-wrap: break-word;
 }
 
-/* 段落间距 - 紧凑 */
+/* 段落：块与块之间留出间距，避免多段文字挤成一整块 */
 .answer-content p {
-    margin: 0 0 6px 0;
-    line-height: 1.6;
+    margin: 0 0 12px 0;
+    line-height: 1.75;
 }
 
-/* 标题间距 */
+/* 首尾元素去掉多余外边距，避免卡片上下出现突兀的空白 */
+.answer-content > *:first-child {
+    margin-top: 0;
+}
+
+.answer-content > *:last-child {
+    margin-bottom: 0;
+}
+
+/* 标题：建立明确的字号层级。
+   之前 h1~h4 只有 font-weight、没有 font-size，标题和正文一样大，
+   所以即使 Markdown 渲染成功，整段看起来也没有结构。 */
 .answer-content h1,
 .answer-content h2,
 .answer-content h3,
-.answer-content h4 {
-    margin: 8px 0 4px 0;
+.answer-content h4,
+.answer-content h5,
+.answer-content h6 {
+    margin: 24px 0 10px 0;
     font-weight: 600;
+    line-height: 1.4;
+    color: #12202f;
 }
 
-/* 列表间距 - 紧凑 */
+.answer-content h1 { font-size: 22px; }
+.answer-content h2 { font-size: 19px; }
+.answer-content h3 { font-size: 17px; }
+.answer-content h4 { font-size: 15.5px; }
+.answer-content h5,
+.answer-content h6 {
+    font-size: 15px;
+    color: #3d4a5c;
+}
+
+/* h2 加一条细分隔线，长回答能一眼看出章节边界 */
+.answer-content h2 {
+    padding-bottom: 6px;
+    border-bottom: 1px solid #e8edf3;
+}
+
+/* ===== 降级渲染（marked 不可用时的纯文本） =====
+   靠 white-space: pre-wrap 保住换行，至少不会挤成一坨 */
+.answer-content .answer-plaintext {
+    white-space: pre-wrap;
+    word-break: break-word;
+    line-height: 1.75;
+    margin: 0;
+}
+
+/* 列表：加大缩进与行距，序号/项目符号用主题色，层次一眼可见 */
 .answer-content ul,
 .answer-content ol {
-    margin: 4px 0 6px 0;
-    padding-left: 20px;
+    margin: 0 0 12px 0;
+    padding-left: 28px;
 }
 
 .answer-content li {
-    margin: 2px 0;
-    line-height: 1.5;
+    margin: 6px 0;
+    line-height: 1.7;
 }
 
-/* 代码块间距 */
+/* 嵌套列表收紧，避免深层缩进把内容挤到右侧 */
+.answer-content li > ul,
+.answer-content li > ol {
+    margin: 6px 0 0 0;
+}
+
+.answer-content ul > li::marker {
+    color: #4f7cff;
+}
+
+.answer-content ol > li::marker {
+    color: #4f7cff;
+    font-weight: 600;
+}
+
+/* 代码块：加边框和较大内边距，与正文明确区分 */
 .answer-content pre {
-    background: #f1f3f5;
-    padding: 10px 14px;
+    background: #f6f8fa;
+    border: 1px solid #e4e9ef;
+    padding: 14px 16px;
     border-radius: 8px;
     overflow-x: auto;
-    margin: 6px 0 10px 0;
+    margin: 0 0 14px 0;
+    line-height: 1.6;
 }
 
 .answer-content pre code {
@@ -420,37 +535,64 @@ body {
 
 /* 引用块 */
 .answer-content blockquote {
-    margin: 6px 0 8px 0;
-    padding: 6px 14px;
+    margin: 0 0 14px 0;
+    padding: 10px 16px;
     border-left: 4px solid #4f7cff;
     background: #f8fafc;
     border-radius: 0 6px 6px 0;
+    color: #3d4a5c;
 }
 
-/* 表格 */
+/* 表格：表头着色 + 斑马纹，长表格不容易看串行 */
 .answer-content table {
-    margin: 8px 0;
+    margin: 0 0 14px 0;
     border-collapse: collapse;
     width: 100%;
+    font-size: 14px;
 }
 
 .answer-content th,
 .answer-content td {
-    padding: 6px 10px;
+    padding: 9px 12px;
     border: 1px solid #e2e8f0;
     text-align: left;
+    vertical-align: top;
 }
 
 .answer-content th {
-    background: #f1f3f5;
+    background: #eef3fb;
     font-weight: 600;
+    color: #12202f;
+}
+
+.answer-content tbody tr:nth-child(even) {
+    background: #fafbfd;
 }
 
 /* 水平分割线 */
 .answer-content hr {
-    margin: 10px 0;
+    margin: 20px 0;
     border: none;
     border-top: 1px solid #e2e8f0;
+}
+
+/* ===== 渲染降级提示 =====
+   Markdown 组件未加载时显示，让"排版没出来"有明确原因，而不是静默降级 */
+.render-notice {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 14px;
+    margin-bottom: 14px;
+    background: #fdf6e6;
+    border-radius: 8px;
+    border-left: 4px solid #e8b93c;
+    color: #7a5c12;
+    font-size: 13px;
+}
+
+.render-notice .render-notice-icon {
+    font-size: 15px;
 }
 
 /* 上标和下标 */
@@ -681,6 +823,43 @@ body {
     flex: 1;
     color: #1a2332;
     font-weight: 500;
+}
+
+/* ===== 历史记录里的模式 / 范围外标记 ===== */
+.history-item .history-tags {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.history-item .history-mode {
+    font-size: 11px;
+    padding: 1px 7px;
+    border-radius: 10px;
+    background: #eef4ff;
+    color: #3b66e0;
+    white-space: nowrap;
+}
+
+.history-item .history-mode.mode-exercise {
+    background: #eaf6ee;
+    color: #2f8f4e;
+}
+
+.history-item .history-mode.mode-code {
+    background: #fdf1e6;
+    color: #b4671c;
+}
+
+.history-item .history-scope {
+    font-size: 11px;
+    padding: 1px 7px;
+    border-radius: 10px;
+    background: #fff8e6;
+    color: #8a6d1f;
+    white-space: nowrap;
 }
 
 .history-item .history-time {

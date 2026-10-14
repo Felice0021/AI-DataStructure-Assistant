@@ -87,9 +87,12 @@ class DenseRetriever(BaseRetriever):
                     f"Embedding调用失败：{response.code} - {response.message}"
                 )
 
+            # 不同模型的返回字段名不一致，需同时兼容：
+            #   旧格式（qwen3.7-text-embedding / text-embedding-v*）：text_index
+            #   新格式（qwen3.7-text-embedding-flash）：index
             embeddings = sorted(
                 response.output["embeddings"],
-                key=lambda item: item["text_index"],
+                key=lambda item: item.get("text_index", item.get("index", 0)),
             )
             all_embeddings.extend(item["embedding"] for item in embeddings)
 

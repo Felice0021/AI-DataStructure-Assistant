@@ -356,11 +356,13 @@ class ChatApp {
             const elapsed = Math.round(endTime - startTime);
             
             this.hideLoading();
-            this.handleResponse(response, question, elapsed);
+            const handled = this.handleResponse(response, question, elapsed);
 
-            // 回答成功返回并渲染后再清空输入框。
-            this.elements.questionInput.value = '';
-            this.autoResizeTextarea();
+            // 仅成功响应才清空输入；success=false 属于业务失败，保留问题便于重试。
+            if (handled) {
+                this.elements.questionInput.value = '';
+                this.autoResizeTextarea();
+            }
             
         } catch (error) {
             this.hideLoading();
@@ -405,7 +407,8 @@ class ChatApp {
             this.showScopeNotice(outOfScope);
             this.showSources(sources);
             this.addHistory({ question, answer, sources, mode, outOfScope, latency });
-            
+            return true;
+
         } else {
             // success=false 或 data 缺失，按统一错误路径处理
             const backendError = (response && response.error) || {};
@@ -414,6 +417,7 @@ class ChatApp {
                 message: backendError.message,
                 data: { error: backendError }
             });
+            return false;
         }
     }
     

@@ -1,0 +1,6 @@
+[tool.pytest.ini_options]
+# From the repository root pass backend/v2/tests explicitly (see DEVELOPMENT.md).
+testpaths = ["tests"]
+pythonpath = ["../.."]
+addopts = "-ra"
+markers = ["integration: creates and drops only a new random V2 test database"]

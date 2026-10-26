@@ -1,0 +1,9 @@
+# Runtime dependency ranges. requirements.txt locks all resolved transitive versions.
+fastapi>=0.115,<1
+uvicorn>=0.30,<1
+pydantic-settings>=2,<3
+SQLAlchemy>=2.0,<2.1
+alembic>=1.13,<2
+psycopg[binary]>=3.2,<4
+pwdlib[argon2]>=0.3,<1
+email-validator>=2.2,<3

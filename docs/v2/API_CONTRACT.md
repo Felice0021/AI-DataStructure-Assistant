@@ -1,4 +1,6 @@
-# V2 API 合约：健康检查、认证、知识库与文件
+> 当前集成交付版本：2026-10-26，Alembic **0007_cloud_consents**，Generator **qwen3.8-flash**。当前启动、用途授权与API以 TEAM_ONBOARDING.md、FRONTEND_HANDOFF.md、openapi.json 及本文“最终集成”章节为准。以下旧阶段验收（0006、NOT VERIFIED、云生成硬阻塞）是历史记录，不代表当前状态。
+
+# V2 API 合约：健康检查、认证、知识库、文件、检索与RAG
 
 路径前缀 `/api/v2`，除文件上传/下载外使用 JSON 请求与响应；OpenAPI `/api/v2/openapi.json`，文档 `/api/v2/docs`。
 本地 HTTP 必须显式启用 loopback 开发配置；默认生产配置要求 HTTPS。
@@ -326,3 +328,145 @@ fused_score 只在 hybrid 中有值；dense_score=1−余弦距离，bm25_score 
 
 本轮没有自动降级，因此成功响应 actual_mode 始终等于 requested_mode，degradation_reason 为 null；
 服务不可用通过上述错误明确表达。生产网关应限制请求体、设置用户请求频率/费用额度，并保护查询文本不进入 access/body 日志。
+
+
+## 3C-2A：证据上下文接口
+
+`POST /api/v2/retrieval/prepare-context`，复用会话Cookie、合法Origin和X-CSRF-Token，响应no-store。
+
+```json
+{
+  "query":"AVL 红黑树","knowledge_base_ids":["00000000-0000-0000-0000-000000000001"],
+  "mode":"hybrid","top_k":20,"allow_cloud":false,
+  "rerank":"optional","allow_cloud_rerank":false,
+  "max_evidence":5,"context_max_chars":12000,"context_token_budget":4000
+}
+```
+
+继承搜索参数与未知字段拒绝策略；top_k在此表示进入重排的候选数，受检索部署上限、rerank_max_candidates和batch_size共同限制。
+默认hybrid，也可明确选择既有bm25或dense，不发生静默检索模式切换。
+rerank=off保留顺序；optional在Provider=disabled时显式跳过；required在禁用时503。
+启用的Provider失败均报错，不fallback。无候选时不调用模型，返回空证据且rerank_reason=empty_candidates；这不代表模型健康检查成功。
+allow_cloud只同意查询Embedding，allow_cloud_rerank独立同意发送问题及候选文本，不能互相替代。
+
+响应主要字段：
+
+- requested_mode/actual_mode：原检索模式；rerank_applied/model/reason明确是否执行重排。
+- context_format=json_evidence_v1、trust_boundary=untrusted_reference_data。
+- context_text：JSON数组字符串（空证据时空字符串），每块含citation_id、source、content；source含chunk/document/KB UUID、文件名、页码、章节和Chunk顺序。
+- evidence：与context_text同序、同引用的结构化证据，每条保留SearchHit全部分数及来源，新增citation_id、original_rank、rerank_score/rank/applied/model、content_hash、generation、index_revision、embedding_space_id、sanitized和truncated。
+- excluded：仅含已授权候选chunk_id和固定原因duplicate_chunk/overlapping_evidence/document_limit/evidence_limit/empty_content/chunk_limit/context_budget，不含旧正文。
+- used_chars：序列化context_text实际字符数；estimated_tokens：其UTF-8字节数，token_estimate_method=utf8_bytes_conservative_not_tokenizer。不是精确Token计费。
+- elapsed_ms：整个处理耗时。不含向量数组、磁盘路径或凭证。
+
+重排未执行时每条rerank_score/rank/model均为null，applied=false；reason为requested_off/provider_disabled/empty_candidates之一。
+已执行时reason=null。原始fused_score、dense_score、bm25_score和rank不会被rerank_score覆盖，不使用0.58阈值。
+只选择完整Chunk，truncated固定false。正文控制字符可见化后sanitized=true，content_hash对应原始DB文本而非可见化副本。
+资料内的[S99]不是服务端引用；只使用结构化citation_id及source映射解释引用。
+
+新错误（统一error封装，现有401/403/404/422/429/503策略继续适用）：
+
+|状态|code|含义|
+|---|---|---|
+|422|context_limit|候选数或预算超过部署上限|
+|403|rerank_cloud_consent_required|缺少独立云重排同意|
+|409|context_stale|任意候选的有效状态/hash/代次/空间变化，整个上下文拒绝发布|
+|413|rerank_input_limit|单批数量、单项文本或总输入预算超限|
+|503|rerank_disabled/rerank_not_configured|required但禁用，或云端未完成独立配置/人工模型核查|
+|503|rerank_timeout/rerank_rate_limited/rerank_model_unavailable/rerank_parameter_error|超时、限流、模型或参数错误，有限重试后失败|
+|503|rerank_invalid_count/index/score/response|不合法模型响应，永久失败|
+|503|service_unavailable|数据库故障，禁止返回未完成最终验证的旧证据|
+
+最终授权失败仍返回401或统一404，而不是带旧正文的部分成功。对外网络发送和接收存在时间窗口；此接口提供最终数据库授权快照，不提供已返回内容的撤回机制。
+本轮没有/chat，也不会返回LLM答案。
+
+
+## 3C-2B：单轮RAG回答
+
+`POST /api/v2/rag/ask`，从Cookie取得身份，要求合法Origin和X-CSRF-Token；响应no-store、nosniff。
+不接受user_id、sources、Prompt、messages或文档ID等额外字段，不提供stream/history/chat接口。
+
+请求示例：
+
+```json
+{
+  "query":"AVL是什么","knowledge_base_ids":["00000000-0000-0000-0000-000000000001"],
+  "retrieval_mode":"hybrid","answer_mode":"auto","top_k":20,
+  "rerank":"optional","allow_cloud":false,"allow_cloud_rerank":false,"allow_cloud_generation":false
+}
+```
+
+- query非空、合法UTF-8，Schema最多2000字符，部署仍受retrieval_max_query_chars默认512限制。
+- KB列表1–20个不同UUID，任何一个无权/删除/不存在就整单404，管理员也无私人资料豁免。
+- retrieval_mode为bm25/dense/hybrid；answer_mode为auto/qa/exercise/code，响应返回实际选定模式。
+- top_k是候选数，默认20，仍受检索和重排部署限制；Context Builder使用既有默认预算。
+- 三个allow_cloud字段相互独立。allow_cloud_generation仅表达本请求意图，**不是已审计的生成服务授权**，本轮不能用它开启Qwen外发。
+
+answered示例（UUID、正文和耗时为形状示例，非真实用户数据）：
+
+```json
+{
+  "status":"answered","reason":null,"answer":"资料原文：合成课程片段[S1]",
+  "sources":[{
+    "citation_id":"[S1]","chunk_id":"00000000-0000-0000-0000-000000000002",
+    "document_id":"00000000-0000-0000-0000-000000000003",
+    "knowledge_base_id":"00000000-0000-0000-0000-000000000001",
+    "source_filename":"synthetic.txt","page_number":null,"section_title":"AVL","chunk_index":0,
+    "content_hash":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "generation":1,"index_revision":1,
+    "embedding_space_id":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  }],
+  "retrieval_mode":"hybrid","answer_mode":"qa","rerank_applied":false,
+  "generation_model":"deterministic-evidence-quote-v1","execution_performed":false,"latency_ms":30.0
+}
+```
+
+sources只含本次有效且实际引用的来源，不含整份证据、向量、系统Prompt、存储路径或凭证。
+模型的used_source_ids仅作内部校验，不直接信任为来源元数据；最终来源由数据库构建。
+
+|HTTP/status|含义|
+|---|---|
+|200 answered|结构、引用、最终授权与版本通过，不代表自然语言事实已被逐项证明|
+|200 insufficient_evidence|正常拒答，answer固定为“根据当前授权资料无法确定。”，sources为空|
+|out_of_scope（预留）|暂无权威课程范围规则，不直接输出；模型自报会转为scope_not_verified拒答|
+|503 generation_unavailable|Provider禁用、生成授权阻塞、超时、429、服务或调用预算故障；answer=null，sources=[]|
+|502 validation_failed|无效结构、截断、空/非法引用、来源或执行声明未通过校验；answer=null，sources=[]|
+
+正常拒答reason区分no_evidence、no_lexical_support、conflicting_assertions、model_refusal、model_reported_conflict、scope_not_verified。
+503/502响应保留AskResponse的安全字段，并附标准error对象，例如：
+
+```json
+{"status":"generation_unavailable","reason":"generation_disabled","answer":null,"sources":[],"retrieval_mode":"hybrid","answer_mode":"qa","rerank_applied":false,"generation_model":null,"execution_performed":false,"latency_ms":1.0,"error":{"code":"generation_disabled","message":"Generation unavailable"}}
+```
+
+生成错误code包括generation_disabled、generation_cloud_consent_required、generation_consent_not_configured、generation_timeout、
+generation_rate_limited、generation_model_unavailable、generation_http_error、generation_budget_exhausted。
+结构校验错误reason包括missing_citations、invalid_citations、invalid_citation_format、invalid_output_schema、invalid_output_budget、
+truncated_or_invalid_completion、unsupported_source_metadata、unsupported_execution_claim等固定码，不回显坏答案。
+最多可配置一次完整重新生成，仍受总调用预算限制；不会删除坏引用后保留其事实陈述。
+
+认证/授权/数据库/版本错误沿用统一error封装：401 unauthorized、403 Origin/CSRF、404 knowledge_base_not_found、
+409 context_stale、422 generation_input_limit/现有请求上限、429 retrieval_busy、503 service_unavailable。
+这些错误不包含旧答案。检索或重排阶段不可用也沿用已有错误码，不假装已完成生成。
+
+
+## 最终集成：冻结契约与云端用途授权
+
+当前机器契约为[openapi.json](openapi.json)，通过 `python -m backend.v2.tools.export_openapi` 无凭证导出；契约回归测试验证与运行时一致。完整浏览器用法、状态和错误见[FRONTEND_HANDOFF.md](FRONTEND_HANDOFF.md)。API文档地址 `/api/v2/docs`，动态Schema `/api/v2/openapi.json`。旧章节中的云生成硬阻塞已由以下持久用途授权代替，安全默认不变。
+
+|方法/路径|成功|
+|---|---|
+|GET /api/v2/knowledge-bases/{kb_id}/cloud-consents|200，当前用户此KB的Consent数组（含历史service_key/revoked_at）|
+|POST /api/v2/knowledge-bases/{kb_id}/cloud-consents/{purpose}|200，显式授予，空body；purpose仅embedding/reranking/generation|
+|DELETE 同上|200，撤销当前配置指纹授权；可重复，安全更新revoked_at|
+|GET /api/v2/knowledge-bases/{kb_id}/cloud-consents/audit|200，当前用户此KB的审计数组；limit默认50/上限100，offset默认0/上限10000|
+
+Consent字段：id、knowledge_base_id、purpose、provider、model、service_key、granted_at、revoked_at。Audit字段：id、purpose、event、service_key、details、created_at。不能指定user_id、任意模型或代学生授权。所有读操作需有效会话与readable，写操作另需Origin+CSRF；私人越权404，缺用途同意403 cloud_consent_required。
+
+授权覆盖该KB当前及未来版本；服务指纹变化需再次授予。使用云模型需要部署开关/有效独立凭证与模型配置、当前用户各用途授权、请求对应allow_cloud/allow_cloud_rerank/allow_cloud_generation；云端文档还需当前解析代次embedding授权。允许公共阅读不等于允许普通学生触发公共文档索引，写权限仍限制管理员。
+
+问答接口与既有AskRequest/AskResponse字段兼容。Generator默认qwen3.8-flash但provider=disabled，不再由无持久授权的旧硬阻塞实现安全。空证据拒答200；模型不可用503 generation_unavailable；生成格式/引用失败502 validation_failed，均无旧答案/原证据回退。不要把HTTP 200的拒答当作answered。
+
+PATCH知识库的name/description可省略但显式null为422，OpenAPI已移除null类型和null默认。非预期500保留安全错误格式，对明确允许的Origin返回CORS+credentials响应头；不允许来源不会获此头。所有私人API继续no-store。
+
+合成真实模型测试可用性通过不改变任何接口默认云授权；前端必须说明外发数据、用途、服务商、模型、当前及未来版本范围、可撤销及无法撤回历史调用。正式上线前还需确认服务商保留策略。

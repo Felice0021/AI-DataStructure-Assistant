@@ -15,7 +15,7 @@ class Settings(BaseSettings):
         env_prefix="DS_V2_",
         env_file=REPOSITORY_ROOT / "deploy/v2/.env",
         env_file_encoding="utf-8",
-        extra="ignore",
+        extra="ignore", hide_input_in_errors=True,
     )
 
     db_host: str = "127.0.0.1"
@@ -37,6 +37,9 @@ class Settings(BaseSettings):
     storage_bytes_per_kb: int = Field(default=1024 * 1024 * 1024, ge=1)
     storage_total_bytes: int = Field(default=10 * 1024 * 1024 * 1024, ge=1)
     upload_timeout_seconds: int = Field(default=120, ge=1, le=600)
+
+    parser_backend: Literal["auto","docker"] = "auto"
+    parser_docker_image: str = Field(default="ds-assistant-v2-parser:local",pattern=r"^[A-Za-z0-9][A-Za-z0-9_.:/@-]{0,199}$")
 
     parse_max_pages: int = Field(default=300, ge=1, le=2000)
     parse_max_text_chars: int = Field(default=2_000_000, ge=1, le=10_000_000)
@@ -85,6 +88,63 @@ class Settings(BaseSettings):
     retrieval_max_corpus_tokens: int = Field(default=200000, ge=1, le=1000000)
     retrieval_concurrency: int = Field(default=2, ge=1, le=8)
 
+    rerank_provider: Literal["disabled", "deterministic", "qwen"] = "disabled"
+    rerank_cloud_enabled: bool = False
+    rerank_allow_test_provider: bool = False
+    rerank_api_key: SecretStr | None = None
+    rerank_model: str = Field(default="qwen3.7-text-rerank", min_length=1, max_length=128)
+    rerank_model_verified: bool = False
+    rerank_endpoint: str = "https://dashscope.aliyuncs.com/api/v1/services/rerank/text-rerank/text-rerank"
+    rerank_timeout_seconds: float = Field(default=10, ge=0.1, le=60)
+    rerank_retries: int = Field(default=2, ge=0, le=3)
+    rerank_backoff_seconds: float = Field(default=0.5, ge=0, le=5)
+    rerank_batch_size: int = Field(default=20, ge=1, le=100)
+    rerank_max_candidates: int = Field(default=20, ge=1, le=100)
+    rerank_max_item_bytes: int = Field(default=8000, ge=1, le=12000)
+    rerank_max_total_bytes: int = Field(default=64000, ge=1, le=100000)
+    rerank_concurrency: int = Field(default=2, ge=1, le=8)
+    context_max_evidence: int = Field(default=8, ge=1, le=20)
+    context_per_document: int = Field(default=3, ge=1, le=10)
+    context_max_chunk_chars: int = Field(default=8000, ge=1, le=8000)
+    context_max_chars: int = Field(default=16000, ge=1, le=64000)
+    context_token_budget: int = Field(default=6000, ge=1, le=24000)
+
+    generation_provider: Literal["disabled", "deterministic", "qwen"] = "disabled"
+    generation_cloud_enabled: bool = False
+    generation_allow_test_provider: bool = False
+    generation_api_key: SecretStr | None = None
+    generation_model: str = Field(default="qwen3.8-flash", min_length=1, max_length=128)
+    generation_model_verified: bool = False
+    generation_endpoint: str = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
+    generation_temperature: float = Field(default=0.2, ge=0, le=1, allow_inf_nan=False)
+    generation_timeout_seconds: float = Field(default=20, ge=0.1, le=60)
+    generation_retries: int = Field(default=2, ge=0, le=3)
+    generation_backoff_seconds: float = Field(default=0.5, ge=0, le=5)
+    generation_max_calls: int = Field(default=3, ge=1, le=4)
+    generation_validation_retries: int = Field(default=0, ge=0, le=1)
+    generation_max_input_bytes: int = Field(default=24000, ge=1, le=64000)
+    generation_max_output_tokens: int = Field(default=1024, ge=64, le=4096)
+    generation_max_output_bytes: int = Field(default=12000, ge=64, le=32000)
+    generation_concurrency: int = Field(default=2, ge=1, le=8)
+
+    @classmethod
+    def settings_customise_sources(cls,settings_cls,init_settings,env_settings,dotenv_settings,file_secret_settings):
+        def v2_file():
+            data=dotenv_settings()
+            # Only aliases inside the selected V2 dotenv source; never global DASHSCOPE_* or root .env.
+            key=data.get('dashscope_api_key')
+            workspace=data.get('dashscope_workspace_id')
+            region=data.get('dashscope_region')
+            for purpose in ('embedding','rerank','generation'):
+                if key and purpose+'_api_key' not in data:data[purpose+'_api_key']=key
+                if workspace and region and purpose+'_endpoint' not in data:
+                    suffix={'embedding':'/api/v1/services/embeddings/text-embedding/text-embedding',
+                        'rerank':'/api/v1/services/rerank/text-rerank/text-rerank',
+                        'generation':'/compatible-mode/v1/chat/completions'}[purpose]
+                    data[purpose+'_endpoint']='https://'+workspace+'.'+region+'.maas.aliyuncs.com'+suffix
+            return data
+        return init_settings,env_settings,v2_file,file_secret_settings
+
     @model_validator(mode="after")
     def validate_security(self):
         if self.allow_insecure_loopback and self.environment != "development":
@@ -114,6 +174,22 @@ class Settings(BaseSettings):
             raise ValueError("Embedding lease must cover HTTP timeout, retry backoff and a 15 second margin")
         if self.embedding_job_timeout_seconds <= self.embedding_timeout_seconds:
             raise ValueError("Embedding job deadline must exceed a request timeout")
+        if self.rerank_provider == "deterministic" and not (self.environment == "development" and self.rerank_allow_test_provider):
+            raise ValueError("Deterministic reranking requires explicit development test mode")
+        endpoint = urlsplit(self.rerank_endpoint)
+        if (endpoint.scheme != "https" or endpoint.username or endpoint.password or endpoint.query or endpoint.fragment
+            or endpoint.port not in {None,443} or not endpoint.hostname
+            or not (endpoint.hostname == "dashscope.aliyuncs.com" or endpoint.hostname.endswith(".maas.aliyuncs.com"))
+            or endpoint.path != "/api/v1/services/rerank/text-rerank/text-rerank"):
+            raise ValueError("Rerank endpoint must be an official HTTPS endpoint")
+        if self.generation_provider == "deterministic" and not (self.environment == "development" and self.generation_allow_test_provider):
+            raise ValueError("Deterministic generation requires explicit development test mode")
+        endpoint = urlsplit(self.generation_endpoint)
+        if (endpoint.scheme != "https" or endpoint.username or endpoint.password or endpoint.query or endpoint.fragment
+            or endpoint.port not in {None,443} or not endpoint.hostname
+            or not (endpoint.hostname == "dashscope.aliyuncs.com" or endpoint.hostname.endswith(".maas.aliyuncs.com"))
+            or endpoint.path != "/compatible-mode/v1/chat/completions"):
+            raise ValueError("Generation endpoint must be an official HTTPS Chat Completions endpoint")
         origins = []
         for origin in self.allowed_origins:
             parts = urlsplit(origin)

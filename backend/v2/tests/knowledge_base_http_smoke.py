@@ -15,8 +15,6 @@ ADMIN = "/api/v2/admin/knowledge-bases"
 
 
 def main():
-    with socket.socket() as probe:
-        probe.bind(("127.0.0.1", 8001))
     with isolated_database() as (_, settings), tempfile.TemporaryFile() as logs:
         env = {**os.environ,
             "DS_V2_DB_NAME": settings.db_name,

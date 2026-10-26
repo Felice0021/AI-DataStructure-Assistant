@@ -20,7 +20,6 @@ from backend.v2.tests.support import isolated_database
 
 
 def main():
-    with socket.socket() as probe:probe.bind(('127.0.0.1',8001))
     with isolated_database() as (engine,settings), tempfile.TemporaryDirectory(prefix='ds-retrieval-http-') as directory, tempfile.TemporaryFile() as logs:
         root=Path(directory).resolve();(root/'temp').mkdir(mode=0o700)
         env=os.environ.copy();env.update({

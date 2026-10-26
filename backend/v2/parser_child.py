@@ -35,7 +35,7 @@ def main():
     try:
         import hashlib
         from backend.v2.services.text_extraction import extract_text
-        with os.fdopen(os.dup(0), "rb") as source:
+        with (open("/input/source.bin","rb") if options.get("container_source") else os.fdopen(os.dup(0), "rb")) as source:
             digest = hashlib.sha256()
             while data := source.read(65536): digest.update(data)
             if digest.hexdigest() != options["sha256"]:

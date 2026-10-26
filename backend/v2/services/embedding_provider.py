@@ -94,9 +94,10 @@ class DeterministicProvider:
 
 
 class DashScopeProvider:
-    def __init__(self,settings,limiter=None,transport=None):
+    def __init__(self,settings,limiter=None,transport=None,cloud_guard=None):
         self.settings,self.space,self.limiter=settings,space_for(settings),limiter
         self.transport=transport or self._http
+        self.cloud_guard,self.remote=cloud_guard,transport is None
 
     async def _http_async(self,texts,text_type):
         # Absolute wall deadline, not only a per-socket inactivity timeout.
@@ -137,14 +138,17 @@ class DashScopeProvider:
             before_attempt()  # Durable reservation before every possible billable attempt.
             try:
                 with self.limiter() if self.limiter else nullcontext():
-                    payload=self.transport(texts,text_type)
+                    if self.remote and self.cloud_guard is None:raise EmbeddingError('cloud_authorization_required')
+                    with self.cloud_guard() if self.remote else nullcontext() as ticket:
+                        payload=self.transport(texts,text_type)
+                        if ticket is not None:ticket.record(payload)
                 return ordered_vectors(payload,len(texts),self.space.dimension)
             except EmbeddingError as error:
                 if not error.retryable or attempt==self.settings.embedding_request_retries:raise
                 time.sleep(self.settings.embedding_backoff_seconds*2**attempt)
 
 
-def build_provider(settings,engine=None):
+def build_provider(settings,engine=None,cloud_guard=None):
     if not enabled(settings):raise EmbeddingError('embedding_not_configured')
     if settings.embedding_provider=='deterministic':
         if settings.environment!='development' or not settings.embedding_allow_test_provider:raise EmbeddingError('test_provider_forbidden')
@@ -162,4 +166,4 @@ def build_provider(settings,engine=None):
                 yield
             finally:
                 if slot is not None:connection.execute(text('SELECT pg_advisory_unlock(174924,:slot)'),{'slot':slot})
-    return DashScopeProvider(settings,limiter)
+    return DashScopeProvider(settings,limiter,cloud_guard=cloud_guard)

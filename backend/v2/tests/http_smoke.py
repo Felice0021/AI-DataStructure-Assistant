@@ -52,11 +52,18 @@ class Client:
 
 @contextmanager
 def running_server(env, logs):
-    process = subprocess.Popen([
-        sys.executable, "-m", "uvicorn", "backend.v2.tests.support:create_probe_app",
-        "--factory", "--host", "127.0.0.1", "--port", "8001", "--workers", "2",
-        "--no-proxy-headers", "--no-access-log",
-    ], cwd=REPOSITORY_ROOT, env=env, stdout=logs, stderr=logs)
+    global BASE
+    listener=socket.socket();listener.bind(('127.0.0.1',0));listener.listen(128)
+    port=listener.getsockname()[1];BASE=f'http://127.0.0.1:{port}'
+    args=[sys.executable,'-m','uvicorn','backend.v2.tests.support:create_probe_app','--factory','--workers','2',
+          '--no-proxy-headers','--no-access-log']
+    kwargs={}
+    if os.name=='posix':
+        args+=['--fd',str(listener.fileno())];kwargs['pass_fds']=(listener.fileno(),)
+    else:
+        # Windows cannot pass POSIX file descriptors. Random port avoids fixed-port collision.
+        listener.close();args+=['--host','127.0.0.1','--port',str(port)]
+    process=subprocess.Popen(args,cwd=REPOSITORY_ROOT,env=env,stdout=logs,stderr=logs,**kwargs)
     try:
         for _ in range(100):
             if process.poll() is not None:
@@ -70,6 +77,7 @@ def running_server(env, logs):
             raise RuntimeError("Temporary HTTP server readiness timed out")
         yield
     finally:
+        listener.close()
         process.send_signal(signal.SIGINT)
         try:
             process.wait(timeout=20)
@@ -80,8 +88,6 @@ def running_server(env, logs):
 
 def main():
     # Refuse to interrupt any pre-existing 8001 service.
-    with socket.socket() as probe:
-        probe.bind(("127.0.0.1", 8001))
     with isolated_database() as (_, settings), tempfile.TemporaryFile() as logs:
         env = os.environ.copy()
         env.update({

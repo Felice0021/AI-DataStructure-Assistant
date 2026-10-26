@@ -10,6 +10,8 @@ from sqlalchemy.exc import SQLAlchemyError
 from backend.v2.core.config import Settings, get_settings
 from backend.v2.core.logging import configure_logging
 from backend.v2.db.session import build_engine, build_session_factory
+from backend.v2.routers.cloud import router as cloud_router
+from backend.v2.routers.rag import router as rag_router
 from backend.v2.routers.retrieval import router as retrieval_router
 from backend.v2.routers.embedding import router as embedding_router
 from backend.v2.routers.ingestion import router as ingestion_router
@@ -19,7 +21,7 @@ from backend.v2.routers.auth import router as auth_router
 from backend.v2.core.errors import AuthError
 from backend.v2.routers.knowledge_bases import router as knowledge_base_router, admin_router
 
-PRIVATE_API_PREFIXES = ("/api/v2/retrieval", "/api/v2/auth", "/api/v2/knowledge-bases", "/api/v2/admin/knowledge-bases")
+PRIVATE_API_PREFIXES = ("/api/v2/rag", "/api/v2/retrieval", "/api/v2/auth", "/api/v2/knowledge-bases", "/api/v2/admin/knowledge-bases")
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -52,6 +54,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(ingestion_router)
     app.include_router(embedding_router)
     app.include_router(retrieval_router)
+    app.include_router(rag_router)
+    app.include_router(cloud_router)
 
     @app.middleware("http")
     async def auth_cache_control(request: Request, call_next):
@@ -82,9 +86,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.exception_handler(Exception)
     async def internal_error(request: Request, error: Exception):
         logging.getLogger(__name__).error("Unhandled error (%s)", type(error).__name__)
+        cors_headers={}
+        origin=request.headers.get('origin')
+        if origin in settings.allowed_origins:
+            cors_headers={'Access-Control-Allow-Origin':origin,'Access-Control-Allow-Credentials':'true','Vary':'Origin'}
         if request.url.path.startswith(PRIVATE_API_PREFIXES):
-            return JSONResponse(status_code=500, content={"error": {"code": "internal_error", "message": "Internal server error"}}, headers={"Cache-Control": "no-store"})
-        return JSONResponse(status_code=500, content={"detail": "Internal server error"})
+            return JSONResponse(status_code=500, content={"error": {"code": "internal_error", "message": "Internal server error"}}, headers={"Cache-Control": "no-store",**cors_headers})
+        return JSONResponse(status_code=500, content={"detail": "Internal server error"},headers=cors_headers)
 
     return app
 

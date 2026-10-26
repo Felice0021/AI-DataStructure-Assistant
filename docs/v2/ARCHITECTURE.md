@@ -1,3 +1,5 @@
+> 当前集成交付版本：2026-10-26，Alembic **0007_cloud_consents**，Generator **qwen3.8-flash**。当前启动、用途授权与API以 TEAM_ONBOARDING.md、FRONTEND_HANDOFF.md、openapi.json 及本文“最终集成”章节为准。以下旧阶段验收（0006、NOT VERIFIED、云生成硬阻塞）是历史记录，不代表当前状态。
+
 # V2 后端基础架构
 
 ## 范围和边界
@@ -5,7 +7,7 @@
 V2 是模块化单体：后续 Vue 3/Vite 前端通过 `/api/v2` 调用独立 FastAPI 后端；
 SQLAlchemy 2 连接 PostgreSQL 17，Alembic 管理数据库版本，pgvector 提供后续向量存储能力。
 当前已完成基础表、数据库连接、健康检查以及 Cookie 数据库会话认证、CSRF 和角色权限依赖。
-注册、登录、退出及当前用户接口已实现；3A 已增加知识库元数据 CRUD 与资源所有权隔离。3B-1 已增加原始文件上传和管理；3B-2A 已增加受限解析与 Chunk；3B-2B 已增加可选 Embedding、pgvector 精确检索和独立索引 Worker；3C-1 已增加有界 BM25、Dense 和 RRF 检索 HTTP 接口，问答接口尚未开发。
+注册、登录、退出及当前用户接口已实现；3A 已增加知识库元数据 CRUD 与资源所有权隔离。3B-1 已增加原始文件上传和管理；3B-2A 已增加受限解析与 Chunk；3B-2B 已增加可选 Embedding、pgvector 精确检索和独立索引 Worker；3C-1 已增加有界 BM25、Dense 和 RRF 检索 HTTP 接口，3C-2A 已增加 Reranker 和证据 Context Builder；3C-2B已增加单轮RAG回答接口，生成默认关闭，生产云端生成仍被授权机制阻塞。
 
 V1 `backend/main.py`、RAG、知识库、前端、原始测试和 `.venv` 均保持独立。
 V2 不导入 V1 模块、不读取根 `.env`、不初始化 V1 RAG；默认不调用外部模型 API，云处理需要独立 V2 配置和显式同意。
@@ -264,3 +266,126 @@ SQL 沿用 5 秒 statement_timeout。大量分词和精确向量排序仍需压�
 
 未来扩大规模时应引入按 KB/代次维护的持久化词项统计或独立检索索引，避免逐请求重新分词及相关子查询；
 任何索引缓存仍须绑定空间/代次并在命中时重新授权。HNSW、BM25 持久化、语义质量评测和租户每日费用限制尚未实现。
+
+
+## 3C-2A：重排序与证据上下文
+
+`context_service.prepare_context` 复用统一检索，不导入 V1 RAG，不读取 V1 凭证。
+流水线为会话/KB授权→Hybrid候选与版本快照→UUID去重→独立Reranker→最终授权及版本复核→Context Builder。
+提供 `POST /api/v2/retrieval/prepare-context` 作为后续生成模块的诊断/接入边界；无 chat、生成、查询扩展或多轮会话。
+
+`rerank_provider` 有 Disabled、deterministic-overlap-v1 测试实现及 Qwen HTTP 实现。
+默认 disabled，optional 模式保留原始顺序并显式标记 provider_disabled；required 模式遇到禁用/不可用返回错误。
+显式 off 不初始化云 Provider。启用的 Provider 失败不自动降级，不伪装重排序成功。
+候选一次单批调用，请求 top_n 等于候选数；校验精确数量、完整且唯一的 int index、有限且在[0,1]的分数。
+按分数降序、原始排名、UUID稳定排序，保留 fused/dense/bm25 分数和排名，不覆盖、混加或复用阈值。
+
+官方说明重排分数只适用于当前请求，故不自动分成多批拼接分数；batch_size 是单批硬上限，超限拒绝。
+默认候选20、每项8000 UTF-8字节、查询额外上限4000字节、总预算64000字节（按 query×候选数+所有候选计）。
+远程调用10秒绝对超时、最多2次重试、0.5秒指数退避；仅网络超时/429/临时5xx可重试。
+限制跨进程准备流程和云调用并发，均使用独立命名空间的 AUTOCOMMIT advisory slot；不跨网络持有行锁或事务。
+响应体限制256KiB，拒绝压缩/重定向，不记录响应正文、输入或密钥。
+Qwen必须独立Key、部署云开关、人工核查模型的开关及请求 allow_cloud_rerank 同时满足；Embedding查询另有独立同意。
+
+### 最终发布事务
+
+内部检索可选返回 content_hash/generation/index_revision/embedding_space_id 快照，普通搜索 API不返回该内部快照。
+重排完成后新 Session 以 User FOR SHARE→当前 AuthSession FOR SHARE→排序后的 KB FOR SHARE 加锁；
+重新验证当前会话身份相同、激活、未吊销、未过期，以及全部KB可读。
+再次通过统一 eligible_chunks 在CTE内部限定候选UUID后查询真实正文，检查墓碑/ready/当前代次/hash/空间/完成任务与计数，逐项比对检索快照。
+任意候选变化返回409 context_stale，整个上下文安全失败；不从缓存旧正文构建剩余部分。
+最终以数据库新读出的正文及来源构建上下文，保留原始检索和重排诊断分数；完成本地构建后再检查实际会话到期时间。
+因此共享锁覆盖最终验证、读取及响应数据复制。现有写路径的KB排他锁、用户更新和会话吊销行写锁都与之互斥。
+变更在锁前提交则拒绝；锁后变更等待快照结束。不能撤回已发送内容，也不能承诺网络传输期间的瞬时撤回。
+绕过应用直接更新子表、不遵守父KB锁协议的管理脚本不在此保证内。
+
+### Context Builder 与信任边界
+
+只选完整Chunk，不截断代码、公式或段落；超长/超预算跳过并返回固定原因，无证据时 context_text为空字符串。
+按最终排序限制证据数与每文档数量；重复UUID去重，同文档仅对精确包含且长度≥90%的一对文本做保守重叠去重。
+引用[S1]、[S2]随最终选中顺序分配，结构化证据、context_text JSON数组和来源映射一一对应。
+源文件名/页码/章节/顺序及真实UUID保留，控制字符/隐藏格式字符转为可见转义，sanitized标记变化；content_hash仍是原始DB文本哈希。
+上下文包含明确的 citation_id/source/content 字段，来源只由服务端赋值；资料中的假引用/JSON/结束标签均只是content字符串。
+context_text 不含system/developer角色指令；不能执行资料命令、宏、URL或工具调用。
+默认服务上限8证据、每文档3、单Chunk8000字符、总16000字符和6000预算单位；请求可选择更小预算。
+预算包含JSON/元数据/转义开销，estimated_tokens实际按UTF-8字节保守估算，明确不是生成模型Tokenizer的精确Token数。
+这是信任边界和确定性封装，不保证未来LLM免疫提示词注入；下一阶段必须保持资料为低信任数据，并使用静态控制提示。
+
+官方接口参考：[阿里云 Text Rerank API](https://help.aliyun.com/en/model-studio/text-rerank-api)。
+本轮仅核查文档兼容性，真实Qwen API和模型质量均 NOT VERIFIED。
+
+
+## 3C-2B：单轮回答生成与引用发布
+
+`POST /api/v2/rag/ask` 使用现有Cookie/Origin/CSRF边界。RAG Service复用prepare_context，
+不重复构建BM25、Dense、RRF、Reranker或Context Builder，不导入V1的全局RAG或读取根.env。
+流程：授权检索/重排/上下文→保守证据预检→生成前版本复核→Generator→结构与引用校验→最终复核→响应。
+只支持非流式单轮，不持久化问题、答案或聊天历史。
+
+Generation Provider有Disabled、deterministic-evidence-quote-v1和预留Qwen Chat Completions协议适配。
+默认disabled；测试实现仅在明确development测试配置时可用，它引用合成证据，不验证语义质量或演算能力。
+Qwen参考模型qwen3.7-flash、temperature=0.2；官方协议参数已查阅，账户/模型/API实际调用NOT VERIFIED。
+适配器支持非流式JSON响应、绝对超时、有限退避、跨进程槽、响应体上限、单choice/assistant角色/finish_reason/usage检查，拒绝工具调用。
+**生产云端生成保持阻塞**：现有Embedding/Rerank的请求同意没有生成用途的可审计授权记录；即便环境开关和Key已填，
+也不能仅凭allow_cloud_generation发起请求。本轮不新增授权表，Qwen正常构造的Provider固定返回generation_consent_not_configured。
+仅受控开发单元测试可注入内存transport校验协议；没有生产配置开关绕过此授权阻塞。
+
+### 分离的Prompt与预算
+
+Prompt Builder只在system消息中放静态规则及可信枚举模式；问题和JSON证据分别放入user消息。
+资料中的角色声明、URL、命令或“忽略之前规则”只作为数据，不转换成工具调用；服务没有代码或网络工具执行器。
+模式qa要求直接回答及必要原理；exercise要求分析/过程/答案，缺推导依据时拒答；code要求作用/问题/建议/复杂度边界；
+auto只使用轻量本地规则分类，不调用LLM路由或扩展问题。
+
+完整消息序列默认≤24000 UTF-8字节；这包括静态规则、问题、引用元数据和JSON转义开销，是保守字节预算而非精确Tokenizer。
+输出有1024 max_tokens协议参数和12000字节结构结果上限；当前无法验证云端实际token行为，不能把测试Provider当作Token计费验证。
+单请求默认最多3次生成调用，网络重试与可选的一次结构校验重试共享同一预算；默认不做校验重试。
+Generator调用期间不持有数据库事务/行锁。请求并发槽限制整个RAG流程，Qwen适配有独立云调用槽，均跨进程生效。
+
+### 拒答与可信度边界
+
+无证据直接insufficient_evidence/no_evidence，不调用Generator。
+有证据但与问题没有有效词项重叠则no_lexical_support，仍不是肯定的课程外判定；不使用RRF或0.58阈值。
+同一相关键的显式“键:值/键=值”断言出现不同值时保守返回conflicting_assertions（跳过代码块），不调用Generator。
+这是有限规则，不是完整自然语言冲突检测，可能保守拒绝、漏检语义冲突；词项重叠也不能证明资料足以回答具体题目。
+生成模型可拒答或报告冲突；拒答正文由服务端统一替换为安全固定文本。
+out_of_scope在响应Schema保留，但当前没有权威课程范围规则，故模型自报out_of_scope会映射为insufficient_evidence/scope_not_verified，
+不把模型陈述或关键词未命中当作确定的课程外事实。可靠自动范围分类尚未实现。
+
+answered仅表示生成输出通过可执行结构、引用和权限版本检查，**不是每个自然语言事实的证据蕴含证明**。
+不能声称确定性测试验证了真实回答质量；下一轮需独立人工标注/事实一致性评测。
+
+### 引用校验与最终授权
+
+模型仅可返回status/answer/used_source_ids，JSON重复键、额外来源字段、空输出或截断均失败。
+实质性answered必须有合法[S编号]，答案中引用集合必须与去重后的used_source_ids一致，并全部属于本次映射。
+答案中重复使用同一引用允许，used_source_ids重复则拒绝；伪造/格式错误/缺失引用不能通过删掉标记“修复”。
+禁止模型另写文件名或页码作为来源断言；这些只从可信数据库映射填充sources。
+显式声称已执行代码/访问网络的有限形式也会被拒绝，execution_performed永远false；自然语言动作声明的穷尽识别仍有限。
+
+共用context_service.validate_evidence：生成前及生成后，对**全部送入生成的证据**重新检查会话、用户和所有KB，
+不仅检查模型声称引用的部分，以防未引用旧正文仍影响答案。
+短事务按User→AuthSession→排序KB取得共享锁，检查墓碑、ready、hash、解析/索引代次与当前模型空间。
+任何失效导致401/404/409安全失败；数据库故障为503，不能只删sources而保留旧answer。
+在最终事务内构造答案来源映射和响应数据，结束前再查实际会话到期；sources仅含答案实际引用的有效来源。
+写路径必须继续遵守KB→document→job父锁协议。保证的是最终授权快照，不是锁释放到网络发送期间的绝对撤回或已发送内容召回。
+
+官方参考：[Qwen Chat Completions协议](https://help.aliyun.com/en/model-studio/qwen-api-via-openai-chat-completions)、
+[结构化JSON输出](https://help.aliyun.com/en/model-studio/qwen-structured-output)。
+
+
+## 最终集成：用途授权、真实模型与交接（2026-10-26）
+
+当前模块化单体链路：认证/CSRF → KB readable/writable → 私有原文件 → 隔离解析Worker → 当前代次Chunk → EmbeddingWorker/pgvector → BM25+Dense+RRF → Reranker → Context Builder → 单轮Generator → Schema/引用检查 → 最终会话、墓碑、hash/解析代次/index_revision/空间复核。没有聊天历史、前端、多模态或工具执行。
+
+统一授权入口仍为 knowledge_base_service.get_readable/get_writable/readable_scope/require_public_manager；检索候选范围在排名前下推SQL，管理员没有私人资料豁免。validate_evidence 复用同一有效性约束，外发前与返回前均复核。User→AuthSession→有序KB短锁保护发布快照；Worker写入遵循KB→document→job。外部网络调用不持有源事务或行锁，无跨用户私人语料缓存。
+
+新增 cloud_service.Guard：按当前身份、全部KB、purpose和服务指纹核查授权，检查当时的会话/证据；Worker另核对文档代次同意。先持久记录attempt并释放事务再调用，记录安全usage/耗时及结果事件。每次重试重新通过Guard。三用途彼此独立，授予只作用于当前用户；默认云开关false，不是有Key就自动外发。授权范围明确为KB当前及未来版本，模型/端点/Embedding revision变更需重新同意。云返回前原有最终权限检查仍适用；撤销只能阻止新的调用，已开始的请求和服务商历史数据无法撤回。
+
+Generator现为qwen3.8-flash，OpenAI兼容Chat Completions，enable_thinking=false、temperature=0.2、response_format=json_object；结构化JSON仍由本地严格Schema和引用验证。模型输出不被视为可信指令，文档只作低信任参考；不联网执行内容或代码。真实Embedding1024维、Reranker及正常/无依据拒答均已由少量合成测试验证，详情CLOUD_SMOKE_RESULT.json。云使用仍默认关闭。
+
+解析 auto：macOS为Seatbelt；Linux/WSL为独立只读、无网、CPU/内存/PID受限容器。无安全隔离能力则失败，不回退到普通子进程。Docker镜像仅复制V2代码，构建上下文排除.env。Mac与Linux ARM64容器已实测；Windows原生运行不支持，WSL实机验证待补。
+
+高价值修复：脱敏500对精确允许Origin补CORS头；PATCH显式null继续422且OpenAPI不再宣称可null；HTTP测试由OS分配并继承监听FD，避免占用8001。启动、离线验收、显式付费测试、管理员课程导入和评测工具均独立于V1。冻结契约见openapi.json，当前运行指南见TEAM_ONBOARDING.md。
+
+仍需生产强化：用户级/每日成本硬限额、边缘限流、DB角色拆分、TLS代理配置、备份恢复、审计保留清理与服务商隐私政策确认；精确余弦和有界内存BM25仍是小规模基线。合法引用不等同于事实蕴含证明，36题需人工标注后才能报告质量。

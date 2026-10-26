@@ -1,3 +1,5 @@
+> 当前集成交付版本：2026-10-26，Alembic **0007_cloud_consents**，Generator **qwen3.8-flash**。当前启动、用途授权与API以 TEAM_ONBOARDING.md、FRONTEND_HANDOFF.md、openapi.json 及本文“最终集成”章节为准。以下旧阶段验收（0006、NOT VERIFIED、云生成硬阻塞）是历史记录，不代表当前状态。
+
 # V2 本地开发
 
 以下命令均在仓库根目录 `AI-DataStructure-Assistant` 执行。
@@ -842,3 +844,274 @@ HTTP 冒烟测试会拒绝占用已有 8001 服务，只创建随机隔离数据
 - `docs/v2/ARCHITECTURE.md`
 - `docs/v2/DATABASE_SCHEMA.md`
 - `docs/v2/DEVELOPMENT.md`
+
+
+## 3C-2A：Reranker 与 Context Builder
+
+复用既有 httpx2，无新依赖，无新迁移。API启动方式仍为 `python -m backend.v2.main`（loopback8001）。
+下列测试仅创建随机数据库/临时文件并自动清理，不清空开发库，不读取根.env，不调用V1的load_dotenv。
+
+```bash
+source ~/.virtualenvs/ai-datastructure-v2/activate-v2.zsh
+python -m alembic -c backend/v2/alembic.ini upgrade head
+python -m alembic -c backend/v2/alembic.ini check
+DS_V2_RUN_DB_TESTS=1 python -m pytest backend/v2/tests -q
+python -m backend.v2.tests.context_http_smoke
+```
+
+### 配置（DS_V2_ 前缀，独立V2环境变量）
+
+|后缀|默认值/含义|
+|---|---|
+|RERANK_PROVIDER|disabled；可选deterministic/qwen|
+|RERANK_ALLOW_TEST_PROVIDER|false；测试Provider还必须environment=development|
+|RERANK_CLOUD_ENABLED|false；部署级云外发开关|
+|RERANK_API_KEY|空；独立凭证，不读取Embedding或V1 Key|
+|RERANK_MODEL|qwen3.7-text-rerank，仅配置参考|
+|RERANK_MODEL_VERIFIED|false；人工验证账户/地域/模型及参数后才可明确设置true，不是自动健康检测|
+|RERANK_ENDPOINT|官方DashScope HTTPS rerank路径，可配置官方workspace.maas.aliyuncs.com端点，拒绝任意URL和重定向|
+|RERANK_TIMEOUT_SECONDS|10，绝对单次请求超时，范围0.1–60|
+|RERANK_RETRIES / RERANK_BACKOFF_SECONDS|2 / 0.5，最多3次调用，指数退避|
+|RERANK_BATCH_SIZE / RERANK_MAX_CANDIDATES|20 / 20；均最高100，整份候选单批，超限拒绝|
+|RERANK_MAX_ITEM_BYTES|8000；查询另限制≤4000 UTF-8字节|
+|RERANK_MAX_TOTAL_BYTES|64000；重复查询开销计入总量|
+|RERANK_CONCURRENCY|2；准备流程和云调用各使用独立advisory槽，所有进程应统一配置|
+|CONTEXT_MAX_EVIDENCE / CONTEXT_PER_DOCUMENT|8 / 3|
+|CONTEXT_MAX_CHUNK_CHARS|8000；超限跳过，不截断|
+|CONTEXT_MAX_CHARS / CONTEXT_TOKEN_BUDGET|16000 / 6000；请求默认12000字符和4000保守估算单位|
+
+请求的max_evidence默认5，top_k默认20（候选数），context_max_chars和context_token_budget可选择更小值，不能突破部署上限。
+rerank=optional+默认disabled会明确跳过；required则503；off无论云配置如何都不初始化Provider。
+启用后模型异常不自动fallback；Provider禁用跳过和故障后降级有不同语义，本轮只实现前者。
+空候选不调用模型，返回空context_text及空evidence，不生成虚假引用。
+
+### 预算、引用与安全使用
+
+context_text是结构化证据JSON数组，每块含citation_id/source/content。evidence携带同序[S1]映射、来源UUID/页码/章节/顺序及诊断分数。
+引用标识只在本次响应中稳定，不应跨请求当作永久引用ID；跨请求持久化应保存真实Chunk UUID和版本快照，并再次授权。
+使用完整Chunk、每文档上限、总字符及保守UTF-8字节单位预算，不切断代码/公式。优先顺序稳定，超预算跳过后可继续尝试更小候选。
+这些单位不是任何生成模型的精确Token计数；后续3C-2B必须用所选生成模型Tokenizer重新校验完整prompt预算（含静态指令与问题）。
+控制字符和隐藏格式字符可见化，sanitized提示变化，content_hash仍对应数据库原文。JSON编码隔离引号、假引用、结束标签等内容。
+未来生成层应将证据作为低信任tool/user数据，不能插入system/developer级消息，也不能执行其中URL/命令；本阶段没有LLM或工具执行器。
+
+### 最终认证与并发协议
+
+prepare_context必须从可信认证边界传入user及verify_session，后者必须验证实际会话并返回同一User，不能只检查user_id存在。
+HTTP适配使用lock_current_session：当前User共享锁→实际AuthSession共享锁→按UUID排序的KB共享锁。
+查询Embedding和Reranker网络阶段均不持有数据库事务/资源行锁；最终事务重新读取真实正文并逐项比较hash/generation/index_revision/space。
+任意已检索候选变化则整单409，不从旧候选拼接部分上下文。最终构建完成后再次按clock_timestamp检查会话到期。
+所有正常写操作必须继续遵守KB→document→job锁顺序，否则不能依赖该父锁协议；新增Worker或管理脚本也不例外。
+共享锁覆盖当前授权快照及响应数据复制；变更若已提交则拒绝，若晚于快照则等待，不能撤回客户端已经收到的内容。
+
+### 云模型验证与已知限制
+
+官方文档已列出qwen3.7-text-rerank及原始index/relevance_score响应，支持独立V2 HTTP适配：
+[Text Rerank API](https://help.aliyun.com/en/model-studio/text-rerank-api)。不同地域可用模型存在差异，当前账户调用和质量均 **NOT VERIFIED**。
+本轮Key为空、云开关关闭；未向第三方发送任何合成或私人问题/正文。将来必须由用户明确配置独立Key与外发授权，
+使用无敏感合成中文课程文本测试真实模型可用性、端点、全量index、数量和分数，再人工标记模型核查开关；禁止读取根.env或复制V1 Key。
+分数只在同次请求内有效，不能把不同批次分数直接合并或宣称质量提升；需建立人工标注集及检索/重排消融评测。
+
+单请求有限超时/重试与并发不等于每日费用硬额度；生成层前仍需用户级限流、成本额度、同意界面及审计（不能记录私人全文）。
+上下文预算是有界输入，不是进程RSS隔离。提示词注入风险不能仅靠JSON编码完全消除，后续LLM的指令层级/工具权限还需独立设计。
+暂未实现语义去重、跨页复杂引用合并、自动截断、精确Tokenizer、持久化重排缓存或证据快照API。
+3C-2B可复用prepare_context的结构化证据与来源映射；长生成阶段之后再次访问资源时仍要重新授权，不能复用已过期会话或假定快照永久有效。
+
+### 3C-2A 本轮实际验证（2026-10-26）
+
+- 完整pytest：**398 passed in 70.51s**（原有357项加新增41项），无跳过数据库测试。
+- Alembic upgrade head、check、current通过；当前0006_chunk_embeddings，无schema变化；pip check无冲突。
+- 真实双进程HTTP + 独立解析/索引Worker + PostgreSQL通过；两个学生与管理员验证私人/公共/混合范围、引用映射、原始分数、CSRF、删除、重解析及退出。
+- 真实DB竞态测试在Rerank中提交KB/文件墓碑、用户禁用、会话吊销/过期、处理状态及index_revision变化，最终拒绝旧证据；网络阶段idle-in-transaction计数为0。
+- 最终构建中的并发删除/吊销会等待共享锁；下一请求立即反映失效状态。最终DB连接切换到不可用端点时抛出真实OperationalError，不返回旧正文。
+- 控制响应的单元测试另验证乱序/重复/越界index、非法分数、超时、限流、永久错误及有限重试、同分排序、预算/去重/恶意文本边界。
+
+真实HTTP合成语料诊断（测试Provider；不宣称语义效果）：
+
+|原排名|重排排名|重排分数|原RRF|原余弦相似度|原BM25|
+|---|---|---|---|---|---|
+|1|1|1.0|0.032266458495966696|-0.019690511059195837|1.1414373853110722|
+|2|2|1.0|0.03225806451612903|-0.0019748928025364876|0.8623919802674049|
+|3|3|0.0|0.01639344262295082|0.036400657147169335|—|
+
+本例前两条同分，保留原始排名；控制Provider单元测试另用index=1得0.9、index=0得0.1，验证顺序变为2→1，原Hybrid分数不变。
+
+本轮文件清单（相对于ea7d5b3工作区）：
+
+**新增（6）**
+
+- `backend/v2/schemas/context.py`
+- `backend/v2/services/context_builder.py`
+- `backend/v2/services/context_service.py`
+- `backend/v2/services/rerank_provider.py`
+- `backend/v2/tests/context_http_smoke.py`
+- `backend/v2/tests/test_context.py`
+
+**修改（10）**
+
+- `backend/v2/core/config.py`
+- `backend/v2/dependencies/auth.py`
+- `backend/v2/routers/retrieval.py`
+- `backend/v2/services/retrieval_service.py`
+- `backend/v2/services/vector_search.py`
+- `backend/v2/tests/test_health.py`
+- `docs/v2/API_CONTRACT.md`
+- `docs/v2/ARCHITECTURE.md`
+- `docs/v2/DATABASE_SCHEMA.md`
+- `docs/v2/DEVELOPMENT.md`
+
+最终核对：开发库11张表数据指纹与本轮开始时完全一致；随机测试库为0，临时文件目录及API/Worker进程均无残留。
+V2变更凭证扫描通过；V1原有文件及历史0001–0006迁移哈希不变，main/ea7d5b3、空暂存区不变，未commit/push。
+最终在候选UUID限制下推到授权CTE后，完整pytest再次398通过，真实HTTP冒烟也再次通过。
+
+
+## 3C-2B：单轮RAG开发与验证
+
+复用既有httpx2，无新增依赖或迁移。先保证合成测试文档已被Worker处理为ready；API启动仍为 `python -m backend.v2.main`，loopback8001。
+默认Generator关闭，Embedding/Rerank也仍按各自默认关闭；默认hybrid若Dense未启用会明确报错，不自动改用BM25。
+
+```bash
+source ~/.virtualenvs/ai-datastructure-v2/activate-v2.zsh
+python -m alembic -c backend/v2/alembic.ini upgrade head
+python -m alembic -c backend/v2/alembic.ini check
+DS_V2_RUN_DB_TESTS=1 python -m pytest backend/v2/tests -q
+python -m backend.v2.tests.rag_http_smoke
+```
+
+HTTP冒烟会创建随机测试数据库/临时目录，启动双进程FastAPI及独立解析/索引Worker，以两个学生和管理员验证完整合成链路；
+拒绝占用已有8001服务，结束仅清理本轮资源。不会读取根.env、复制V1凭证或向云端发送数据。
+
+### 生成配置（DS_V2_前缀，仅独立V2环境）
+
+|后缀|默认值/含义|
+|---|---|
+|GENERATION_PROVIDER|disabled；可选deterministic/qwen|
+|GENERATION_ALLOW_TEST_PROVIDER|false；deterministic还要求environment=development|
+|GENERATION_CLOUD_ENABLED|false；仅部署意图，不能绕过生成授权阻塞|
+|GENERATION_API_KEY|空，独立SecretStr，不隐式回退到Embedding、Rerank或V1 Key|
+|GENERATION_MODEL / GENERATION_MODEL_VERIFIED|qwen3.7-flash / false，真实账户/地域可用性未验证|
+|GENERATION_ENDPOINT|官方HTTPS compatible-mode/v1/chat/completions路径，允许官方workspace.maas域名|
+|GENERATION_TEMPERATURE|0.2，范围0–1|
+|GENERATION_TIMEOUT_SECONDS|20，单次绝对超时，范围0.1–60|
+|GENERATION_RETRIES / GENERATION_BACKOFF_SECONDS|2 / 0.5，临时网络/429/5xx有限退避|
+|GENERATION_MAX_CALLS|3，总生成尝试预算，最高4；与校验重试共享|
+|GENERATION_VALIDATION_RETRIES|0，可选1；不对坏答案做引用删除式修复|
+|GENERATION_MAX_INPUT_BYTES|24000，完整Prompt JSON的UTF-8字节上限，非精确Token|
+|GENERATION_MAX_OUTPUT_TOKENS / GENERATION_MAX_OUTPUT_BYTES|1024 / 12000，协议输出参数及服务端字节双重限制|
+|GENERATION_CONCURRENCY|2，流程槽和云适配槽分开命名，跨API进程；所有进程应统一配置|
+
+测试Provider只引用第一条授权证据，不执行算法、代码或网络操作；模式标题用于验证接口组织，不代表具备推理或语义质量。
+空结果、没有有效词项支持和有限键值冲突预检均直接拒答，不调用生成Provider。关键单字课程术语和“数据结构”本身不会被当作泛化词排除。
+词项重叠只是必要的保守预检，不足以证明复杂题目可解；自然语言冲突/事实蕴含仍需评测。
+
+### 引用与最终发布
+
+内部prepare_context继续返回原证据；共用validate_evidence，不复制一套授权逻辑。
+模型只返回status/answer/used_source_ids；引用集合必须等于本次映射的合法引用且列表不重复。
+同一ID可在正文重复引用，sources只返回一次；缺失、伪造、非法格式、截断或坏JSON均不能发布答案。
+文件名和页码只在sources展示，模型另写这些来源信息会被严格拒绝；这是首版协议的保守限制，可能拒绝合法但不符合协议的答案。
+对显式执行/联网声明的拦截是有限模式匹配，不保证识别所有改写，execution_performed永远false。
+
+外部生成前结束数据库事务。生成后复核全部送入模型的Chunk，而非只复核used_source_ids，以防未引用的旧私人材料影响答案。
+最终短事务锁定User→AuthSession→KB，核对墓碑、ready、hash、解析/索引代次、模型空间；在事务内复制来源/响应并再次查会话到期。
+发生401/404/409或数据库故障时整份旧答案丢弃，不能只删sources。读快照结束后的变更不能撤回已发送内容，网络窗口不承诺绝对无竞态。
+
+### 明确未完成的生产能力
+
+- Qwen Embedding、Rerank、Generator均 **NOT VERIFIED**。本轮没有独立Key及外部调用授权，未向云端发送任何问题或资料。
+- 生产Qwen Generator始终受generation_consent_not_configured阻塞。请求allow_cloud_generation和环境开关不构成持久化、可审计授权，不能绕过。
+- 未建立生成服务用途的同意/撤销审计表。本轮按安全边界选择关闭云端；未来启用前需新迁移及服务端验证，不能直接复制Embedding同意字段。
+- out_of_scope为预留状态。当前缺少权威课程范围，模型自报只能转为scope_not_verified拒答；不虚报可靠自动范围判定已完成。
+- 没有精确生成Tokenizer、每日/每用户费用额度、完整语义冲突检测或事实一致性证明；API并发/重试有界不等于费用硬上限。
+- Prompt角色分离与引用校验不能完全消除未来真实模型的Prompt Injection，也不能证明每个带引用事实都能从原文推出。
+
+未来真实模型联调顺序：先建立可审计生成授权；由用户独立配置V2 Key和用途范围；只用无敏感合成中文课程片段核对地域/模型、
+Chat Completions参数、非思考JSON、finish_reason、usage和调用预算；再用标注集评估事实、引用蕴含和拒答，不以确定性测试代替质量验证。
+官方协议：[Chat Completions](https://help.aliyun.com/en/model-studio/qwen-api-via-openai-chat-completions)、
+[结构化输出](https://help.aliyun.com/en/model-studio/qwen-structured-output)。
+
+本轮没有聊天历史、查询扩展、流式输出、多模态或前端。
+
+
+### 3C-2B 实际验收（2026-10-26）
+
+- 最终完整V2：**463 passed in 92.69s**，包含原有398项及新增65项；全部隔离数据库测试已启用。
+- Alembic upgrade head、check、current通过，仍为0006_chunk_embeddings (head)，没有schema漂移或历史迁移修改；pip check通过。
+- 真实双进程HTTP、两个学生及管理员、独立解析/索引Worker完成单轮链路；qa/exercise/code/auto、私有/公共/混合范围、正常引用、拒答、CSRF与伪造user_id拒绝均通过。
+- HTTP答案来源与实际PostgreSQL Chunk hash、generation、KB及ready状态逐项核对；生成后不返回系统Prompt或完整证据上下文。
+- 生成时真实DB变更覆盖用户禁用、会话吊销、KB/文件删除、重解析/索引状态与代次；模型空间配置变化同样拒绝旧答案。生成期间idle-in-transaction计数为0。
+- 最终响应构建中的并发删除、重新索引和会话吊销等待共享锁，后续请求立即失效；实际最终DB断连时不返回缓存旧答案。
+- 引用缺失/伪造/重复列表/非法格式、无效或截断JSON、非法来源和执行声明、超时/429/服务错误、共享调用预算与一次校验重试均已测试。
+- 无证据、无词项支持、显式键值冲突均不调用Generator；模型自报课程外仅安全拒答，不作未经证明的范围结论。
+- 原3C-2A代码保留；仅将其最终版本检查抽成共用validate_evidence，原398项回归全部通过。没有修改V1、根.env、旧虚拟环境或历史迁移，也没有Git提交/推送。
+- 测试仅证明工程正确性，Qwen三类云模型的可用性和生成质量均NOT VERIFIED；生成用途审计授权未实现，生产外发仍阻塞。
+
+本轮新增/修改清单（相对于本轮开始时包含3C-2A未提交代码的工作区）：
+
+**新增（9）**
+
+- `backend/v2/routers/rag.py`
+- `backend/v2/schemas/rag.py`
+- `backend/v2/services/answer_validation.py`
+- `backend/v2/services/evidence_policy.py`
+- `backend/v2/services/generation_provider.py`
+- `backend/v2/services/prompt_builder.py`
+- `backend/v2/services/rag_service.py`
+- `backend/v2/tests/rag_http_smoke.py`
+- `backend/v2/tests/test_rag.py`
+
+**修改（8）**
+
+- `backend/v2/services/context_service.py`
+- `backend/v2/core/config.py`
+- `backend/v2/main.py`
+- `backend/v2/tests/test_health.py`
+- `docs/v2/API_CONTRACT.md`
+- `docs/v2/ARCHITECTURE.md`
+- `docs/v2/DATABASE_SCHEMA.md`
+- `docs/v2/DEVELOPMENT.md`
+
+最终核对：开发库11张表数据指纹未变，随机测试库为0；临时API、Worker、存储目录已清理，8001无残留监听。
+V2变更凭证扫描通过；原V1及非V2文件、历史0001–0006哈希不变，main/ea7d5b3及空暂存区保持不变，未commit/push。
+最终真实HTTP冒烟再次通过，云生成配置仍为disabled、cloud_enabled=false、独立Key未配置。
+
+
+## 最终集成：当前开发与验收入口
+
+请优先按[TEAM_ONBOARDING.md](TEAM_ONBOARDING.md)启动，按[FRONTEND_HANDOFF.md](FRONTEND_HANDOFF.md)联调。旧阶段NOT VERIFIED、0006、固定HTTP端口和云生成阻塞记录保留为历史，不能用于判断当前状态。
+
+```sh
+source ~/.virtualenvs/ai-datastructure-v2/activate-v2.zsh
+python deploy/v2/init_env.py  # 已存在即跳过，绝不覆盖
+# Apple Silicon不需DS_V2_DB_PLATFORM；x86/WSL显式设置linux/amd64
+docker compose --env-file deploy/v2/.env -f deploy/v2/compose.yaml up -d db
+python -m alembic -c backend/v2/alembic.ini upgrade head
+python -m backend.v2.tools.dev status
+# 三个终端分别运行，不依赖私人Key：
+python -m backend.v2.tools.dev api --test-providers
+python -m backend.v2.tools.dev parser --test-providers
+python -m backend.v2.tools.dev embedding --test-providers
+# 第四个终端完整验收；独立数据库/临时目录，默认无付费：
+DS_V2_RUN_DOCKER_TESTS=1 python -m backend.v2.tools.acceptance
+python -m backend.v2.tools.export_openapi
+python -m backend.v2.evaluation.score
+```
+
+Docker fallback测试需先 `docker build -f deploy/v2/parser.Dockerfile -t ds-assistant-v2-parser:local backend/v2`；Mac auto继续Seatbelt。无Docker测试标志时恰好3项fallback测试skipped，不算PASS。验收HTTP使用临时继承监听FD，不探测或终止8001；API长期服务仍为127.0.0.1:8001。
+
+云配置和用途授权见交接指南，默认三类cloud=false。qwen3.8-flash、qwen3.7-text-embedding-flash/1024、qwen3.7-text-rerank已用本轮授权的9次短合成请求实测；真实HTTP离线套件仍使用确定性Provider，不混淆两者。受限付费入口cloud_smoke不由普通pytest触发；本轮预算账本已用9/12，禁止重置后重复调用。estimated usage成本0.001068元非实际账单，保守预留上限3.6元，未达到5元边界。
+
+### 公共课程导入（不自动向量化）
+
+```sh
+python -m backend.v2.tools.import_course knowledge_base/ds_chunks.jsonl
+# 负责人先通过本地 `python -m backend.v2.manage create-admin --email <admin-email>` 与admin API建立公共KB，再显式导入：
+python -m backend.v2.tools.import_course knowledge_base/ds_chunks.jsonl --apply --admin-email <admin-email> --kb-id <public-kb-uuid> --mapping-output /private/tmp/course-mapping.json
+```
+
+dry-run默认只读预览，已检查真实V1共1010条，导出UTF8共383572字节。以内容digest命名真实TXT，保留每条legacy ID、原文与来源元数据；不伪造PDF。manifest映射记录原始页号（导出TXT自身page_number为null），每个章节标题V1:legacy_id可追溯到原记录，长记录可能拆为多个V2 Chunk。重复导入同一活动对象复用document，失败解析可重新入队，已删除对象不会复活；并发通过KB写锁与已有上传事务串行。
+
+工具要求本地合法admin且目标public，普通学生不可用；只调用既有upload/ingestion生命周期，未自动Embedding、不制造ready。隔离数据库已验证uploaded→parsed、重复幂等和来源保持。**当前只达到可预览+可实际导入/解析；未完成本地关键词检索、真实全库向量索引或真实全课程问答**。现有BM25也要求ready，所以后续必须独立审查资料授权、预算、用途同意和真实索引后再检索。不要把36题未标注评测写成准确率。
+
+### 最终测试与保护
+
+最终结果见INTEGRATION_REPORT.md。开发库原业务表、V1未提交文件与0001–0006历史迁移做前后SHA256核对，根.env仅检查stat不读取内容，V2.env检查hash/0600/ignore，无覆盖。只新增0007并推进版本。Git只审查提交V2，不加入V1脏资产。

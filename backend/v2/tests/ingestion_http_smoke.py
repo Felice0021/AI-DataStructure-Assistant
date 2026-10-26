@@ -38,9 +38,6 @@ def stop_worker(process):
 
 
 def main():
-    with socket.socket() as probe:
-        probe.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
-        probe.bind(("127.0.0.1",8001))
     with isolated_database() as (engine,settings), tempfile.TemporaryDirectory(prefix="ds-v2-ingestion-http-") as directory, tempfile.TemporaryFile() as logs:
         parser_temp = Path(directory).resolve() / "parser-temp"
         parser_temp.mkdir(mode=0o700)

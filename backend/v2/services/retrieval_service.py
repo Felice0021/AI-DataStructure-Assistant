@@ -11,13 +11,13 @@ from backend.v2.services.vector_search import authorize_scope, eligible_chunks, 
 
 
 @contextmanager
-def capacity(engine, limit):
+def capacity(engine, limit, *, namespace=174925):
     # Session-level advisory slots bound memory/CPU across API processes.
     with engine.connect().execution_options(isolation_level='AUTOCOMMIT') as connection:
         slot = None
         try:
             for i in range(limit):
-                if connection.scalar(text('SELECT pg_try_advisory_lock(174925,:slot)'), {'slot': i}):
+                if connection.scalar(text('SELECT pg_try_advisory_lock(:namespace,:slot)'), {'slot': i, 'namespace':namespace}):
                     slot = i
                     break
             if slot is None:
@@ -25,7 +25,7 @@ def capacity(engine, limit):
             yield
         finally:
             if slot is not None:
-                connection.execute(text('SELECT pg_advisory_unlock(174925,:slot)'), {'slot': slot})
+                connection.execute(text('SELECT pg_advisory_unlock(:namespace,:slot)'), {'slot': slot, 'namespace':namespace})
 
 
 def fuse(dense, lexical, settings):
@@ -39,7 +39,7 @@ def fuse(dense, lexical, settings):
     return sorted(scores.values(), key=lambda x: (-x['fused_score'], str(x['chunk_id'])))
 
 
-def search(factory, user, data, settings, *, verify_session=None):
+def search(factory, user, data, settings, *, verify_session=None, include_snapshot=False,before_cloud_call=None):
     start = time.monotonic()
     if len(data.query) > settings.retrieval_max_query_chars or data.top_k > settings.retrieval_top_k:
         raise AuthError(422, 'retrieval_limit', 'Query or result limit exceeded')
@@ -51,7 +51,7 @@ def search(factory, user, data, settings, *, verify_session=None):
         query = None
         if terms and data.mode != 'bm25':
             try:
-                query = embed_query(factory, user, data.knowledge_base_ids, data.query, settings, allow_cloud=data.allow_cloud)
+                query = embed_query(factory, user, data.knowledge_base_ids, data.query, settings, allow_cloud=data.allow_cloud,verify_session=verify_session,before_cloud_call=before_cloud_call)
             except EmbeddingError as error:
                 code = 'cloud_consent_required' if error.code == 'cloud_consent_required' else 'dense_unavailable'
                 raise AuthError(403 if code == 'cloud_consent_required' else 503, code, 'Dense retrieval unavailable') from None
@@ -90,7 +90,9 @@ def search(factory, user, data, settings, *, verify_session=None):
             results = []
             for item in ranked[:data.top_k]:
                 source = sources[item['chunk_id']]
-                source.pop('content_hash', None)
+                snapshot = {k:source.pop(k) for k in ('content_hash','generation','index_revision','embedding_space_id')}
+                if include_snapshot:
+                    source['snapshot'] = snapshot
                 results.append({**source, **item})
             return {'requested_mode': data.mode, 'actual_mode': data.mode, 'degradation_reason': None,
                 'results': results, 'elapsed_ms': round((time.monotonic()-start)*1000,3),

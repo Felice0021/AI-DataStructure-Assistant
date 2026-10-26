@@ -29,8 +29,6 @@ def launch(module,env,logs):return subprocess.Popen([sys.executable,'-m',module]
 
 
 def main():
-    with socket.socket() as probe:
-        probe.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1);probe.bind(('127.0.0.1',8001))
     with isolated_database() as (engine,settings),tempfile.TemporaryDirectory(prefix='ds-vector-http-') as directory,tempfile.TemporaryFile() as logs:
         root=Path(directory).resolve();(root/'temp').mkdir(mode=0o700)
         config=settings.model_copy(update={'environment':'development','embedding_provider':'deterministic','embedding_allow_test_provider':True,

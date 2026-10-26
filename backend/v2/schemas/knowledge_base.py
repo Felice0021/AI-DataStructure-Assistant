@@ -4,6 +4,7 @@ from uuid import UUID
 import unicodedata
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic.json_schema import SkipJsonSchema
 
 
 class KnowledgeBaseInput(BaseModel):
@@ -32,8 +33,15 @@ class KnowledgeBaseCreate(KnowledgeBaseInput):
 
 
 class KnowledgeBaseUpdate(KnowledgeBaseInput):
-    name: str | None = Field(default=None, min_length=1, max_length=120)
-    description: str | None = Field(default=None, max_length=4000)
+    @model_validator(mode="before")
+    @classmethod
+    def reject_null(cls,value):
+        if isinstance(value,dict) and any(value.get(k) is None for k in ('name','description') if k in value):
+            raise ValueError("Explicit null is not allowed")
+        return value
+
+    name: str | SkipJsonSchema[None] = Field(default=None, min_length=1, max_length=120, json_schema_extra=lambda schema:schema.pop('default',None))
+    description: str | SkipJsonSchema[None] = Field(default=None, max_length=4000, json_schema_extra=lambda schema:schema.pop('default',None))
 
     @model_validator(mode="after")
     def require_changes(self):

@@ -12,7 +12,8 @@ from uuid import uuid4
 from backend.v2.core.security import new_token
 from backend.v2.manage import create_admin
 from backend.v2.tests.document_samples import PDF, TXT, DOCX_MIME, docx
-from backend.v2.tests.http_smoke import BASE, ORIGIN, Client, running_server
+from backend.v2.tests import http_smoke
+from backend.v2.tests.http_smoke import ORIGIN, Client, running_server
 from backend.v2.tests.support import isolated_database
 
 
@@ -22,7 +23,7 @@ def multipart(client, path, name, data, mime):
     boundary = "test" + uuid4().hex
     body = (f'--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="{name}"\r\nContent-Type: {mime}\r\n\r\n'.encode()
             + data + f"\r\n--{boundary}--\r\n".encode())
-    request = Request(BASE + path, data=body, method="POST", headers={
+    request = Request(http_smoke.BASE + path, data=body, method="POST", headers={
         "Origin": ORIGIN, "X-CSRF-Token": csrf["csrf_token"], "Content-Type": "multipart/form-data; boundary=" + boundary,
     })
     try:
@@ -35,7 +36,7 @@ def multipart(client, path, name, data, mime):
 
 def download(client, path):
     try:
-        response = client.opener.open(Request(BASE + path, headers={"Origin": ORIGIN}), timeout=15)
+        response = client.opener.open(Request(http_smoke.BASE + path, headers={"Origin": ORIGIN}), timeout=15)
     except HTTPError as error:
         response = error
     with response:
@@ -43,9 +44,6 @@ def download(client, path):
 
 
 def main():
-    with socket.socket() as probe:
-        probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        probe.bind(("127.0.0.1", 8001))
     with isolated_database() as (_, settings), tempfile.TemporaryDirectory(prefix="ds-v2-document-http-") as directory, tempfile.TemporaryFile() as logs:
         root = Path(directory).resolve() / "objects"
         env = os.environ.copy()

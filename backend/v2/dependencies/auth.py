@@ -78,3 +78,16 @@ def require_role(*roles: str):
         return user
 
     return dependency
+
+
+def lock_current_session(request: Request, session: Session) -> User:
+    """Final publication guard; caller first locks User, then this session, then KBs."""
+    user = get_current_user(request, session)
+    raw = request.cookies.get(request.app.state.settings.session_cookie, '')
+    record = session.scalar(select(AuthSession).where(
+        AuthSession.user_id == user.id, AuthSession.token_hash == token_digest(raw),
+        AuthSession.revoked_at.is_(None), AuthSession.expires_at > func.clock_timestamp(),
+    ).with_for_update(read=True))
+    if record is None:
+        raise unauthorized()
+    return user

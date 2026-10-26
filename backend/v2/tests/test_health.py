@@ -23,7 +23,11 @@ def test_liveness_and_openapi(app):
         }
         paths = client.get("/api/v2/openapi.json").json()["paths"]
         assert set(paths) == {
-            "/api/v2/retrieval/search",
+            "/api/v2/rag/ask",
+            "/api/v2/knowledge-bases/{kb_id}/cloud-consents",
+            "/api/v2/knowledge-bases/{kb_id}/cloud-consents/audit",
+            "/api/v2/knowledge-bases/{kb_id}/cloud-consents/{purpose}",
+            "/api/v2/retrieval/search", "/api/v2/retrieval/prepare-context",
             "/api/v2/health", "/api/v2/health/db", "/api/v2/auth/csrf",
             "/api/v2/auth/register", "/api/v2/auth/login", "/api/v2/auth/me", "/api/v2/auth/logout",
             "/api/v2/knowledge-bases", "/api/v2/knowledge-bases/{knowledge_base_id}",

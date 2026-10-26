@@ -24,14 +24,16 @@ def authorize_scope(session,user,kb_ids):
     return current
 
 
-def embed_query(factory,user,kb_ids,text,settings,*,allow_cloud=False):
+def embed_query(factory,user,kb_ids,text,settings,*,allow_cloud=False,verify_session=None,before_cloud_call=None):
     with factory() as session:
         authorize_scope(session,user,kb_ids)
         if settings.embedding_provider=='dashscope':
             space=session.get(EmbeddingSpace,space_for(settings).id)
             if not allow_cloud:raise EmbeddingError('cloud_consent_required')
             if space is None or space.verified_at is None:raise EmbeddingError('embedding_space_unverified')
-    provider=build_provider(settings,factory.kw['bind'])
+    from backend.v2.services.cloud_service import Guard
+    guard=Guard(factory,user.id,kb_ids,'embedding',settings,verify_session=verify_session,before_call=before_cloud_call)
+    provider=build_provider(settings,factory.kw['bind'],cloud_guard=guard)
     calls=0
     def reserve():
         nonlocal calls
@@ -54,7 +56,7 @@ def exact_search(session,user,kb_ids,query,settings,*,top_k=10,offset=0):
     return [{**row,'distance':float(row['distance']),'similarity':1-float(row['distance'])} for row in rows]
 
 
-def eligible_chunks(user,kb_ids,space_id,settings,*,limit=None):
+def eligible_chunks(user,kb_ids,space_id,settings,*,limit=None,chunk_ids=None):
     """Single published/current/authorized corpus for Dense and lexical retrieval."""
     valid_count=select(func.count()).select_from(ChunkEmbedding).join(DocumentChunk,ChunkEmbedding.chunk_id==DocumentChunk.id).where(
         ChunkEmbedding.document_id==Document.id,ChunkEmbedding.space_id==space_id,ChunkEmbedding.generation==Document.parsed_version,
@@ -68,11 +70,14 @@ def eligible_chunks(user,kb_ids,space_id,settings,*,limit=None):
         EmbeddingJob.index_revision==Document.index_revision,EmbeddingJob.expected_chunks==valid_count,EmbeddingJob.expected_chunks==chunk_count,
         DocumentChunk.generation==Document.ingestion_version,ChunkEmbedding.generation==Document.ingestion_version,
         DocumentChunk.content_hash==ChunkEmbedding.chunk_content_hash,ChunkEmbedding.space_id==space_id]
+    if chunk_ids is not None:
+        conditions.append(DocumentChunk.id.in_(chunk_ids))
     if settings.embedding_provider=='dashscope':conditions.append(Document.cloud_embedding_generation==Document.ingestion_version)
     # A materialized authorized CTE ensures unauthorized candidates are excluded before vector ordering.
     eligible=select(ChunkEmbedding.embedding,DocumentChunk.id.label('chunk_id'),Document.id.label('document_id'),
         KnowledgeBase.id.label('knowledge_base_id'),DocumentChunk.page_number,DocumentChunk.section_title,
-        DocumentChunk.chunk_index,DocumentChunk.content_hash,DocumentChunk.content,Document.original_filename.label('source_filename')).select_from(ChunkEmbedding)
+        DocumentChunk.chunk_index,DocumentChunk.content_hash,DocumentChunk.generation,Document.index_revision,
+        Document.embedding_space_id,DocumentChunk.content,Document.original_filename.label('source_filename')).select_from(ChunkEmbedding)
     eligible=eligible.join(DocumentChunk,ChunkEmbedding.chunk_id==DocumentChunk.id).join(Document,Document.id==DocumentChunk.document_id)
     eligible=eligible.join(KnowledgeBase,KnowledgeBase.id==Document.knowledge_base_id).join(EmbeddingSpace,EmbeddingSpace.id==ChunkEmbedding.space_id)
     eligible=eligible.join(EmbeddingJob,(EmbeddingJob.document_id==Document.id)&(EmbeddingJob.space_id==EmbeddingSpace.id))

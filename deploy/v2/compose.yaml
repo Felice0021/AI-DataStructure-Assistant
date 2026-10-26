@@ -4,7 +4,7 @@ services:
   db:
     # PostgreSQL 17.11 + pgvector 0.8.7; multiarch index includes linux/arm64.
     image: pgvector/pgvector:pg17@sha256:ac08538c6f8b9904c33c8224c5e5706dbe760aca29db1d096972b4052c22a75d
-    platform: linux/arm64
+    platform: ${DS_V2_DB_PLATFORM:-linux/arm64}
     environment:
       POSTGRES_DB: ${DS_V2_DB_NAME:-ds_assistant_v2}
       POSTGRES_USER: ${DS_V2_DB_USER:-ds_assistant_v2}

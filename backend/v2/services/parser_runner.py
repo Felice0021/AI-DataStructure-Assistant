@@ -79,10 +79,14 @@ def parse_source(source, claim, settings, stop=None):
         path = Path(directory).resolve() / "result.json"
         with path.open("w+b") as output:
             path.chmod(0o600)
-            run_restricted([sys.executable, "-I", "-B", str(CHILD), json.dumps(options)],
-                           source=source, input_path=input_path, output=output, output_path=path,
-                           timeout=settings.parse_timeout_seconds, memory_mb=settings.parse_memory_mb,
-                           output_limit=output_limit, stop=stop)
+            if settings.parser_backend=='docker' or sys.platform!='darwin':
+                from backend.v2.services.docker_parser import run
+                run(source,output,options,settings,stop)
+            else:
+                run_restricted([sys.executable, "-I", "-B", str(CHILD), json.dumps(options)],
+                               source=source, input_path=input_path, output=output, output_path=path,
+                               timeout=settings.parse_timeout_seconds, memory_mb=settings.parse_memory_mb,
+                               output_limit=output_limit, stop=stop)
             if os.fstat(output.fileno()).st_size > output_limit:
                 raise ParseFailure("output_limit")
             output.seek(0)

@@ -92,7 +92,7 @@ def add_auth_session(session, user, **overrides):
 def test_schema_and_vector(database):
     engine, _ = database
     inspector = inspect(engine)
-    assert set(inspector.get_table_names()) == {"users", "auth_sessions", "auth_login_limits", "knowledge_bases", "documents", "document_chunks", "ingestion_jobs", "embedding_spaces", "embedding_jobs", "chunk_embeddings", "alembic_version"}
+    assert set(inspector.get_table_names()) == {"users", "auth_sessions", "auth_login_limits", "knowledge_bases", "documents", "document_chunks", "ingestion_jobs", "embedding_spaces", "embedding_jobs", "chunk_embeddings", "alembic_version", "cloud_consents", "cloud_audits"}
     assert inspector.get_pk_constraint("users")["constrained_columns"] == ["id"]
     fk = inspector.get_foreign_keys("auth_sessions")[0]
     assert fk["referred_table"] == "users"

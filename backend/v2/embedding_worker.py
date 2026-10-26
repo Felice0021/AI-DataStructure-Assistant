@@ -8,6 +8,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
 
 from backend.v2.core.config import Settings
+from backend.v2.core.errors import AuthError
 from backend.v2.core.logging import configure_logging
 from backend.v2.db.session import build_engine, build_session_factory
 from backend.v2.models import EmbeddingSpace
@@ -17,13 +18,17 @@ from backend.v2.services.embedding_provider import EmbeddingError, build_provide
 logger=logging.getLogger(__name__)
 
 
-def run_once(factory,settings,stop=None,provider=None):
+def run_once(factory,settings,stop=None,provider=None,before_cloud_call=None):
     if not enabled(settings):return False
     with factory() as session:
         jobs.reconcile(session,settings)
         claim=jobs.claim_next(session,settings)
     if claim is None:return False
-    provider=provider or build_provider(settings,factory.kw['bind'])
+    from backend.v2.services.cloud_service import Guard
+    from backend.v2.models import EmbeddingJob
+    with factory() as session:actor_id=session.get(EmbeddingJob,claim.job_id).requested_by
+    guard=Guard(factory,actor_id,[claim.knowledge_base_id],'embedding',settings,document_id=claim.document_id,before_call=before_cloud_call,expected_generation=claim.generation,expected_index_revision=claim.index_revision)
+    provider=provider or build_provider(settings,factory.kw['bind'],cloud_guard=guard)
     def reserve():
         if stop is not None and stop.is_set():raise EmbeddingError('worker_stopped',True)
         with factory() as session:jobs.reserve_attempt(session,claim,settings)
@@ -48,6 +53,8 @@ def run_once(factory,settings,stop=None,provider=None):
             vectors=provider.embed([row[2] for row in batch],text_type='document',before_attempt=reserve)
             with factory() as session:
                 if not jobs.save_batch(session,claim,batch,vectors,settings):break
+    except AuthError:
+        with factory() as session:jobs.fail(session,claim,EmbeddingError('cloud_consent_required'),settings)
     except EmbeddingError as error:
         with factory() as session:jobs.fail(session,claim,error,settings)
     except SQLAlchemyError:

@@ -1,0 +1,105 @@
+{
+  "embedding": "PASS",
+  "reranker": "PASS",
+  "generator": "PASS",
+  "rag": "PASS",
+  "refusal": "PASS",
+  "normal_status": "answered",
+  "normal_reason": null,
+  "refusal_status": "insufficient_evidence",
+  "calls": [
+    {
+      "purpose": "embedding",
+      "event": "succeeded",
+      "elapsed_ms": 1398,
+      "usage": {
+        "total_tokens": 24,
+        "prompt_tokens": 24
+      }
+    },
+    {
+      "purpose": "embedding",
+      "event": "succeeded",
+      "elapsed_ms": 133,
+      "usage": {
+        "total_tokens": 24,
+        "prompt_tokens": 24
+      }
+    },
+    {
+      "purpose": "embedding",
+      "event": "succeeded",
+      "elapsed_ms": 123,
+      "usage": {
+        "total_tokens": 59,
+        "prompt_tokens": 59
+      }
+    },
+    {
+      "purpose": "embedding",
+      "event": "succeeded",
+      "elapsed_ms": 118,
+      "usage": {
+        "total_tokens": 26,
+        "prompt_tokens": 26
+      }
+    },
+    {
+      "purpose": "reranking",
+      "event": "succeeded",
+      "elapsed_ms": 163,
+      "usage": {
+        "total_tokens": 65,
+        "prompt_tokens": 65
+      }
+    },
+    {
+      "purpose": "generation",
+      "event": "succeeded",
+      "elapsed_ms": 1189,
+      "usage": {
+        "total_tokens": 526,
+        "prompt_tokens": 470,
+        "completion_tokens": 56
+      }
+    },
+    {
+      "purpose": "embedding",
+      "event": "succeeded",
+      "elapsed_ms": 138,
+      "usage": {
+        "total_tokens": 35,
+        "prompt_tokens": 35
+      }
+    },
+    {
+      "purpose": "reranking",
+      "event": "succeeded",
+      "elapsed_ms": 193,
+      "usage": {
+        "total_tokens": 76,
+        "prompt_tokens": 76
+      }
+    },
+    {
+      "purpose": "generation",
+      "event": "succeeded",
+      "elapsed_ms": 1908,
+      "usage": {
+        "total_tokens": 514,
+        "prompt_tokens": 494,
+        "completion_tokens": 20
+      }
+    }
+  ],
+  "estimated_usage_cost_cny": 0.001068,
+  "reserved_calls": 9,
+  "reserved_upper_cny": 3.6,
+  "data": "synthetic_only",
+  "cloud_defaults_unchanged": true,
+  "models": {
+    "embedding": "qwen3.7-text-embedding-flash/1024",
+    "reranker": "qwen3.7-text-rerank",
+    "generator": "qwen3.8-flash"
+  }
+}

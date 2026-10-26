@@ -1,3 +1,5 @@
+> 当前集成交付版本：2026-10-26，Alembic **0007_cloud_consents**，Generator **qwen3.8-flash**。当前启动、用途授权与API以 TEAM_ONBOARDING.md、FRONTEND_HANDOFF.md、openapi.json 及本文“最终集成”章节为准。以下旧阶段验收（0006、NOT VERIFIED、云生成硬阻塞）是历史记录，不代表当前状态。
+
 # V2 数据库模型
 
 数据库：PostgreSQL 17；扩展：pgvector；编码 UTF-8。
@@ -271,3 +273,41 @@ ready 文档有资格参与三种检索。Chunk 与有效向量计数须等于�
 授权/墓碑过滤在候选排名之前完成。检索的 KB FOR SHARE 与现有写路径的 KB FOR UPDATE 互斥，
 只覆盖有限本地计算事务，不跨云 API 请求。查询既不推进文档状态，也不改变知识库或索引代次。
 BM25 IDF 基于此次明确选择且获授权的完整有限候选集，超限明确拒绝；无全局固定语料、全局私人词频或跨用户文本缓存。
+
+
+## 3C-2A：证据版本与发布（无schema修改）
+
+head继续为0006_chunk_embeddings，历史迁移不变，无新持久化表或云端结果缓存。
+证据快照为Chunk UUID + content_hash + generation + document index_revision + embedding_space_id。
+最终查询仍联查有效KB、ready文档、当前解析/索引代次、Chunk、向量空间和succeeded任务；管理员不豁免所有权。
+最终短事务按User→AuthSession→KB的顺序取得共享锁；现有KB→document→job写路径与之互斥。
+上下文不推进任务、不修改状态、不存储或发送生成答案；引用是一次请求内的标识，不是可绕过授权的永久下载地址。
+
+
+## 3C-2B：回答发布与生成授权阻塞（无新迁移）
+
+head继续0006_chunk_embeddings。新增RAG服务不持久化问题、答案或聊天历史，不修改业务表。
+共用validate_evidence及User/AuthSession/KB共享锁复核整个生成输入快照，生成前后均匹配hash、generation、index_revision和embedding_space_id。
+响应sources仅从仍有效的数据库Chunk及文档来源构造，不接受模型提供的文件名/页码/UUID。
+
+当前无生成用途的持久化外发同意/撤销审计模型；Embedding文档代次同意不覆盖生成服务，Rerank请求同意也不自动继承。
+本轮选择保持生产云端生成阻塞，不用单个HTTP布尔值冒充可审计授权。未来如启用，应通过新迁移建立最小用途、主体、资源版本、
+模型/服务范围、时间、撤销和审计事件关联，并实现相应服务端验证；不得改写历史迁移或仅打开环境开关绕过。
+
+
+## 最终集成：0007_cloud_consents（当前 head）
+
+迁移链在0006之后新增0007；0001–0006保持原文件。只新增下列两张表和审计查询索引，不改写既有业务记录。
+
+|表|字段与约束|
+|---|---|
+|cloud_consents|UUID主键；user_id/knowledge_base_id UUID外键RESTRICT；purpose CHECK embedding/reranking/generation；provider CHECK dashscope；model varchar128；service_key SHA256；granted_at timestamptz；revoked_at可空；UNIQUE(user_id,knowledge_base_id,purpose,service_key)|
+|cloud_audits|UUID主键；user_id外键RESTRICT；purpose/service_key；event CHECK granted/revoked/attempt/succeeded/failed；details JSONB；created_at；(user_id,created_at)索引|
+
+service_key覆盖purpose、provider、model、endpoint及Embedding revision，数据库中不保存端点/Key；授权范围为该用户/KB当前及未来版本。撤销不删除授权与审计，重新授予更新granted_at并清空revoked_at。旧服务指纹可保留历史，但不能满足新配置授权。文档当前代次cloud_embedding_generation仍作为额外门槛，不把Embedding授权扩大为Reranking或Generation。
+
+审计仅安全元数据：调用随机关联ID、KB/文档/Chunk UUID、代次/hash、模型、固定事件、耗时和numeric usage，不保存问题、全文、答案、原始token、Key或完整URL。succeeded是一次传输上下文成功完成；响应格式/引用是否合法仍由Provider和RAG校验，不能据此统计事实质量。审计是应用追加约定，尚无数据库不可篡改策略、周期清理和完整保留政策。
+
+开发库upgrade head、重复upgrade和Alembic check已实测；原有10张业务表行指纹不变，仅alembic_version推进到0007，两张新表在开发库为空。集成测试使用随机隔离库，授权数据/真实合成调用审计均在隔离库测试后清理，不把测试账号留在开发库。
+
+当前document_chunks读取支持parsed、indexing、ready、index_failed中仍匹配parsed_version的当前代次；检索三模式要求ready及完整当前向量空间，不能把parsed课程导入当成可检索ready。0007不改变Chunk/Embedding发布语义。

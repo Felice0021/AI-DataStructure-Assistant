@@ -10,12 +10,16 @@ from sqlalchemy.exc import SQLAlchemyError
 from backend.v2.core.config import Settings, get_settings
 from backend.v2.core.logging import configure_logging
 from backend.v2.db.session import build_engine, build_session_factory
+from backend.v2.routers.retrieval import router as retrieval_router
+from backend.v2.routers.embedding import router as embedding_router
+from backend.v2.routers.ingestion import router as ingestion_router
+from backend.v2.routers.documents import router as document_router
 from backend.v2.routers.health import router
 from backend.v2.routers.auth import router as auth_router
 from backend.v2.core.errors import AuthError
 from backend.v2.routers.knowledge_bases import router as knowledge_base_router, admin_router
 
-PRIVATE_API_PREFIXES = ("/api/v2/auth", "/api/v2/knowledge-bases", "/api/v2/admin/knowledge-bases")
+PRIVATE_API_PREFIXES = ("/api/v2/retrieval", "/api/v2/auth", "/api/v2/knowledge-bases", "/api/v2/admin/knowledge-bases")
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -44,6 +48,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(auth_router)
     app.include_router(knowledge_base_router)
     app.include_router(admin_router)
+    app.include_router(document_router)
+    app.include_router(ingestion_router)
+    app.include_router(embedding_router)
+    app.include_router(retrieval_router)
 
     @app.middleware("http")
     async def auth_cache_control(request: Request, call_next):

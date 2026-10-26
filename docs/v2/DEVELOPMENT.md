@@ -47,7 +47,7 @@ python -m alembic -c backend/v2/alembic.ini current
 python -m alembic -c backend/v2/alembic.ini check
 ```
 
-当前 head 为 `0003_knowledge_bases`，既有 `0001_auth_foundation`、`0002_login_limits` 保持原样。迁移与应用读取相同 V2 配置。
+当前 head 为 `0006_chunk_embeddings`，既有 0001–0005 保持原样。迁移与应用读取相同 V2 配置。
 不要运行 `create_all()` 代替迁移；应用启动不会自动建表。
 后续模型变更可用 `revision --autogenerate -m "描述"` 生成草稿，必须审查 SQL 再应用。
 重复升级安全；downgrade 和删除数据卷不是常规关闭步骤。
@@ -372,3 +372,473 @@ docs/v2/ARCHITECTURE.md
 docs/v2/DATABASE_SCHEMA.md
 docs/v2/DEVELOPMENT.md
 ```
+
+## 3B-1：文件管理开发
+
+沿用现有 V2 Python 3.12 环境；新增官方 python-multipart==0.0.32，两个锁定依赖文件均已更新。
+
+```zsh
+source ~/.virtualenvs/ai-datastructure-v2/activate-v2.zsh
+python -m pip install -r backend/v2/requirements-dev.txt
+python -m pip check
+python -m alembic -c backend/v2/alembic.ini upgrade head
+python -m alembic -c backend/v2/alembic.ini check
+DS_V2_RUN_DB_TESTS=1 python -m pytest -c backend/v2/pyproject.toml backend/v2/tests -q
+python -m backend.v2.tests.documents_http_smoke
+```
+
+API 启停仍按第 4 节，端口 8001。HTTP 脚本只临时使用该端口，拒绝覆盖已有监听服务；
+创建随机数据库和临时对象目录，用两个 worker 运行，finally 关闭服务并清理本轮资源。
+测试不向默认真实文件目录写入，不将文件写到仓库/知识库，也不重建开发数据库。
+
+### 文件配置（环境变量，不改根 .env）
+
+|变量|默认值|
+|---|---|
+|DS_V2_FILE_STORAGE_ROOT|~/Library/Application Support/AI-DataStructure-Assistant/v2/files（代码使用用户 home 绝对路径）|
+|DS_V2_UPLOAD_MAX_BYTES|20971520（20 MiB，配置范围 1 byte–100 MiB）|
+|DS_V2_DOCUMENTS_PER_KB|100|
+|DS_V2_STORAGE_BYTES_PER_KB|1073741824（1 GiB）|
+|DS_V2_STORAGE_TOTAL_BYTES|10737418240（10 GiB，当前数据库元数据覆盖的对象）|
+|DS_V2_UPLOAD_TIMEOUT_SECONDS|120（multipart 接收/解析期限）|
+
+根路径须为仓库外绝对路径，不得指向公开静态目录、其他项目或已有用户文件。
+仅当第一次文件操作时创建私有目录（新目录 0700、对象 0600）；已有根目录权限过宽会返回脱敏 503，
+不会自动 chmod 他人目录。目录任一层为符号链接会被拒绝；macOS 测试临时目录使用 resolve 后路径。
+不能让多个独立数据库共用同一对象根；配额锁与计量以部署数据库为边界。
+
+### 生命周期、恢复与后续 Worker
+
+接收前认证及 CSRF → 父知识库行锁/配额与跨进程上传槽 → 有界 multipart 临时 spool →
+64 KiB 流式写入私有临时对象、大小/摘要/格式验证 → fsync/原子 rename → 元数据提交。
+失败回滚元数据并补偿删除当前对象；补偿清理失败只记录固定消息，不能暴露磁盘路径。
+
+DELETE 先提交 deleted_at，再 unlink；清理后标记 storage_deleted_at。清理失败保持墓碑，重复相同 DELETE
+可重试。对象已缺失但清理标记未写入也可重试。不要回滚墓碑来恢复可见性。
+父知识库软删除不物理删文件，仍占用配额；当前没有 parent purge、恢复、自动清理命令或后台任务。
+后续受控清理必须先核对文档/父知识库墓碑及文件所属，禁止遍历根目录后无差别删除。
+
+Worker 未来应基于受控任务身份调用 document_service.get_document/open_download 的授权边界，
+重新检查父知识库有效性、文档墓碑和索引版本；不能直接用 storage_key 或数据库管理员权限跳过授权。
+当前 uploaded 仅表示原文件持久化，不产生文本、chunks、embedding、Worker 任务或 RAG 数据。
+
+### 生产限制
+
+- 当前容量配额覆盖数据库已登记对象，不能覆盖进程崩溃/提交结果不确定/补偿失败留下的孤儿文件，
+  也不统计 multipart 操作系统临时 spool、数据库/WAL 和文件系统额外开销；生产需磁盘/临时目录配额与监控。
+- 文件系统与 PostgreSQL 无分布式原子提交；进程在 rename 与 commit 之间崩溃可能留孤儿。
+  尚无自动对账/清理，需未来受控恢复流程。不能直接批量删除未知对象。
+- 跨进程单上传槽限制吞吐；等待知识库锁仍占用连接，慢客户端解析最长 120 秒。
+  ASGI/代理的连接数、请求体/空闲超时与注册/请求速率限制仍须上线前配置。
+- 格式验证不是反病毒、PDF JavaScript 检测或完整 Office 文档语义验证；只允许安全附件下载，暂不内联预览。
+- 未做用户总文件数/知识库创建数、墓碑元数据保留期与下载带宽限制；不能宣称已解决所有资源耗尽风险。
+- 生产还需 TLS、最小权限服务账户、存储/数据库一致备份和恢复演练。默认目录是本机开发存储，不是高可用对象存储。
+
+依赖和解析边界参考：[Starlette request.form](https://starlette.dev/requests/)、
+[python-multipart 官方发布](https://pypi.org/project/python-multipart/)。
+
+### 3B-1 本机实际验证（2026-10-26）
+
+- Python 3.12.15 独立 V2 环境，新增 python-multipart==0.0.32；pip check 无依赖冲突。
+- 完整 pytest：227 passed（原 128 项继续通过，新增 99 项），无警告。
+- 真实两个 Uvicorn worker、两个独立学生及本地管理员：PDF/DOCX/TXT multipart 上传、SHA-256、
+  下载原字节一致、附件响应、删除后 404、跨账户详情/列表/下载/删除 404、公共文件权限及 CSRF 均通过。
+- 数据库实际执行 upgrade head，当前 0004_documents；重复 upgrade 与 Alembic check 通过，无新增操作。
+  0001–0003 哈希不变，documents 两个 RESTRICT 外键及全部索引已检查。
+- 回归覆盖空文件/格式/非法路径/超限/无 Content-Length、ZIP 元数据损坏/可疑结构、符号链接、
+  并发配额、父知识库删除锁竞争、数据库提交失败补偿、原子发布失败、清理失败重试、解析接收超时。
+- 所有文件测试使用隔离临时目录，所有集成测试使用随机测试库；测试库剩余 0，临时 8001 API 已停止。
+- 开发数据库原四张业务表内容指纹不变，新增 documents 为 0 行；保留数据库容器与数据卷。
+- 核对 175 个原有文件，只有下列 12 个预期 V2 文件修改；根/V2 .env、V1 .venv 配置、
+  V1/RAG/知识库/评测资产及旧迁移保持原样。真实凭证/私钥模式扫描未发现泄露。
+- main / 0276fad 保持不变；本轮无暂存、commit、push、merge 或分支切换。
+
+### 3B-1 文件清单
+
+新增 11 个文件：
+
+```text
+backend/v2/migrations/versions/0004_documents.py
+backend/v2/models/document.py
+backend/v2/routers/documents.py
+backend/v2/schemas/document.py
+backend/v2/services/document_service.py
+backend/v2/services/file_storage.py
+backend/v2/services/file_validation.py
+backend/v2/tests/document_samples.py
+backend/v2/tests/documents_http_smoke.py
+backend/v2/tests/test_document_security.py
+backend/v2/tests/test_documents.py
+```
+
+修改 12 个 V2 文件：
+
+```text
+backend/v2/core/config.py
+backend/v2/main.py
+backend/v2/models/__init__.py
+backend/v2/requirements-dev.txt
+backend/v2/requirements.in
+backend/v2/requirements.txt
+backend/v2/tests/test_database.py
+backend/v2/tests/test_health.py
+docs/v2/API_CONTRACT.md
+docs/v2/ARCHITECTURE.md
+docs/v2/DATABASE_SCHEMA.md
+docs/v2/DEVELOPMENT.md
+```
+
+原测试仅扩展 OpenAPI 路径和 schema 表集合断言，未移除原有检查目标。
+
+## 3B-2A：解析 Worker 开发与运行
+
+仍仅使用独立 V2 环境；新增官方 PyPI 依赖 pypdf==6.21.2、python-docx==1.2.0、psutil==7.2.2，
+传递依赖 lxml==6.1.3（Python 3.12/macOS ARM64 实际安装），运行和开发锁文件均记录精确版本。
+已检查 python-docx XML parser 的 resolve_entities=False；本模块另在解析前拒绝 XML DTD/ENTITY，沙箱再限制网络/文件。
+来源：[pypdf](https://pypi.org/project/pypdf/)、[python-docx](https://pypi.org/project/python-docx/)、
+[pypdf 提取边界](https://pypdf.readthedocs.io/en/stable/user/extract-text.html)。没有引入 OCR 或外部转换程序。
+
+```zsh
+source ~/.virtualenvs/ai-datastructure-v2/activate-v2.zsh
+python -m pip install -r backend/v2/requirements-dev.txt
+python -m pip check
+python -m alembic -c backend/v2/alembic.ini upgrade head
+python -m alembic -c backend/v2/alembic.ini check
+# 终端一按前文配置启动 API；终端二使用相同 V2 数据库/存储配置运行：
+python -m backend.v2.worker
+# 单次对账并最多领取一个任务后退出（不保证清空队列）：
+python -m backend.v2.worker --once
+```
+
+Worker 默认前台运行，Ctrl-C 或 SIGTERM 安全停止；请只终止自己启动的进程，不使用 pkill 批量终止。
+停止中的子进程被终止并等待回收，有效任务回 queued；如果数据库当时不可用，租约仍保证后续可恢复。
+SIGKILL 无法执行 finally，依靠租约到期重新领取；子进程自身 alarm 限制孤儿存活。
+API 关闭不自动关闭独立 Worker；开发时分别停止。不要为了恢复队列删除数据库或批量清空任务表。
+
+### 解析与 Chunk 配置
+
+均为 DS_V2_ 环境变量（不要求改写现有本地 .env）：
+
+|变量后缀|默认值/范围|
+|---|---|
+|PARSE_MAX_PAGES|300，1–2000；仅 PDF 能提供可靠实际页数|
+|PARSE_MAX_TEXT_CHARS|2000000，1–10000000|
+|PARSE_TIMEOUT_SECONDS|30，1–300；独立子进程墙钟预算|
+|PARSE_MEMORY_MB|256，64–2048；父进程 RSS 采样看门狗|
+|CHUNK_SIZE|1200，32–8000；字符数，不是 token|
+|CHUNK_OVERLAP|150，必须 >=0 且小于 CHUNK_SIZE|
+|PARSE_MAX_CHUNKS|2000，1–10000|
+|INGESTION_LEASE_SECONDS|90，20–1800；必须 >= 解析时限 + 15 秒|
+|INGESTION_MAX_ATTEMPTS|3，1–10；每代次最大领取次数|
+|INGESTION_RETRY_SECONDS|5，1–3600；首次重试延后，后续指数退避|
+|WORKER_POLL_SECONDS|1，0.1–60|
+
+修改时所有 API/Worker 使用相同配置；已创建任务的 max_attempts 是当时快照，显式重试会采用新配置。
+不要把长解析时间设为大于租约；无心跳长任务会丢弃过期结果。增加文件/文本/Chunk 上限必须重新评估 RAM/数据库负载。
+
+### 独立真实验证
+
+```zsh
+DS_V2_RUN_DB_TESTS=1 python -m pytest -c backend/v2/pyproject.toml backend/v2/tests -q
+python -m backend.v2.tests.ingestion_http_smoke
+```
+
+HTTP 脚本只使用随机测试数据库和临时文件目录，启动两个 API worker 和独立 ingestion Worker。
+真实 SIGKILL 仅作用于本轮 PID，等待真实 20 秒租约过期后由两个 Worker 恢复，不篡改租约时间。
+再核对 PDF/DOCX/TXT parsed、真实 DB Chunk 内容/顺序/hash/页码、两个学生的任务/Chunk 隔离及 CSRF。
+测试只输出 PASS，不输出文档正文、账户密码、Cookie 或数据库 URL。
+
+### 已知边界
+
+- 当前强制沙箱运行路径仅支持已验证的 macOS sandbox-exec；其他平台或不可用时失败关闭，不自动降级。
+  Apple 沙箱命令存在长期兼容风险；Linux/生产容器隔离尚未实现。系统运行库路径白名单面向当前 Homebrew 环境。
+- 当前 macOS 的 RLIMIT_DATA/AS 不可可靠使用，RSS 通过 50 ms 采样杀进程，有瞬时超限窗口，
+  不能宣称内核级内存硬上限。每个 Worker 各自占用解析预算，生产还需限制 Worker 总数并设置 OS/容器内存与 CPU 配额。
+- 默认最长 30 秒和 CPU/alarm/输出文件限额经过真实测试；格式检查不是反病毒，原始附件仍应视为不可信。
+- PDF 不做 OCR/复杂版面恢复；DOCX 无渲染页码、文本框/页眉页脚/嵌套表格和复杂公式可能不完整。
+  列表和公式尽力保留，长代码/公式超过字符上限仍会拆开；Unicode 按 code point，不保证 grapheme 完整。
+- 文本/Chunk 存于 PostgreSQL，日志不存全文。当前无解析文本总容量配额、任务历史审计或自动墓碑清理。
+- 0004 文件 rename 到数据库提交之间的孤儿对象窗口仍需未来受控存储对账；本轮对账仅修复已有文档缺任务，绝不扫描删除未知文件。
+- 下一阶段向量化应绑定 document_id + generation + chunk_index/content_hash，在提交时再次复用当前父/文档授权和墓碑检查；
+  只有同一代所有向量索引成功才可写 ready。不得直接用 parsed 当作可检索完成状态。
+
+### 3B-2A 本机交付验证（2026-10-26）
+
+- 完整 V2 pytest：279 passed，原 227 项继续通过，新增 52 项；无警告。
+- 沙箱实测必须返回 EPERM/EACCES（不能用未监听端口的连接失败冒充网络隔离）：
+  合成私有 canary 内容读取/改写、网络连接、外部进程启动均拒绝，允许指定输入描述符读取。
+  实际超时和 RSS 超限进程被终止并回收；PDF/DOCX/TXT 子进程解析通过。
+- 两套 Worker 领取/发布、租约 token fencing、旧代次隔离、取消、重试退避/上限、断库回滚、
+  任务插入失败的上传补偿、0004 旧文件对账、页/文本/Chunk/时间上限及 XML ENTITY 拒绝均通过。
+- 真实 HTTP + 两个独立 Worker：三类文件全部 parsed；真实数据库 Chunk 的内容、顺序、hash、PDF 页码核对通过。
+- 真实 SIGKILL 终止本轮 Worker，等待实际 20 秒租约到期恢复；最终只有一份有效 Chunk，attempts=2。
+  两个学生的私人任务/Chunk 读取与重试隔离通过，缺失 CSRF 拒绝。
+- 开发库 upgrade head、重复 upgrade、current、check 通过，head=0005_document_ingestion，schema 无差异。
+  数据库 PostgreSQL 17.11 / pgvector 0.8.7；原五张业务表按旧列的内容指纹不变，新 jobs/chunks 均无测试记录。
+- 隔离测试库剩余 0，临时 API/Worker/parser 均已停止；测试对象、解析结果目录已清理。
+  SIGKILL 联调将 TMPDIR 指向本轮专用临时目录，避免中断时留下未归属的结果。
+- 一般生产 SIGKILL 仍可能留下私有解析临时结果；应为 Worker 配置部署专属 TMPDIR、磁盘预算及受控清理策略，
+  不得批量扫描删除系统临时目录。任务恢复本身不依赖旧结果文件，也不会把孤儿结果直接提交数据库。
+- 核对 186 个原有文件：V1、既有未提交评测/知识库、根/V2 .env、V1 .venv 配置和 0001–0004 均保持原样；
+  仅对下列必要 V2 文件扩展，原 3B-1 代码未清理或替换为另一套实现。
+- 真实凭证与私钥/token 模式检查通过；没有上传文件、临时结果或真实密码进入 Git。
+  分支 main、HEAD 0276fad、暂存区为空；未 commit/push/merge/rebase。
+
+### 本轮文件清单（相对于 3B-1 工作区）
+
+新增 14 个文件：
+
+```text
+backend/v2/migrations/versions/0005_document_ingestion.py
+backend/v2/models/ingestion.py
+backend/v2/parser_child.py
+backend/v2/routers/ingestion.py
+backend/v2/schemas/ingestion.py
+backend/v2/services/chunking.py
+backend/v2/services/ingestion_service.py
+backend/v2/services/parser_runner.py
+backend/v2/services/text_extraction.py
+backend/v2/tests/ingestion_http_smoke.py
+backend/v2/tests/ingestion_samples.py
+backend/v2/tests/test_ingestion.py
+backend/v2/tests/test_parsing.py
+backend/v2/worker.py
+```
+
+修改 15 个文件：
+
+```text
+backend/v2/models/document.py
+backend/v2/schemas/document.py
+backend/v2/services/document_service.py
+backend/v2/core/config.py
+backend/v2/main.py
+backend/v2/models/__init__.py
+backend/v2/requirements-dev.txt
+backend/v2/requirements.in
+backend/v2/requirements.txt
+backend/v2/tests/test_database.py
+backend/v2/tests/test_health.py
+docs/v2/API_CONTRACT.md
+docs/v2/ARCHITECTURE.md
+docs/v2/DATABASE_SCHEMA.md
+docs/v2/DEVELOPMENT.md
+```
+
+本轮到此停止；不实现 Embedding、向量索引、混合检索、问答、OCR 或 Vue 前端。
+
+## 3B-2B：Embedding 与精确检索
+
+运行/开发依赖增加 pgvector==0.5.0，并将已有测试环境 httpx2==2.16.0/httpcore2==2.16.0/truststore==0.10.5
+纳入运行锁；未安装 V1 RAG、DashScope 全局 SDK 或模型权重。pip check/真实 PostgreSQL 和客户端测试验证兼容性。
+
+```zsh
+source ~/.virtualenvs/ai-datastructure-v2/activate-v2.zsh
+python -m pip install -r backend/v2/requirements-dev.txt
+python -m alembic -c backend/v2/alembic.ini upgrade head
+python -m alembic -c backend/v2/alembic.ini check
+python -m backend.v2.worker             # 保持现有解析 Worker
+python -m backend.v2.embedding_worker   # 在另一终端运行独立索引 Worker，默认关闭即退出
+# 或单次最多处理一个索引任务：
+python -m backend.v2.embedding_worker --once
+DS_V2_RUN_DB_TESTS=1 python -m pytest -c backend/v2/pyproject.toml backend/v2/tests -q
+python -m backend.v2.tests.embedding_http_smoke
+```
+
+两个 Worker 均 Ctrl-C/SIGTERM 安全停止，仅终止自己启动的 PID。远程请求受绝对超时约束，停止信号在下一请求预占前生效；
+强制中断依靠租约恢复，不清空任务/向量/开发数据库。测试脚本使用专属 TMPDIR、临时存储和随机测试库，并终止本轮 API/Worker。
+
+### 默认配置与成本边界
+
+所有变量前缀 DS_V2_，公开模板位于 deploy/v2/.env.example；现有本地 .env 不修改，根 .env 不读取，不能自动借用 V1 Key。
+
+|配置后缀|默认值|
+|---|---|
+|EMBEDDING_PROVIDER|disabled（另有 dashscope、仅开发显式启用的 deterministic）|
+|EMBEDDING_CLOUD_ENABLED|false|
+|EMBEDDING_API_KEY|无，使用独立 V2 凭证/安全注入|
+|EMBEDDING_MODEL / MODEL_REVISION|qwen3.7-text-embedding-flash / unverified；云端须显式填写发布 revision|
+|EMBEDDING_DIMENSION|1024；其他维度必须新增 schema 迁移|
+|EMBEDDING_BATCH_SIZE|10，上限10|
+|EMBEDDING_MAX_INPUT_CHARS / BYTES|2000 / 8192，不静默截断|
+|EMBEDDING_TIMEOUT_SECONDS / REQUEST_RETRIES / BACKOFF_SECONDS|15 / 2 / 1；指数退避，单批最多3次可能请求|
+|EMBEDDING_CONCURRENCY|1；PostgreSQL 会话 advisory slots 跨进程限制，最多8|
+|EMBEDDING_MAX_CHUNKS / MAX_API_CALLS|500 / 150；每文档索引代次|
+|EMBEDDING_JOB_TIMEOUT_SECONDS / LEASE_SECONDS|180 / 90；租约须覆盖单次超时+最大退避+15秒|
+|EMBEDDING_MAX_ATTEMPTS / QUEUE_CAPACITY|3 / 1000|
+
+官方文档核对：flash 支持默认1024维，最多20条、每条128000 tokens；本实现批次10且 UTF-8输入字节最多8192，采用更保守预算，
+不是精确 tokenizer 计数。document 与 query 使用相应 text_type。严格恢复 index/text_index 顺序，不接受缺失/重复/矛盾序号。
+来源：[阿里云同步 Embedding API](https://help.aliyun.com/en/model-studio/text-embedding-synchronous-api)、
+[模型概览](https://www.alibabacloud.com/help/en/model-studio/embedding)、[pgvector](https://github.com/pgvector/pgvector)。
+文档支持不等于账号/API实际验证；工作空间或地域可能要求独立官方端点，配置只允许官方 HTTPS 域名，无重定向/环境代理。
+
+测试 Provider 必须 environment=development + EMBEDDING_ALLOW_TEST_PROVIDER=true + provider=deterministic，
+不用于生产、不评测语义质量、不与真实模型空间混用；不是云端不可用时的自动回退。
+
+### 云端与本轮真实 API 状态
+
+本轮未配置可用的独立 V2 Embedding Key，云端没有启用；未读取根 .env，未调用付费 API，未发送任何私人文档。
+因此云端真实可用性、真实响应1024维及语义检索质量均为“未验证”，不能标记 PASS。
+已有适配器的协议/顺序/异常/超时测试使用可控传输，不冒充真实云端测试。
+正式启用后先针对合成文本完成双 text_type 探测，再由用户对每份当前代次文档显式 POST allow_cloud=true；不批量替用户同意。
+并发首次探测可能重复，仍计入各任务预算。模型别名的静默权重变化无法仅凭响应维度检测，需供应商版本确认和显式 revision 更新。
+
+### 未解决的生产风险及后续接入
+
+- 缓存减少重试成本，但 API 成功响应后、缓存提交前崩溃/网络结果不明仍可能重复计费；预占计数/期限/最大尝试是请求数预算，不是货币硬封顶。
+- 显式人工重试可开新预算；尚无每用户/每日金额配额、查询调用速率限制、账单对账和前端同意管理，生产必须补齐。
+- 内部云查询每次仅有限请求重试和全局槽限制，不公开 HTTP 搜索接口，调用方仍须授权并明确同意发送查询文本。
+- 空间迁移前停止旧 Worker、统一配置并递增模型 revision；不同配置同时运行可能反复变更索引目标并浪费成本，但不会跨空间混算。
+- 部分缓存、旧空间、墓碑尚无自动容量回收；任务队列和每文档预算不能替代数据库/WAL 磁盘配额。
+- 精确全量排序适合当前基础验证，未评测大规模延迟；HNSW/IVFFlat、BM25、重排及召回阈值均未实现。
+- 后续 Hybrid RAG 应通过内部授权 exact_search/embed_query 接入，保留 space/generation/hash 和来源，所有其他召回分支使用同样 KB/文档墓碑过滤。
+  不得把向量 ready 当作回答正确性保证，不能直接搬用 V1 距离阈值。
+
+
+### 3B-2B 本轮实际验收（2026-10-26）
+
+- 完整 V2 pytest：330 passed（原有 279 项，加本轮 51 项）。
+- 开发数据库 `alembic upgrade head`、重复升级及 `alembic check` 通过，当前 `0006_chunk_embeddings`；物理列为 `vector(1024)`。原有七张业务表的数据指纹未变化，新向量相关表无测试数据残留。
+- 随机隔离数据库和私有临时目录中，真实 HTTP 上传 TXT/PDF/DOCX，独立解析及向量 Worker 将文档推进到 parsed/indexing/ready；验证数据库 Chunk、1024 维向量、精确余弦距离及来源页码。
+- 强制终止已提交部分缓存的向量 Worker，真实等待租约到期，再启动两个 Worker；任务恢复并复用已完成批次，最终只有一次有效发布。
+- 两个独立学生及管理员完成真实会话授权验证：私人查询隔离、公共知识库可读、管理员无私人资料豁免，越权 HTTP 请求统一 404，缺失 CSRF 写请求 403。
+- 自动化和上述链路仅使用明确启用的确定性测试 Provider；这不证明云端模型语义质量。V2 独立 Key 未配置，云端关闭，真实云 API 可用性和返回维度未验证。
+- `pip check`、差异空白检查及 V2 凭证扫描通过。临时数据库、文件目录、API 与 Worker 进程已清理。开发数据库及数据卷保留。
+- main/0276fad 未改变，暂存区为空；199 个原有受保护文件及历史 0001–0005 迁移保持原样。根目录 .env 未读取，元数据保持不变；未修改 V1、未提交或推送。
+
+本轮文件清单（相对于本轮开始时的工作区；此前 3B-1/3B-2A 未提交内容保留）：
+
+**新增（12）**
+
+- `backend/v2/embedding_worker.py`
+- `backend/v2/migrations/versions/0006_chunk_embeddings.py`
+- `backend/v2/models/embedding.py`
+- `backend/v2/routers/embedding.py`
+- `backend/v2/schemas/embedding.py`
+- `backend/v2/services/embedding_provider.py`
+- `backend/v2/services/embedding_service.py`
+- `backend/v2/services/task_leases.py`
+- `backend/v2/services/vector_search.py`
+- `backend/v2/tests/embedding_http_smoke.py`
+- `backend/v2/tests/test_embedding_provider.py`
+- `backend/v2/tests/test_embeddings.py`
+
+**修改（17）**
+
+- `backend/v2/models/document.py`
+- `backend/v2/models/ingestion.py`
+- `backend/v2/schemas/document.py`
+- `backend/v2/services/ingestion_service.py`
+- `backend/v2/core/config.py`
+- `backend/v2/main.py`
+- `backend/v2/models/__init__.py`
+- `backend/v2/requirements-dev.txt`
+- `backend/v2/requirements.in`
+- `backend/v2/requirements.txt`
+- `backend/v2/tests/test_database.py`
+- `backend/v2/tests/test_health.py`
+- `deploy/v2/.env.example`
+- `docs/v2/API_CONTRACT.md`
+- `docs/v2/ARCHITECTURE.md`
+- `docs/v2/DATABASE_SCHEMA.md`
+- `docs/v2/DEVELOPMENT.md`
+
+
+## 3C-1：Hybrid 检索开发
+
+V2 新增 jieba==0.42.1，已在独立 Python 3.12 环境安装；依赖锁同步 runtime/dev，V1 虚拟环境保持不变。
+分词实现参考 [jieba 官方项目](https://github.com/fxsjy/jieba)，算法参考 V1 BM25/RRF，但不导入 V1，不初始化全局语料。
+无需新迁移；沿用 0006。API 启动方式不变，独立 Worker 仍负责将文件推进 ready。
+
+```bash
+source ~/.virtualenvs/ai-datastructure-v2/activate-v2.zsh
+python -m pip install -r backend/v2/requirements-dev.txt
+python -m alembic -c backend/v2/alembic.ini upgrade head
+python -m alembic -c backend/v2/alembic.ini check
+DS_V2_RUN_DB_TESTS=1 python -m pytest backend/v2/tests -q
+python -m backend.v2.tests.retrieval_http_smoke
+python -m backend.v2.main
+```
+
+HTTP 冒烟测试会拒绝占用已有 8001 服务，只创建随机隔离数据库和临时文件目录，运行双进程 API 与独立解析/索引 Worker；
+只使用合成文本和显式 development deterministic Provider，不向云端发请求，退出清理本轮资源。
+日常配置写到独立 V2 环境变量或 deploy/v2/.env，不读取根 .env，也不复制 V1 Key。
+默认无已发布向量时 bm25 返回空；默认 dense/hybrid 对非空有效查询返回 dense_unavailable，不自动启用测试 Provider。
+
+### 检索配置（DS_V2_ 前缀）
+
+|后缀|默认值|边界|
+|---|---|---|
+|RETRIEVAL_CANDIDATE_K|20|每路 1–100；实际取 max(candidate_k,top_k)|
+|RETRIEVAL_TOP_K|20|部署返回上限 1–100，请求默认5|
+|RETRIEVAL_RRF_K|60|1–1000|
+|RETRIEVAL_DENSE_WEIGHT / RETRIEVAL_BM25_WEIGHT|1 / 1|大于0且不超过10|
+|RETRIEVAL_BM25_K1 / RETRIEVAL_BM25_B|1.5 / 0.75|k1>0且≤10，b在0–1|
+|RETRIEVAL_MAX_QUERY_CHARS|512|1–2000|
+|RETRIEVAL_MAX_CORPUS_CHUNKS|2000|1–10000，超过则413|
+|RETRIEVAL_MAX_CORPUS_BYTES|4194304|UTF-8 原文总量，最高32MiB|
+|RETRIEVAL_MAX_CORPUS_TOKENS|200000|分词数最高1000000|
+|RETRIEVAL_CONCURRENCY|2|同数据库 advisory slot 跨进程限额1–8，所有进程应统一配置|
+
+返回正文的总量受 top_k 和有限语料字节上限约束，Python 仅保存当前授权快照与 Counter，不缓存私人内容。
+这些上限不是进程 RSS 硬限制；jieba 公共词典占固定内存，仍需按进程数做容量规划。
+读事务对 KB 加共享锁，CPU 分词期间会短暂阻塞相关上传/删除/索引；不能通过提高上限代替规模优化。
+未来优先考虑持久化词项/词频/分词版本、按代次更新及分组完整性查询，压测后再考虑 HNSW 或独立搜索服务。
+
+### 云端验证与后续边界
+
+真实 Qwen Embedding：**NOT VERIFIED**。本轮无独立 V2 Key、无外部调用授权；云端保持默认关闭。
+将来由用户通过独立 V2 配置注入凭证、明确启用并指定核查过的模型 revision 后，仅对无敏感的合成中文数据结构文本
+执行 document/query 冒烟，检查顺序、数量、真实1024维、有限性及范数，再评测检索质量；不得把确定性测试的排序当作语义效果。
+公开搜索新增了外部查询调用入口，仍需生产部署的用户级限流、每日成本额度和适当同意界面；当前只有请求次数/重试和并发约束。
+本轮不接入生成、BM25持久化、Reranking、查询扩展或前端。下一步先建立授权语料上的检索评测，再接既有 Hybrid RAG 适配层，不能加载 V1 全局语料。
+
+
+### 3C-1 实际验收（2026-10-26）
+
+- 完整 V2：**357 passed in 60.57s**（原有330项与新增27项）。覆盖分词/公式/RRF、真实向量查询、限额、权限、模型切换、失效代次、数据库断连脱敏和跨进程槽。
+- `alembic upgrade head`、`alembic check`、`alembic current` 通过，仍为 **0006_chunk_embeddings (head)**；无新增 schema 操作。`pip check` 无冲突。
+- `python -m backend.v2.tests.retrieval_http_smoke` 通过：双进程 API、两个学生和本地初始化管理员、独立解析/索引 Worker、真实 PostgreSQL Chunk/vector 与三种 HTTP 模式。
+- 合成测试验证私人/公共/混合范围；学生及管理员均不能访问其他学生私人知识库，混合范围含无权 ID 整单404。无 CSRF为403；文件删除/重解析后旧内容消失，KB删除为404，所有权变化后旧所有者404，用户禁用401。
+- 并发数据库测试确认检索读锁期间写操作等待；事务返回后删除生效。另测试在外部查询向量返回前提交 KB 墓碑或禁用用户，最终授权检查拒绝。
+- 首次全量运行356通过、1个新增测试失败：完成删除后的复查仍使用“写操作尚未完成”的事件断言钩子。修正测试钩子后全量357通过；并非权限实现失败。
+- 开发库11张表的数据指纹前后相同；全部历史迁移、原有非V2文件保持原样。根 .env 未读写，V1与旧虚拟环境未修改，3B未提交内容保留。
+- 随机测试数据库、临时存储、双进程API和本轮Worker均清理，8001无遗留监听；main/0276fad和空暂存区保持不变，无Git提交或推送。
+- V2独立云Key未配置，provider=disabled、cloud_enabled=false；真实Qwen **NOT VERIFIED**，不能由下面数值推断语义相关性。
+
+真实 HTTP 合成数据的检索诊断（查询“AVL 红黑树”，A私人+公共，共3个有效Chunk；不记录真实用户内容/凭证）：
+
+|Hybrid次序|Dense排名|BM25排名|余弦相似度|BM25分数|RRF分数|
+|---|---|---|---|---|---|
+|1|3|1|-0.019690511059195837|1.1414373853110722|0.032266458495966696|
+|2|2|2|-0.0019748928025364876|0.8623919802674049|0.03225806451612903|
+|3|1|—|0.036400657147169335|—|0.01639344262295082|
+
+例如第一名 `1/(60+3)+1/(60+1)=0.032266458495966696`；第二名 `2/(60+2)=0.03225806451612903`。
+只在Dense出现的第三名分数为 `1/(60+1)=0.01639344262295082`。HTTP Dense排序逐项与真实PG `<=>` 计算核对。
+
+本轮文件清单（相对于本轮开始时的脏工作区，不是相对于0276fad）：
+
+**新增（6）**
+
+- `backend/v2/routers/retrieval.py`
+- `backend/v2/schemas/retrieval.py`
+- `backend/v2/services/lexical_search.py`
+- `backend/v2/services/retrieval_service.py`
+- `backend/v2/tests/retrieval_http_smoke.py`
+- `backend/v2/tests/test_retrieval.py`
+
+**修改（11）**
+
+- `backend/v2/services/vector_search.py`
+- `backend/v2/core/config.py`
+- `backend/v2/main.py`
+- `backend/v2/requirements-dev.txt`
+- `backend/v2/requirements.in`
+- `backend/v2/requirements.txt`
+- `backend/v2/tests/test_health.py`
+- `docs/v2/API_CONTRACT.md`
+- `docs/v2/ARCHITECTURE.md`
+- `docs/v2/DATABASE_SCHEMA.md`
+- `docs/v2/DEVELOPMENT.md`

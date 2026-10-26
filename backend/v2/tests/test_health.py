@@ -23,10 +23,17 @@ def test_liveness_and_openapi(app):
         }
         paths = client.get("/api/v2/openapi.json").json()["paths"]
         assert set(paths) == {
+            "/api/v2/retrieval/search",
             "/api/v2/health", "/api/v2/health/db", "/api/v2/auth/csrf",
             "/api/v2/auth/register", "/api/v2/auth/login", "/api/v2/auth/me", "/api/v2/auth/logout",
             "/api/v2/knowledge-bases", "/api/v2/knowledge-bases/{knowledge_base_id}",
             "/api/v2/admin/knowledge-bases",
+            "/api/v2/knowledge-bases/{kb_id}/documents",
+            "/api/v2/knowledge-bases/{kb_id}/documents/{doc_id}",
+            "/api/v2/knowledge-bases/{kb_id}/documents/{doc_id}/download",
+            "/api/v2/knowledge-bases/{kb_id}/documents/{doc_id}/ingestion",
+            "/api/v2/knowledge-bases/{kb_id}/documents/{doc_id}/chunks",
+            "/api/v2/knowledge-bases/{kb_id}/documents/{doc_id}/embedding",
         }
         assert "503" in paths["/api/v2/health/db"]["get"]["responses"]
 

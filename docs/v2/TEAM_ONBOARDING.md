@@ -1,6 +1,6 @@
-# V2 团队开发指南（2026-10-26）
+# V2 团队开发指南（2026-10-27 更新：Windows 与 10 天 Sprint）
 
-本页是当前启动入口。既往阶段验收记录中的旧版本、NOT VERIFIED 和云生成阻塞描述仅代表当时状态；当前结果见 INTEGRATION_REPORT.md。main 是已验收基线，所有开发经功能分支和 PR，不直接在 main 上长期开发。
+本页是当前启动入口。**全体组员使用 Windows**：按 [SPRINT_01.md](SPRINT_01.md) 的分角色 Windows/WSL2 指南选择环境。首轮周期 **2026-10-27 至 2026-11-05**，10/29 环境/方案检查，11/02 中期联调，11/05 最终验收。既往阶段验收记录中的旧版本、NOT VERIFIED 和云生成阻塞描述仅代表当时状态；当前结果见 INTEGRATION_REPORT.md。main 是已验收基线，所有开发经功能分支和 PR，不直接在 main 上长期开发。
 
 ## 1. 克隆与独立环境
 
@@ -12,12 +12,14 @@ python3.12 -m venv ~/.virtualenvs/ai-datastructure-v2
 source ~/.virtualenvs/ai-datastructure-v2/bin/activate
 python -m pip install -r backend/v2/requirements-dev.txt
 python -m pip check
-node --version   # 24.x；本轮未开发前端
+node --version   # 24.x；前端组员用于 Vue 3 新工程
 ```
 
 已有虚拟环境不要重建。当前负责人的 Mac 也可 `source ~/.virtualenvs/ai-datastructure-v2/activate-v2.zsh`。不要使用 V1 `.venv`，不要复制负责人私钥或根目录 .env。
 
-**Windows 使用 WSL2 Ubuntu + Docker Desktop WSL integration**，仓库、虚拟环境和私有存储放在 WSL Linux 文件系统中（如 `~/projects`，不要放 `/mnt/c`）。在 WSL 中执行同一套 POSIX 命令。原生 PowerShell 的激活方式是 `.venv\Scripts\Activate.ps1`，但当前安全存储依赖 POSIX dir_fd/O_NOFOLLOW，**不支持原生 Windows Python 运行完整后端**。实际 Windows 主机尚未验证；Linux ARM64 解析容器已实测。Mac 使用 zsh/bash 均可。
+**Windows 执行环境按任务区分**：Vue 3 前端可以在原生 Windows + Node.js 24/VS Code 开发，资料与人工标注亦无需全部后端依赖；而 V2 后端及隔离 Worker 应在 **WSL2 Ubuntu + Docker Desktop WSL integration** 中运行。仓库、Python 虚拟环境和私有存储放在 WSL Linux 文件系统（如 `~/projects`，不要放 `/mnt/c`），使用 VS Code 的 WSL 扩展，在 Ubuntu 终端执行本页的 POSIX 命令。原生 PowerShell 虚拟环境不能补足 POSIX `dir_fd/O_NOFOLLOW` 安全机制，**不支持原生 Windows Python 运行完整后端**。实际 Windows/WSL 主机尚未验证；Linux ARM64 解析容器已实测。Mac 使用 zsh/bash 均可。
+
+首次配置 WSL 的 PowerShell 命令：`wsl --install -d Ubuntu`；检测：`wsl -l -v`。安装 Docker Desktop 后，在 Settings → Resources → WSL Integration 启用 Ubuntu，在 WSL 执行 `docker version` / `docker compose version` 进行验证；从 Ubuntu 家目录 `git clone`，再执行 `code .`。Windows 前端如果连接 WSL 后端，应先验证 `http://127.0.0.1:8001/api/v2/docs` 在 Windows 浏览器可达，不得为了排障关闭 CSRF/CORS。详细准备及出现阻塞时的处理见 [SPRINT_01.md](SPRINT_01.md)。
 
 Python 使用 3.12，Node 使用 24；Docker Desktop 需手动完成首次许可及 Engine 启动。无需安装本机 PostgreSQL。Apple Silicon 默认 ARM64；x86/WSL 使用下面的 platform 变量。
 
@@ -79,4 +81,4 @@ python -m backend.v2.evaluation.score
 
 从最新 main 创建 feature 分支；每个 PR 说明问题、变更、真实测试、隐私/成本影响。API 变动更新 OpenAPI、API_CONTRACT 与前端示例；不破坏已有字段语义。新增迁移提前协调唯一 revision，不能改写已执行的 0001–0007；分叉迁移由维护者审查，禁止随意合并 heads 或重置数据库。
 
-合并前执行验收、diff --check、敏感文件检查。真实 .env、上传内容、向量、日志、缓存、虚拟环境不进 Git。V1 资产与 V2 功能 PR 分开。长期待办范围见 NEXT_PHASE_BACKLOG.md；2026-10-27 启动的首轮五人任务见仓库 GitHub Issues #3–#7。请以对应 Issue 和最新 main 作为协作入口。
+合并前执行验收、diff --check、敏感文件检查。真实 .env、上传内容、向量、日志、缓存、虚拟环境不进 Git。V1 资产与 V2 功能 PR 分开。长期待办范围见 NEXT_PHASE_BACKLOG.md；2026-10-27—11-05 **10 天首轮计划**见 [SPRINT_01.md](SPRINT_01.md)，任务见仓库 GitHub Issues #3–#7。请以对应 Issue 和最新 main 作为协作入口。

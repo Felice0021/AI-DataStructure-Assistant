@@ -2,7 +2,7 @@
 
 面向本科《数据结构》课程的 AI 智能助教项目。通过 RAG（Retrieval-Augmented Generation，检索增强生成）实现课程资料问答、习题讲解与代码分析。项目保留 V1 原型，**当前团队协作开发以 V2.0 为主**。
 
-> **项目状态（2026-10-27）**：V2 多用户单轮 RAG 后端集成基线已完成，可启动团队并行开发；**尚未完成 Vue 新前端、多轮聊天、图片问答或生产部署**。已验收基线：`2549ef4`（GitHub `main`）；验收报告：`docs/v2/INTEGRATION_REPORT.md`。
+> **项目状态（2026-10-27）**：V2 多用户单轮 RAG 后端集成基线已完成，可启动团队并行开发；**尚未完成 Vue 新前端、多轮聊天、图片问答或生产部署**。V2 代码验收基线：`2549ef4`（2026-10-26 集成验收），组员以最新 GitHub `main` 为准；验收报告：`docs/v2/INTEGRATION_REPORT.md`。
 >
 > **质量边界**：最近一次全量测试 **479 passed / 0 failed / 0 skipped**；Qwen Embedding、Reranker、Generation 均用少量**合成文本**通过真实 API 冒烟测试，**不代表真实课程问答质量已达标**。36 道评测题仍待人工标注。
 
@@ -128,7 +128,7 @@ python -m backend.v2.evaluation.score
 
 ## 5. 第一轮团队开发（2026-10-27 — 2026-11-02）
 
-**目标：第一次让 V2 Vue 前端连通后端并演示资料来源清楚的单轮课程问答。** 10 月 29 日同步进展，11 月 2 日进行第一轮验收。以下为启动分工，不代表功能已经完成。
+**目标：第一次让 V2 Vue 前端连通后端并演示资料来源清楚的单轮课程问答。** 10 月 29 日同步进展，11 月 2 日进行第一轮验收。以下为启动分工，不代表功能已经完成。**任务详情与进度统一见 [GitHub Sprint 1 Issues](https://github.com/Felice0021/AI-DataStructure-Assistant/issues?q=is%3Aissue+is%3Aopen+%22Sprint+1%22)：[#3 前端](https://github.com/Felice0021/AI-DataStructure-Assistant/issues/3)、[#4 会话后端](https://github.com/Felice0021/AI-DataStructure-Assistant/issues/4)、[#5 公共资料](https://github.com/Felice0021/AI-DataStructure-Assistant/issues/5)、[#6 评测验收](https://github.com/Felice0021/AI-DataStructure-Assistant/issues/6)、[#7 系统集成](https://github.com/Felice0021/AI-DataStructure-Assistant/issues/7)。**
 
 | 成员 | 负责范围 | 第一轮交付 |
 | --- | --- | --- |

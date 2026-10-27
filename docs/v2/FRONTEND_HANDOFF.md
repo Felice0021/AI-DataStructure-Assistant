@@ -38,7 +38,7 @@ Cookie 是 HttpOnly，JavaScript 不能也不应读取。csrf 返回派生 Token
 |用途授权|GET /knowledge-bases/{kb}/cloud-consents；POST/DELETE /{purpose}|用途 embedding/reranking/generation；授予/撤销200，返回当前授权；GET含历史服务标识授权|
 |审计|GET /knowledge-bases/{kb}/cloud-consents/audit?limit=50&offset=0|仅当前用户该KB的元数据事件数组，最多100/页|
 |检索|POST /retrieval/search|requested_mode、actual_mode、results、elapsed_ms、candidate_k、eligible_chunks|
-|上下文|POST /retrieval/prepare|context_text、evidence、各路诊断和预算；低信任资料，不是答案|
+|上下文|POST /retrieval/prepare-context|context_text、evidence、各路诊断和预算；低信任资料，不是答案|
 |回答|POST /rag/ask|status、reason、answer、sources、retrieval_mode、answer_mode、rerank_applied、generation_model、execution_performed:false、latency_ms|
 
 全部字段、长度及可空性以 OpenAPI 为准。PATCH 名称/说明可省略，但不可显式 null；禁止额外身份/可见性字段。注册不会自动登录。

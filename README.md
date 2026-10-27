@@ -11,6 +11,7 @@
 | 目标 | 文档 |
 | --- | --- |
 | **环境搭建、API/Worker 启动、完整验收** | [团队开发指南](docs/v2/TEAM_ONBOARDING.md) |
+| **Windows 分工、10 天计划、阶段节点、交付与反馈** | [第一轮详细计划](docs/v2/SPRINT_01.md) |
 | **前端 Cookie、CSRF、上传、问答和错误状态** | [前端交接手册](docs/v2/FRONTEND_HANDOFF.md) |
 | 接口字段、请求/响应结构（实际 FastAPI 导出） | [OpenAPI 3.1](docs/v2/openapi.json) · [API 契约](docs/v2/API_CONTRACT.md) |
 | 代码分层与权限边界 | [V2 架构](docs/v2/ARCHITECTURE.md) · [数据库结构](docs/v2/DATABASE_SCHEMA.md) |
@@ -63,7 +64,7 @@
 需要：**Python 3.12、Docker Desktop / Compose**。Node.js 24 供即将开发的 Vue 前端使用。
 
 - **macOS**：使用 Terminal/zsh/bash；Apple Silicon 无需强制 amd64。
-- **Windows**：目前建议 **WSL2 Ubuntu + Docker Desktop WSL integration**，在 WSL Linux 文件系统中开发。**原生 Windows Python 尚不支持完整后端**，Windows/WSL 真机验收尚待完成。
+- **Windows**：Vue 3 前端、材料审查与文档测试可在 Windows 原生开发；**完整 V2 FastAPI/Worker 后端**建议使用 **WSL2 Ubuntu + Docker Desktop WSL integration**，在 WSL Linux 文件系统中开发。**原生 Windows Python 尚不支持完整后端**，Windows/WSL 真机验收尚待完成。具体安装与分角色建议见 [第一轮计划](docs/v2/SPRINT_01.md)。
 
 ```bash
 git clone https://github.com/Felice0021/AI-DataStructure-Assistant.git
@@ -126,9 +127,9 @@ python -m backend.v2.evaluation.score
 
 正常证据不足（HTTP 200）与生成不可用/生成校验失败（503/502）必须分别处理；单轮接口**没有**服务端历史、流式返回和图片题输入。
 
-## 5. 第一轮团队开发（2026-10-27 — 2026-11-02）
+## 5. 第一轮团队开发（2026-10-27 — 2026-11-05，共 10 天）
 
-**目标：第一次让 V2 Vue 前端连通后端并演示资料来源清楚的单轮课程问答。** 10 月 29 日同步进展，11 月 2 日进行第一轮验收。以下为启动分工，不代表功能已经完成。**任务详情与进度统一见 [GitHub Sprint 1 Issues](https://github.com/Felice0021/AI-DataStructure-Assistant/issues?q=is%3Aissue+is%3Aopen+%22Sprint+1%22)：[#3 前端](https://github.com/Felice0021/AI-DataStructure-Assistant/issues/3)、[#4 会话后端](https://github.com/Felice0021/AI-DataStructure-Assistant/issues/4)、[#5 公共资料](https://github.com/Felice0021/AI-DataStructure-Assistant/issues/5)、[#6 评测验收](https://github.com/Felice0021/AI-DataStructure-Assistant/issues/6)、[#7 系统集成](https://github.com/Felice0021/AI-DataStructure-Assistant/issues/7)。**
+**目标：第一次让 V2 Vue 前端连通后端并演示资料来源清楚的单轮课程问答。** 10 月 29 日完成环境/方案检查，11 月 2 日进行中期联调，**11 月 5 日完成第一轮验收**。本轮五位成员均使用 Windows；前端可在 Windows 原生开发，完整 V2 后端建议 WSL2 Ubuntu + Docker Desktop，详见 [Windows 实操与 10 天详细分工](docs/v2/SPRINT_01.md)。以下为启动分工，不代表功能已经完成。**任务详情与进度统一见 [GitHub Sprint 1 Issues](https://github.com/Felice0021/AI-DataStructure-Assistant/issues?q=is%3Aissue+is%3Aopen+%22Sprint+1%22)：[#3 前端](https://github.com/Felice0021/AI-DataStructure-Assistant/issues/3)、[#4 会话后端](https://github.com/Felice0021/AI-DataStructure-Assistant/issues/4)、[#5 公共资料](https://github.com/Felice0021/AI-DataStructure-Assistant/issues/5)、[#6 评测验收](https://github.com/Felice0021/AI-DataStructure-Assistant/issues/6)、[#7 系统集成](https://github.com/Felice0021/AI-DataStructure-Assistant/issues/7)。**
 
 | 成员 | 负责范围 | 第一轮交付 |
 | --- | --- | --- |

@@ -1,1163 +1,167 @@
 # AI-DataStructure-Assistant
 
-## 数据结构课程智能助教系统
+面向本科《数据结构》课程的 AI 智能助教项目。通过 RAG（Retrieval-Augmented Generation，检索增强生成）实现课程资料问答、习题讲解与代码分析。项目保留 V1 原型，**当前团队协作开发以 V2.0 为主**。
 
-AI-DataStructure-Assistant 是一个面向本科《数据结构》课程的 RAG（Retrieval-Augmented Generation，检索增强生成）智能助教系统。
+> **项目状态（2026-10-27）**：V2 多用户单轮 RAG 后端集成基线已完成，可启动团队并行开发；**尚未完成 Vue 新前端、多轮聊天、图片问答或生产部署**。已验收基线：`2549ef4`（GitHub `main`）；验收报告：`docs/v2/INTEGRATION_REPORT.md`。
+>
+> **质量边界**：最近一次全量测试 **479 passed / 0 failed / 0 skipped**；Qwen Embedding、Reranker、Generation 均用少量**合成文本**通过真实 API 冒烟测试，**不代表真实课程问答质量已达标**。36 道评测题仍待人工标注。
 
-系统以课程教材、课程资料和结构化知识库为主要知识来源，通过 Query Processing（查询处理）、Hybrid Retrieval（混合检索）、Reranking（重排序）和大语言模型生成，为学生提供概念问答、习题讲解和代码分析能力。
+## 1. 新成员从这里开始
 
-当前项目已从早期 RAG Demo 和论文型实验阶段转入完整系统开发阶段。
+| 目标 | 文档 |
+| --- | --- |
+| **环境搭建、API/Worker 启动、完整验收** | [团队开发指南](docs/v2/TEAM_ONBOARDING.md) |
+| **前端 Cookie、CSRF、上传、问答和错误状态** | [前端交接手册](docs/v2/FRONTEND_HANDOFF.md) |
+| 接口字段、请求/响应结构（实际 FastAPI 导出） | [OpenAPI 3.1](docs/v2/openapi.json) · [API 契约](docs/v2/API_CONTRACT.md) |
+| 代码分层与权限边界 | [V2 架构](docs/v2/ARCHITECTURE.md) · [数据库结构](docs/v2/DATABASE_SCHEMA.md) |
+| 本次验收的事实与未完成项 | [集成报告](docs/v2/INTEGRATION_REPORT.md) |
+| 检索与问答质量标注 | [评测计划](docs/v2/EVALUATION_PLAN.md) |
+| 后续模块、依赖与验收要求 | [下一阶段 Backlog](docs/v2/NEXT_PHASE_BACKLOG.md) |
 
-> 当前重点：知识库建设、RAG 稳定性、前后端集成、系统测试和最终演示。
-> 历史论文型研究记录见 `docs/RESEARCH_CHECKPOINT_2026-09.md`。
+**请先读本 README，再读与你负责的模块对应的交接文档。** 旧版 `frontend/` 是 V1 静态页面，不是 Vue 3 项目；不要把 `/api/v1` 当作 V2 接口。
 
----
+## 2. 当前功能与边界
 
-## 当前开发阶段：第二阶段——系统集成与完善
+| 模块 | V2 进度 |
+| --- | --- |
+| FastAPI、PostgreSQL 17、pgvector、Alembic | 已完成 |
+| 注册/登录、Cookie Session、CSRF、角色授权 | 已完成 |
+| 公共知识库和个人私有知识库及跨用户隔离 | 已完成 |
+| PDF/DOCX/TXT 安全上传、下载、软删除 | 已完成 |
+| 独立 Worker 文本解析、Chunk 切分、任务重试与崩溃恢复 | 已完成 |
+| Embedding + `vector(1024)` + 文档代次/哈希校验 | 已完成 |
+| BM25、Dense 精确检索、Hybrid RRF、Reranking | 已完成 |
+| Context Builder、引用 `[S1]`、单轮 RAG 回答及拒答 | 已完成 |
+| 云端用途授权、撤销及元数据审计 | 已完成，**默认不开启云端** |
+| V1 课程知识库（1010 条）导入到 V2 | 工具可 dry-run、导入及解析；**尚未完成真实全库索引和课程问答验收** |
+| 真实课程数据上的效果评测 | **36 道合成题待人工标注，暂无可发布质量指标** |
+| Vue 3 + Vite 前端 | 待开发 |
+| 多轮会话及服务端历史记录 | 待开发 |
+| 图片题/VLM 多模态问答 | 待开发 |
+| 生产部署、用户级费用硬额度与备份恢复 | 待完善 |
 
-### 阶段目标
-
-第一阶段已经完成 RAG V1 核心链路的设计、实现与基础验证，当前项目正式进入第二阶段开发。
-
-第二阶段的核心目标是：
-
-> 在已经冻结的 RAG V1 基础上，完成知识库、后端、前端和测试体系的整合，形成一个功能完整、运行稳定、可测试、可部署、可演示的数据结构课程智能助教系统。
-
-本阶段原则上不再进行大规模 RAG 架构调整。除非发现明确的功能错误或系统级性能问题，否则后续工作优先围绕工程集成、数据质量、系统稳定性和用户体验展开。
-
-### 本阶段主要实现内容
-
-1. **知识库完善**
-   - 清洗现有 `ds_chunks.jsonl`；
-   - 检查重复、空内容和错误 metadata；
-   - 继续补充概念、算法、代码、习题和比较类知识；
-   - 优先处理已有 Benchmark 暴露出的 corpus gap（知识库缺口）；
-   - 保持现有 Chunk Schema 不变。
-
-2. **后端集成**
-   - 将 FastAPI 后端统一接入新的 `rag.main.run()`；
-   - 保留 `/api/v1/ask` 和 `/api/v1/health`；
-   - 统一处理 `answer、sources、mode、out_of_scope、latency_ms、error`；
-   - 后端不重复实现 Query Router、Query Expansion、Retrieval、Scope Gate 或 Reranking；
-   - 完善异常处理、日志和接口稳定性。
-
-3. **前端适配**
-   - 接入新版 `/api/v1/ask`；
-   - 展示 `qa / exercise / code` 三种回答模式；
-   - 正确展示 Answer 和 Sources；
-   - 对 `out_of_scope` 提供正常的范围外提示，而不是作为系统错误处理；
-   - 适配新的分阶段 `latency_ms`；
-   - 保留并完善 Markdown、数学公式、代码块、Loading、Error 和历史记录功能；
-   - 在功能稳定后再进行进一步 UI 优化。
-
-4. **系统测试与回归**
-   - 复用现有 Dev / Held-out Benchmark 和人工标注资产；
-   - 建立面向完整系统的 regression test set（回归测试集）；
-   - 覆盖概念题、习题、代码题、比较类问题、多要求问题和范围外问题；
-   - 检查 Query Router、Scope Gate、检索结果和最终回答；
-   - 对知识库更新和代码修改进行持续回归测试。
-
-5. **系统稳定性与性能**
-   - 持续监控 Retrieval、Rerank、Generation 和 Total latency；
-   - 优先解决明显的异常延迟和重复模型调用；
-   - 保证 Query Expansion、Reranker 等增强模块发生异常时可以安全降级；
-   - 避免单个模块异常导致整个问答服务不可用。
-
-6. **部署与演示准备**
-   - 完善运行配置和环境说明；
-   - 保证项目可以按照 README 从零启动；
-   - 整理正式演示问题和典型使用场景；
-   - 完成最终端到端验收；
-   - 为后续本地部署、服务器部署和大创成果展示做好准备。
-
-### 第二阶段完成标准
-
-第二阶段完成时，系统应形成完整链路：
+**V2 主流程（非流式单轮）：**
 
 ```text
-Knowledge Base
-    ↓
-RAG V1
-    ↓
-FastAPI Backend
-    ↓
-Web Frontend
-    ↓
-System Regression
-    ↓
-Deployable / Demonstrable System
+认证用户 + 被授权的知识库
+  → 上传 PDF/DOCX/TXT
+  → 隔离解析 Worker → Chunk
+  → Embedding Worker → pgvector
+  → BM25 / Dense / Hybrid RRF
+  → Reranking → 证据筛选与 [S1] 来源映射
+  → Qwen Generator → 引用校验
+  → 最终权限、会话、文档代次校验
+  → 回答 / 证据不足拒答
 ```
 
-具体要求：
+文件状态：`uploaded → processing → parsed → indexing → ready`。其中 `parsed` **不等于**可检索；当前问答只使用与模型空间、版本一致的有效 `ready` 资料。真实云端处理还需要部署开关、对应知识库与用途的授权以及本次请求显式允许。
 
-- 数据结构课程主要章节具有较完整的知识覆盖；
-- 普通知识问答、习题讲解和代码分析均可正常工作；
-- 复杂问题能够使用 Multi-query Retrieval；
-- 范围外问题能够稳定拒答；
-- 后端与 RAG 接口稳定；
-- 前端能够完整展示回答、来源、模式和系统状态；
-- 核心测试集能够稳定通过；
-- 系统不存在阻塞演示的严重错误；
-- 项目具备完整的启动、测试和演示流程。
+模型冒烟测试（合成文本）：Embedding `qwen3.7-text-embedding-flash`（1024 维）、Reranker `qwen3.7-text-rerank`、Generation `qwen3.8-flash`。正式云端使用需单独配置 V2 凭证、核对账户可用性和隐私授权；**不要向任何组员共享负责人的 API Key**。确定性测试 Provider 只验证工程链路，不具备语义质量。
 
-### 当前阶段任务依赖
+## 3. 本地启动 V2（快速入口）
 
-```text
-RAG V1 Core（已完成）
-        │
-        ├── Knowledge Base 扩充与清洗
-        │
-        ├── Backend 接入新版 RAG
-        │          ↓
-        │       Frontend 适配
-        │          ↓
-        └──── System Regression
-                   ↓
-             Deployment / Demo
-```
+需要：**Python 3.12、Docker Desktop / Compose**。Node.js 24 供即将开发的 Vue 前端使用。
 
-当前项目状态：
-
-```text
-Stage 1  RAG Core Development        Completed
-Stage 2  System Integration          Active
-Stage 3  Final Validation / Release  Pending
-```
-
----
-
-## 1. 当前系统架构
-
-当前冻结的 RAG V1 主链路：
-
-```text
-Raw Query
-    ↓
-Query Router
-    ↓
-Query Expansion Gate
-    │
-    ├── 简单问题
-    │     └── Original Query
-    │
-    └── 复杂问题
-          └── Original Query + ≤3 Subqueries
-    ↓
-Batched Dense Retrieval + BM25 Retrieval
-    ↓
-Single-query RRF
-    ↓
-Multi-query RRF
-    ↓
-Scope Gate
-只使用 Original Query 的 Dense Top-1 Score
-    ↓
-Qwen Reranker
-只使用 Original Query
-    ↓
-Top-K Evidence
-    ↓
-Mode-specific Generator
-    ↓
-Answer + Sources
-```
-
-核心原则：
-
-- 原始 Query 始终保留；
-- 简单问题不做无意义 Query Expansion；
-- 比较类、多要求类问题可拆为多个检索子 Query；
-- 多 Query 的 Dense Embedding 使用批量 API 请求；
-- Dense 与 BM25 使用 RRF（Reciprocal Rank Fusion，倒数排名融合）；
-- 多 Query 结果再次进行 RRF 融合；
-- Scope Gate 只使用原始 Query，避免查询扩展导致范围漂移；
-- Reranker 同样使用原始 Query；
-- Query Expansion 或 Reranker 异常时采用 fail-open（故障降级），避免整个问答链路中断。
-
----
-
-## 2. 当前功能
-
-当前已经实现：
-
-- 数据结构课程结构化知识库；
-- Dense semantic retrieval（稠密语义检索）；
-- BM25 lexical retrieval（词法检索）；
-- Dense + BM25 Hybrid Retrieval（混合检索）；
-- RRF 排名融合；
-- Query Router（查询模式路由）；
-- Query Expansion Gate（查询扩展判断）；
-- LLM Query Decomposition（复杂查询拆解）；
-- Multi-query Retrieval（多查询检索）；
-- Query Embedding 批量调用；
-- Qwen Reranking（文本重排序）；
-- 范围外问题拒答；
-- `qa / exercise / code` 三种回答模式；
-- Qwen 大语言模型生成；
-- 来源信息返回；
-- Dense 文档 Embedding 本地缓存；
-- 检索 Benchmark 与评测框架；
-- 历史人工相关性和 facet 标注资产；
-- FastAPI 后端基础框架；
-- Web 前端基础页面。
-
-当前正在进行：
-
-- FastAPI 后端接入新的 `rag.main.run()`；
-- 前端适配新的后端响应结构；
-- 知识库继续扩充和清洗；
-- 系统级回归测试。
-
----
-
-## 3. Query Processing
-
-### 3.1 Query Router
-
-文件：
-
-```text
-rag/query_router.py
-```
-
-Query Router 将用户问题路由为：
-
-```text
-qa
-exercise
-code
-```
-
-含义：
-
-- `qa`：概念解释、知识问答；
-- `exercise`：习题、算法推演、计算过程；
-- `code`：代码阅读、错误定位、实现分析。
-
-生产接口默认支持：
-
-```text
-mode = auto
-```
-
-由系统自动判断回答模式。
-
----
-
-### 3.2 Query Expansion
-
-文件：
-
-```text
-rag/query_processor.py
-```
-
-系统不会对所有问题强制扩展。
-
-简单问题：
-
-```text
-AVL树为什么需要旋转？
-```
-
-保持为：
-
-```text
-[
-  "AVL树为什么需要旋转？"
-]
-```
-
-复杂问题：
-
-```text
-Prim和Kruskal算法在基本思想和适用场景上有什么区别？
-```
-
-可能被拆解为：
-
-```text
-[
-  "Prim和Kruskal算法在基本思想和适用场景上有什么区别？",
-  "Prim算法的基本思想",
-  "Kruskal算法的基本思想",
-  "Prim和Kruskal算法的适用场景区别"
-]
-```
-
-其中第一个 Query 永远是用户原始问题。
-
-当前最多生成：
-
-```text
-3 subqueries
-```
-
-代码模式默认不进行 Query Expansion，避免代码内容被错误改写。
-
-Query Expansion 当前复用系统生成模型，不需要单独部署查询模型。
-
----
-
-## 4. Hybrid Retrieval
-
-当前生产 Retriever 使用：
-
-```text
-Dense + BM25
-```
-
-### Dense Retrieval
-
-Dense Retriever 使用 Qwen Embedding 和 cosine similarity（余弦相似度）。
-
-当前配置：
-
-```text
-Embedding Model:
-qwen3.7-text-embedding
-
-Embedding Dimension:
-1024
-
-Embedding Batch Size:
-10
-```
-
-文档 Embedding 会持久化缓存到：
-
-```text
-.cache/rag/
-```
-
-当知识库内容和 Embedding 配置不变时，无需重复生成全部文档向量。
-
-对于 Multi-query Retrieval，多条 Query 的 Embedding 会尽量通过一次批量 API 请求生成，减少网络调用延迟。
-
----
-
-### BM25 Retrieval
-
-BM25 用于 lexical retrieval（词法检索），用于补充 Dense Retrieval 对：
-
-- 专有名词；
-- 算法名称；
-- 代码符号；
-- 精确关键词；
-
-等内容的召回能力。
-
----
-
-### RRF Fusion
-
-Dense 与 BM25 不直接比较原始分数，而通过：
-
-```text
-RRF
-Reciprocal Rank Fusion
-倒数排名融合
-```
-
-按照排名进行融合。
-
-对于复杂问题：
-
-```text
-Original Query
-+ Subqueries
-```
-
-每个 Query 都独立进行 Hybrid Retrieval，然后再进行第二层 Multi-query RRF 融合。
-
----
-
-## 5. Scope Control
-
-当前范围控制使用：
-
-```text
-MIN_RETRIEVAL_SCORE = 0.58
-```
-
-该阈值对应：
-
-```text
-Original Query
-→ Dense Retrieval
-→ Dense Top-1 cosine similarity
-```
-
-不会使用：
-
-```text
-BM25 score
-RRF score
-Multi-query score
-Rerank score
-```
-
-作为范围判断依据。
-
-原因是这些分数属于不同尺度，不能直接与 Dense cosine score 比较。
-
-当原始 Query 的 Dense Top-1 分数低于阈值时，系统直接返回：
-
-```text
-根据当前资料无法确定
-```
-
-同时：
-
-```text
-sources = []
-```
-
-并跳过 Rerank 与 Generation。
-
-例如当前测试：
-
-```text
-TCP为什么需要三次握手？
-```
-
-可被正确判断为当前数据结构知识库范围外问题。
-
-当前阈值 `0.58` 属于系统开发阶段配置，后续知识库扩大后应通过独立测试集重新标定。
-
----
-
-## 6. Reranking
-
-Reranker：
-
-```text
-qwen3.7-text-rerank
-```
-
-Hybrid / Multi-query Retrieval 生成候选池后，使用用户的：
-
-```text
-Original Query
-```
-
-进行重排序。
-
-这样可以避免子 Query 对最终问题语义产生过强影响。
-
-如果 Reranker 调用异常，系统采用 fail-open 策略，使用已有检索结果继续工作。
-
----
-
-## 7. Answer Generation
-
-生成模块：
-
-```text
-rag/generators/qwen_generator.py
-```
-
-当前生成模型：
-
-```text
-qwen3.7-flash
-```
-
-Temperature：
-
-```text
-0.2
-```
-
-系统根据 Query Router 的结果使用不同回答模式。
-
-### QA
-
-主要结构：
-
-```text
-直接回答
-→ 必要原理
-→ 相关说明
-```
-
-### Exercise
-
-主要结构：
-
-```text
-题目分析
-→ 解题过程
-→ 最终答案
-```
-
-### Code
-
-主要结构：
-
-```text
-代码作用
-→ 问题定位
-→ 修改建议
-→ 复杂度 / 边界条件
-```
-
-生成模型应优先依据检索得到的课程 Evidence，不应把模型自身知识伪装成课程材料。
-
----
-
-## 8. RAG 统一入口
-
-当前生产 RAG 入口：
-
-```text
-rag/main.py
-```
-
-主要接口：
-
-```python
-run(
-    query,
-    chunks,
-    top_k=5,
-    mode="auto"
-)
-```
-
-核心流程：
-
-```text
-Query
-→ Router
-→ Query Processing
-→ Hybrid Retrieval
-→ Scope Gate
-→ Reranker
-→ Generator
-```
-
-主要返回字段包括：
-
-```text
-answer
-sources
-retrieved_chunks
-retrieval_queries
-mode
-out_of_scope
-threshold_score
-rerank_fallback
-latency_ms
-error
-```
-
-其中：
-
-```text
-retrieved_chunks
-retrieval_queries
-threshold_score
-rerank_fallback
-```
-
-主要用于内部调试和系统评测。
-
-后端面向前端主要暴露：
-
-```text
-answer
-sources
-mode
-out_of_scope
-latency_ms
-error
-```
-
----
-
-## 9. 当前 RAG 配置
-
-主要配置文件：
-
-```text
-rag/config.py
-```
-
-当前关键配置：
-
-```text
-Final Top-K:
-5
-
-Hybrid Candidate-K:
-10
-
-Scope Threshold:
-0.58
-
-Embedding Model:
-qwen3.7-text-embedding
-
-Embedding Dimension:
-1024
-
-Embedding Batch Size:
-10
-
-Rerank Model:
-qwen3.7-text-rerank
-
-Generation Model:
-qwen3.7-flash
-
-Generation Temperature:
-0.2
-
-Query Expansion:
-Enabled
-
-Max Subqueries:
-3
-
-Multi-query Candidate Pool:
-20
-```
-
----
-
-## 10. 知识库
-
-正式知识库：
-
-```text
-knowledge_base/ds_chunks.jsonl
-```
-
-当前约有：
-
-```text
-463 chunks
-```
-
-Chunk Schema：
-
-```json
-{
-  "chunk_id": "ds_ch06_0001",
-  "text": "知识正文",
-  "chapter": "第六章 树和二叉树",
-  "section": "6.x",
-  "source_file": "数据结构（C语言版）严蔚敏.pdf",
-  "page": 1,
-  "content_type": "concept"
-}
-```
-
-当前固定字段：
-
-```text
-chunk_id
-text
-chapter
-section
-source_file
-page
-content_type
-```
-
-`content_type` 主要包括：
-
-```text
-concept
-algorithm
-code
-exercise
-```
-
-知识库后续可以继续扩充，但不应随意修改字段结构。
-
-质量检查：
-
-```bash
-python3 knowledge_base/validate_chunks.py
-```
-
-严格模式：
-
-```bash
-python3 knowledge_base/validate_chunks.py --fail-on-warning
-```
-
----
-
-## 11. 仓库结构
-
-```text
-AI-DataStructure-Assistant/
-├── backend/
-│   ├── main.py
-│   ├── config.py
-│   ├── schemas.py
-│   ├── routers/
-│   ├── services/
-│   └── requirements.txt
-│
-├── frontend/
-│   ├── index.html
-│   ├── css/
-│   └── js/
-│
-├── knowledge_base/
-│   ├── ds_chunks.jsonl
-│   └── validate_chunks.py
-│
-├── rag/
-│   ├── main.py
-│   ├── config.py
-│   ├── query_router.py
-│   ├── query_processor.py
-│   │
-│   ├── retrievers/
-│   │   ├── base.py
-│   │   ├── dense.py
-│   │   ├── bm25.py
-│   │   ├── hybrid.py
-│   │   └── dense_rerank.py
-│   │
-│   ├── rerankers/
-│   │   └── qwen_reranker.py
-│   │
-│   └── generators/
-│       └── qwen_generator.py
-│
-├── tests/
-│   ├── system/
-│   ├── benchmarks/
-│   ├── annotations/
-│   └── research/
-│
-├── docs/
-│   └── RESEARCH_CHECKPOINT_2026-09.md
-│
-└── README.md
-```
-
----
-
-## 12. 后端
-
-后端基于：
-
-```text
-FastAPI
-```
-
-主要目录：
-
-```text
-backend/
-```
-
-当前已有接口：
-
-```http
-GET /api/v1/health
-POST /api/v1/ask
-```
-
-当前开发阶段正在将原有后端 RAG 调用迁移至：
-
-```text
-rag.main.run()
-```
-
-后端不应重复实现：
-
-- Query Router；
-- Query Expansion；
-- Retrieval；
-- Scope Gate；
-- Reranking。
-
-这些逻辑统一由 RAG 层负责。
-
----
-
-## 13. 前端
-
-前端位于：
-
-```text
-frontend/
-```
-
-当前采用：
-
-```text
-HTML
-CSS
-JavaScript
-```
-
-已有基础能力：
-
-- 问题输入；
-- API 请求；
-- Loading 状态；
-- Markdown 展示；
-- MathJax；
-- 来源展示；
-- 历史记录；
-- 异常提示。
-
-后续将根据新的后端 API 增加：
-
-- QA / Exercise / Code 模式状态；
-- Out-of-scope 状态；
-- 新 Sources 格式；
-- 新 Latency 信息。
-
----
-
-## 14. 环境配置
-
-克隆仓库：
+- **macOS**：使用 Terminal/zsh/bash；Apple Silicon 无需强制 amd64。
+- **Windows**：目前建议 **WSL2 Ubuntu + Docker Desktop WSL integration**，在 WSL Linux 文件系统中开发。**原生 Windows Python 尚不支持完整后端**，Windows/WSL 真机验收尚待完成。
 
 ```bash
 git clone https://github.com/Felice0021/AI-DataStructure-Assistant.git
 cd AI-DataStructure-Assistant
+python3.12 -m venv ~/.virtualenvs/ai-datastructure-v2
+source ~/.virtualenvs/ai-datastructure-v2/bin/activate
+python -m pip install -r backend/v2/requirements-dev.txt
+
+# 已有 deploy/v2/.env 时，初始化脚本不会覆盖
+python deploy/v2/init_env.py
+chmod 600 deploy/v2/.env
+
+# macOS / ARM64
+docker compose --env-file deploy/v2/.env -f deploy/v2/compose.yaml up -d db
+# x86/WSL 机器：在上一条命令前加 DS_V2_DB_PLATFORM=linux/amd64
+
+python -m alembic -c backend/v2/alembic.ini upgrade head
+python -m backend.v2.tools.dev status
 ```
 
-创建虚拟环境：
+Linux/WSL 首次启动解析 Worker 前，依照 [团队开发指南](docs/v2/TEAM_ONBOARDING.md) 构建隔离解析镜像，并为 API/Worker 配置**相同的仓库外私有存储目录**。
+
+在**三个独立终端**中激活同一个 V2 Python 环境，分别运行：
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
+python -m backend.v2.tools.dev api --test-providers
+python -m backend.v2.tools.dev parser --test-providers
+python -m backend.v2.tools.dev embedding --test-providers
 ```
 
-安装依赖：
+- 本地 API：`http://127.0.0.1:8001`；Swagger：`http://127.0.0.1:8001/api/v2/docs`。
+- 未来 Vue 开发服务器：`http://127.0.0.1:5173`（**尚未实现**）。浏览器联调统一使用 `127.0.0.1`，不要混用 `localhost`。
+- 浏览器请求必须携带 `credentials: 'include'`；写接口需要 `X-CSRF-Token`；上传使用 `FormData`，不可自行设置 multipart `Content-Type`。
+- 默认安全配置面向生产，开发环境的 HTTP/Origin 例外由 `--test-providers` 或明确的开发设置提供；**不得降低正式环境安全要求**。
+
+**离线完整验收：**
 
 ```bash
-pip install -r backend/requirements.txt
+# 需要 Docker 解析隔离测试时
+DS_V2_RUN_DOCKER_TESTS=1 python -m backend.v2.tools.acceptance
+# 评测脚本目前只报告已标注情况，不会自动发起付费调用
+python -m backend.v2.evaluation.score
 ```
 
-主要依赖包括：
+测试运行在隔离数据库及临时存储，开发数据库和 Docker 数据卷不得被清空。不要运行 `docker compose down -v`。普通开发不需要真实模型 API Key。
+
+## 4. 后端接口（前缀 /api/v2）
+
+| 领域 | 核心接口 |
+| --- | --- |
+| 认证 | `GET /auth/csrf`、`POST /auth/register`、`POST /auth/login`、`GET /auth/me`、`POST /auth/logout` |
+| 知识库 | `GET/POST /knowledge-bases`、`GET/PATCH/DELETE /knowledge-bases/{id}` |
+| 文件 | `POST/GET /knowledge-bases/{kb}/documents`、文件详情/下载/删除 |
+| 处理 | `/knowledge-bases/{kb}/documents/{doc}/ingestion` 和 `/embedding` |
+| 云端同意 | `/knowledge-bases/{kb}/cloud-consents`（授权、撤销、审计） |
+| 检索/证据 | `POST /retrieval/search`、`POST /retrieval/prepare-context` |
+| 单轮问答 | `POST /rag/ask` |
+
+以 [openapi.json](docs/v2/openapi.json) 为唯一机器可读字段规范；身份只取服务端 Cookie，不允许前端提交 `user_id` / `role` 冒充身份。私人资源未授权返回 404；管理员不能读取其他学生私人资料。`[S1]` 对应当前响应 `sources[].citation_id`，不能凭客户端拼接的路径获取私人资料。
+
+正常证据不足（HTTP 200）与生成不可用/生成校验失败（503/502）必须分别处理；单轮接口**没有**服务端历史、流式返回和图片题输入。
+
+## 5. 第一轮团队开发（2026-10-27 — 2026-11-02）
+
+**目标：第一次让 V2 Vue 前端连通后端并演示资料来源清楚的单轮课程问答。** 10 月 29 日同步进展，11 月 2 日进行第一轮验收。以下为启动分工，不代表功能已经完成。
+
+| 成员 | 负责范围 | 第一轮交付 |
+| --- | --- | --- |
+| 李均乐（负责人） | 系统集成与技术审查 | 演示环境、合成/获授权课程资料联调、审核 PR、统一接口与架构决策 |
+| 祝晟译 | 后端：会话与历史 | `conversations/messages` 模型与 API 方案、首版 CRUD 和账户隔离测试；**先审查迁移方案再写 0008**，不破坏单轮 RAG |
+| 张圣江 | Vue 3 + Vite 前端 | 登录/注册、知识库列表与选择、基础单轮问答、`[S1]` 引用；优先按已冻结 OpenAPI 联调 |
+| 郭星辰 | 公共课程知识库 | 对 V1 1010 条 Chunk 进行来源与异常核查，导入 dry-run，形成首批约 100 条高质量候选清单；不覆盖原库 |
+| 常慧思 | 测试、标注与材料 | 36 道待审题中首批约 12 道人工标注，功能验收用例与缺陷记录；不要求承担复杂编码 |
+
+**合并验收标准**：登录可用、选库后能调用单轮 `rag/ask`、引用对应真实资料；会话 API 的所有权边界通过数据库测试；公共数据的来源与标注可追踪。多轮前端、图片题和大规模全库付费向量化不是本轮交付条件。
+
+## 6. Git 协作规则
+
+- 以 `main` 的已验收 V2 代码为基线，**每个人从最新 main 创建自己的 `feature/*` 分支**，提交 Pull Request（PR，合并请求）；不要直接在 main 长期开发或强推。
+- 每个 PR 说明修改内容、测试、是否影响 API、数据库迁移、隐私及费用；必要时同步 `docs/v2/openapi.json` / `API_CONTRACT.md`。
+- 新增 Alembic revision 必须先与负责人协调；**0001–0007 已发布，不得改写**。禁止多人各自创建冲突的 `0008`。
+- 跨模块约定优先采用接口契约；前端独立启动，不改 V1 `frontend/`；后端不复制 V1 全局 RAG 状态。
+- 禁止提交 `.env`、密钥、私人上传文件、数据库、日志、缓存或虚拟环境。不得使用其他人的私人 Key 进行测试。
+- 生产开放前仍需完成 HTTPS/TLS、数据库角色划分、每日费用硬额度、备份恢复、生产隔离及真实语义质量评测。
+
+## 7. 仓库地图与 V1 历史
 
 ```text
-fastapi
-uvicorn
-pydantic
-pydantic-settings
-openai
-dashscope
-numpy
-python-dotenv
-jieba
+backend/v2/       V2 FastAPI、ORM、Worker、RAG 服务与测试
+deploy/v2/        V2 Compose、解析隔离镜像、配置模板
+docs/v2/          V2 架构、API、验收、前端交接、团队启动
+knowledge_base/   V1 课程 JSONL 和校验/迁移资产（请保护）
+rag/              V1 RAG 核心代码（只读参考，不是 V2 的运行入口）
+backend/          V1 后端以及 backend/v2
+frontend/         V1 原有静态 HTML/CSS/JS（不是 Vue 新工程）
+tests/            V1 研究、Benchmarks 和历史标注数据
 ```
 
----
+V1 的 Query Expansion、多查询检索、旧 `0.58` 阈值及早期前端是**历史原型能力**，不能据此宣称 V2 已实现同样功能。V2 拥有独立的数据表、授权、任务和检索服务。旧 README 全文归档在 [V1 README（历史）](docs/v1/README_LEGACY.md)，论文型研究记录见 [2026-09 研究检查点](docs/RESEARCH_CHECKPOINT_2026-09.md)。
 
-## 15. 模型服务配置
-
-项目根目录创建：
-
-```text
-.env
-```
-
-配置：
-
-```text
-DASHSCOPE_API_KEY=YOUR_API_KEY
-DASHSCOPE_WORKSPACE_ID=YOUR_WORKSPACE_ID
-DASHSCOPE_REGION=cn-beijing
-```
-
-禁止提交：
-
-```text
-API Key
-Token
-Workspace 私有信息
-其他凭证
-```
-
-`.env` 应保持在 Git ignore 中。
-
----
-
-## 16. 启动系统
-
-### 后端
-
-从项目根目录：
-
-```bash
-source .venv/bin/activate
-python3 -m backend.main
-```
-
-默认地址：
-
-```text
-http://127.0.0.1:8000
-```
-
-API 文档：
-
-```text
-http://127.0.0.1:8000/docs
-```
-
-健康检查：
-
-```bash
-curl http://127.0.0.1:8000/api/v1/health
-```
-
-### 前端
-
-新终端运行：
-
-```bash
-python3 -m http.server 5500 -d frontend
-```
-
-浏览器访问：
-
-```text
-http://localhost:5500
-```
-
----
-
-## 17. 评测
-
-统一检索评测入口：
-
-```text
-tests/system/run_retrieval_eval.py
-```
-
-支持：
-
-```bash
-python3 tests/system/run_retrieval_eval.py --retriever dense
-python3 tests/system/run_retrieval_eval.py --retriever bm25
-python3 tests/system/run_retrieval_eval.py --retriever hybrid
-python3 tests/system/run_retrieval_eval.py --retriever dense_rerank
-```
-
-常用指标：
-
-- Recall@K（前 K 条相关证据召回率）；
-- MRR@K（平均倒数排名）；
-- nDCG@K（归一化折损累计增益）；
-- Hit@K（前 K 条是否命中）；
-- Facet Coverage@K（答案要点覆盖率）；
-- Full Coverage@K（完整答案要点覆盖率）；
-- retrieval latency（检索延迟）。
-
-当前已经保留：
-
-```text
-Dev Benchmark
-Held-out Benchmark
-人工 question-chunk 标注
-facet 标注
-历史检索实验结果
-```
-
-这些资产主要用于后续系统回归测试，而不是当前生产逻辑的一部分。
-
----
-
-## 18. 历史研究资产
-
-项目曾围绕：
-
-```text
-evidence-set construction
-comparison query
-facet coverage
-adaptive evidence selection
-```
-
-开展论文型实验。
-
-当前该研究路线已经暂停。
-
-研究总结：
-
-```text
-docs/RESEARCH_CHECKPOINT_2026-09.md
-```
-
-历史代码保存在：
-
-```text
-tests/research/
-```
-
-这些代码不作为当前生产 RAG 入口。
-
----
-
-## 19. 当前开发状态
-
-```text
-Knowledge Base              ~463 chunks
-
-Query Router                Production
-Query Expansion             Production
-Multi-query Retrieval       Production
-
-Dense Retrieval             Production
-BM25 Retrieval              Production
-Hybrid RRF                  Production
-Multi-query RRF             Production
-
-Scope Gate                  Production
-Qwen Reranker               Production
-Mode-specific Generation    Production
-
-Embedding Cache             Available
-Batch Query Embedding       Available
-
-RAG V1 Core                 Frozen
-
-FastAPI Backend             Adapting to new RAG
-Frontend                    Waiting for new API
-Knowledge Base              Expanding
-System Regression           Preparing
-
-Paper-oriented Research     Paused
-System Development          Active
-```
-
----
-
-## 20. 当前验证结果
-
-当前已完成基础真实链路验证。
-
-### 简单知识问题
-
-```text
-AVL树为什么需要旋转？
-```
-
-结果：
-
-```text
-Query Expansion: No
-Mode: qa
-Out of Scope: False
-Rerank Fallback: False
-```
-
-### 复杂比较问题
-
-```text
-Prim和Kruskal算法在基本思想和适用场景上有什么区别？
-```
-
-系统能够拆解为多个检索 Query，并同时召回 Prim、Kruskal 和比较类 Evidence。
-
-批量 Query Embedding 优化后，复杂 Query Retrieval 延迟相比串行多次 Embedding 明显下降。
-
-### 代码问题
-
-单链表空指针问题可以正确进入：
-
-```text
-mode = code
-```
-
-并完成：
-
-```text
-代码作用
-→ 问题定位
-→ 修改建议
-→ 边界分析
-```
-
-### 范围外问题
-
-```text
-TCP为什么需要三次握手？
-```
-
-能够在 Scope Gate 阶段拒答：
-
-```text
-根据当前资料无法确定
-```
-
-不会继续调用 Reranker 和 Generator。
-
----
-
-## 21. 团队分工
-
-项目由 5 名成员协作：
-
-- 李均乐：项目负责人、RAG 核心流程、系统集成；
-- 郭星辰：知识库与数据整理；
-- 祝晟译：FastAPI 后端；
-- 张圣江：前端；
-- 常慧思：材料、测试和评测支持。
-
-当前开发依赖关系：
-
-```text
-RAG Core
-   ├── Knowledge Base
-   │
-   └── Backend
-          ↓
-       Frontend
-          ↓
-   End-to-End Testing
-```
-
----
-
-## 22. 安全说明
-
-禁止提交：
-
-```text
-.env
-API Key
-Token
-.venv
-__pycache__
-*.pyc
-本地日志
-临时实验结果
-私有凭证
-```
-
-如果历史提交中曾暴露真实凭证，应立即在对应服务平台撤销并重新生成。
-
----
-
-## 23. 项目定位
-
-当前项目定位：
-
-> 一个持续开发中的数据结构课程 RAG 智能助教系统。
-
-现阶段目标不是继续扩大论文实验，而是完成：
-
-```text
-稳定知识库
-→ 稳定 RAG
-→ 后端集成
-→ 前端集成
-→ 系统回归测试
-→ 可部署 / 可演示版本
-```
+当前优先顺序：**先完成可演示平台与真实课程资料验证，再推进多轮功能整合、多模态以及质量/性能优化。**

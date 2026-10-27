@@ -79,4 +79,4 @@ python -m backend.v2.evaluation.score
 
 从最新 main 创建 feature 分支；每个 PR 说明问题、变更、真实测试、隐私/成本影响。API 变动更新 OpenAPI、API_CONTRACT 与前端示例；不破坏已有字段语义。新增迁移提前协调唯一 revision，不能改写已执行的 0001–0007；分叉迁移由维护者审查，禁止随意合并 heads 或重置数据库。
 
-合并前执行验收、diff --check、敏感文件检查。真实 .env、上传内容、向量、日志、缓存、虚拟环境不进 Git。V1 资产与 V2 功能 PR 分开。后续模块范围见 NEXT_PHASE_BACKLOG.md；本轮不分配人员。
+合并前执行验收、diff --check、敏感文件检查。真实 .env、上传内容、向量、日志、缓存、虚拟环境不进 Git。V1 资产与 V2 功能 PR 分开。长期待办范围见 NEXT_PHASE_BACKLOG.md；2026-10-27 启动的首轮五人任务见仓库 GitHub Issues #3–#7。请以对应 Issue 和最新 main 作为协作入口。

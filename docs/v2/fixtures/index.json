@@ -1,0 +1,128 @@
+[
+  {
+    "id": "csrf",
+    "method": "GET",
+    "path": "/api/v2/auth/csrf",
+    "http_status": 200,
+    "request_file": null,
+    "response_file": "auth-csrf.response.json",
+    "response_contract": "CsrfResponse"
+  },
+  {
+    "id": "login",
+    "method": "POST",
+    "path": "/api/v2/auth/login",
+    "http_status": 200,
+    "request_file": "auth-login.request.json",
+    "response_file": "auth-login.response.json",
+    "response_contract": "UserEnvelope"
+  },
+  {
+    "id": "me",
+    "method": "GET",
+    "path": "/api/v2/auth/me",
+    "http_status": 200,
+    "request_file": null,
+    "response_file": "auth-me.response.json",
+    "response_contract": "UserEnvelope"
+  },
+  {
+    "id": "knowledge-bases",
+    "method": "GET",
+    "path": "/api/v2/knowledge-bases",
+    "http_status": 200,
+    "request_file": null,
+    "response_file": "knowledge-bases.response.json",
+    "response_contract": "KnowledgeBaseList"
+  },
+  {
+    "id": "answered",
+    "method": "POST",
+    "path": "/api/v2/rag/ask",
+    "http_status": 200,
+    "request_file": "rag-ask.request.json",
+    "response_file": "rag-answered.response.json",
+    "response_contract": "AskResponse"
+  },
+  {
+    "id": "insufficient-evidence",
+    "method": "POST",
+    "path": "/api/v2/rag/ask",
+    "http_status": 200,
+    "request_file": "rag-insufficient.request.json",
+    "response_file": "rag-insufficient.response.json",
+    "response_contract": "AskResponse"
+  },
+  {
+    "id": "validation-failed",
+    "method": "POST",
+    "path": "/api/v2/rag/ask",
+    "http_status": 502,
+    "request_file": "rag-ask.request.json",
+    "response_file": "rag-validation-failed.response.json",
+    "response_contract": "AskResponse+ErrorResponse"
+  },
+  {
+    "id": "generation-unavailable",
+    "method": "POST",
+    "path": "/api/v2/rag/ask",
+    "http_status": 503,
+    "request_file": "rag-ask.request.json",
+    "response_file": "rag-generation-unavailable.response.json",
+    "response_contract": "AskResponse+ErrorResponse"
+  },
+  {
+    "id": "csrf-rejected",
+    "method": "POST",
+    "path": "/api/v2/rag/ask",
+    "http_status": 403,
+    "request_file": "rag-ask.request.json",
+    "response_file": "csrf-rejected.response.json",
+    "response_contract": "ErrorResponse"
+  },
+  {
+    "id": "cloud-consent-required",
+    "method": "POST",
+    "path": "/api/v2/rag/ask",
+    "http_status": 403,
+    "request_file": "rag-cloud-consent.request.json",
+    "response_file": "cloud-consent-required.response.json",
+    "response_contract": "ErrorResponse"
+  },
+  {
+    "id": "unauthorized",
+    "method": "GET",
+    "path": "/api/v2/auth/me",
+    "http_status": 401,
+    "request_file": null,
+    "response_file": "unauthorized.response.json",
+    "response_contract": "ErrorResponse"
+  },
+  {
+    "id": "forbidden",
+    "method": "POST",
+    "path": "/api/v2/admin/knowledge-bases",
+    "http_status": 403,
+    "request_file": null,
+    "response_file": "forbidden.response.json",
+    "response_contract": "ErrorResponse"
+  },
+  {
+    "id": "knowledge-base-not-found",
+    "method": "GET",
+    "path": "/api/v2/knowledge-bases/22222222-2222-4222-8222-222222222222",
+    "http_status": 404,
+    "request_file": null,
+    "response_file": "knowledge-base-not-found.response.json",
+    "response_contract": "ErrorResponse"
+  },
+  {
+    "id": "service-unavailable",
+    "method": "GET",
+    "path": "/api/v2/auth/me",
+    "http_status": 503,
+    "request_file": null,
+    "response_file": "service-unavailable.response.json",
+    "response_contract": "ErrorResponse"
+  }
+]

@@ -1,0 +1,6 @@
+{
+  "error": {
+    "code": "csrf_rejected",
+    "message": "CSRF verification failed"
+  }
+}

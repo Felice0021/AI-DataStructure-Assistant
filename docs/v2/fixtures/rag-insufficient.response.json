@@ -1,0 +1,12 @@
+{
+  "status": "insufficient_evidence",
+  "reason": "no_evidence",
+  "answer": "根据当前授权资料无法确定。",
+  "sources": [],
+  "retrieval_mode": "bm25",
+  "answer_mode": "qa",
+  "rerank_applied": false,
+  "generation_model": null,
+  "execution_performed": false,
+  "latency_ms": 2.5
+}

@@ -1,0 +1,6 @@
+{
+  "error": {
+    "code": "cloud_consent_required",
+    "message": "Purpose-specific cloud consent required"
+  }
+}

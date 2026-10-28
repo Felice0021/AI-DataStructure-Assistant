@@ -1,0 +1,16 @@
+{
+  "status": "validation_failed",
+  "reason": "invalid_citations",
+  "answer": null,
+  "sources": [],
+  "retrieval_mode": "hybrid",
+  "answer_mode": "qa",
+  "rerank_applied": true,
+  "generation_model": "controlled-fixture",
+  "execution_performed": false,
+  "latency_ms": 10.0,
+  "error": {
+    "code": "invalid_citations",
+    "message": "Generated answer failed validation"
+  }
+}

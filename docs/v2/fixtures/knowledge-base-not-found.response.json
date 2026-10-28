@@ -1,0 +1,6 @@
+{
+  "error": {
+    "code": "knowledge_base_not_found",
+    "message": "Knowledge base not found"
+  }
+}

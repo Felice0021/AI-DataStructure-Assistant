@@ -1,0 +1,27 @@
+{
+  "status": "answered",
+  "reason": null,
+  "answer": "AVL树是一种自平衡二叉搜索树。每个结点左右子树高度差的绝对值不超过1。[S1]",
+  "sources": [
+    {
+      "citation_id": "[S1]",
+      "chunk_id": "55555555-5555-4555-8555-555555555555",
+      "document_id": "44444444-4444-4444-8444-444444444444",
+      "knowledge_base_id": "22222222-2222-4222-8222-222222222222",
+      "source_filename": "synthetic-fixture.txt",
+      "page_number": null,
+      "section_title": "AVL树",
+      "chunk_index": 0,
+      "content_hash": "984f7a84a9761fa1b622eb53ff9d21a4905f0792872651feef00056cb6904e57",
+      "generation": 1,
+      "index_revision": 1,
+      "embedding_space_id": "9a37f104ad3962415fc81de4f935174bc89e34a3fdcc180faade47e570bb6a5e"
+    }
+  ],
+  "retrieval_mode": "hybrid",
+  "answer_mode": "qa",
+  "rerank_applied": true,
+  "generation_model": "deterministic-evidence-quote-v1",
+  "execution_performed": false,
+  "latency_ms": 12.5
+}

@@ -1,0 +1,16 @@
+{
+  "status": "generation_unavailable",
+  "reason": "generation_disabled",
+  "answer": null,
+  "sources": [],
+  "retrieval_mode": "hybrid",
+  "answer_mode": "qa",
+  "rerank_applied": true,
+  "generation_model": null,
+  "execution_performed": false,
+  "latency_ms": 3.0,
+  "error": {
+    "code": "generation_disabled",
+    "message": "Generation unavailable"
+  }
+}

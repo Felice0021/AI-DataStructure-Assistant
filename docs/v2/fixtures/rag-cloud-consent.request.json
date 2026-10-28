@@ -1,0 +1,13 @@
+{
+  "query": "AVL树是什么？",
+  "knowledge_base_ids": [
+    "22222222-2222-4222-8222-222222222222"
+  ],
+  "retrieval_mode": "bm25",
+  "answer_mode": "qa",
+  "top_k": 20,
+  "rerank": "required",
+  "allow_cloud": false,
+  "allow_cloud_rerank": true,
+  "allow_cloud_generation": true
+}

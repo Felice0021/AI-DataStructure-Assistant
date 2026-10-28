@@ -2,6 +2,8 @@
 
 机器可读契约：`openapi.json`（FastAPI 实际导出）。本轮不开发 Vue。全部接口前缀 `/api/v2`，身份来自 Cookie，不能传 user_id、owner_id、role 或内部 storage_key。未授权私人资源统一 404；管理员也不能读取其他学生私人资料。
 
+前端独立开发可使用 [HTTP Fixture](fixtures/README.md)：合成请求/响应、场景索引、Windows/Vite 接入及纯本地字段校验。Mock 不建立真实 Session；RAG 的运行时 502/503 附加 error 结构与 OpenAPI 声明差异也在该页记录。
+
 ## 浏览器连接、CSRF 与 Cookie
 
 本地统一使用 `http://127.0.0.1:5173` 前端和 `http://127.0.0.1:8001` API，不要混用 localhost。API 需明确 development + allow_insecure_loopback，CORS 来源白名单包含上述 Origin。生产要求 HTTPS、Secure HttpOnly Host Cookie、精确 HTTPS Origin；不使用带凭证通配符。所有 POST/PATCH/DELETE（含只读 POST）必须携带正确 Origin 和 X-CSRF-Token。

@@ -18,11 +18,47 @@ def digest(data):
     return hashlib.sha256(data).hexdigest()
 
 def save(name, obj):
-    (OUT / name).write_text(json.dumps(obj, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+    (OUT / name).write_text(json.dumps(obj, ensure_ascii=False, indent=2) + '\n', encoding='utf-8', newline='\n')
+
+def require_candidate_reviews(candidates, notes):
+    missing = [r['chunk_id'] for r in candidates
+               if not isinstance(notes.get(r['chunk_id']), dict)
+               or not isinstance(notes[r['chunk_id']].get('note'), str)
+               or not notes[r['chunk_id']]['note'].strip()
+               or notes[r['chunk_id']].get('issue')]
+    if missing:
+        raise ValueError('Final candidates require explicit AI content review without open issues: ' + ', '.join(missing))
+
+def protect_human_records(fieldnames):
+    """Fail closed instead of replacing edits in any existing generated review view."""
+    defaults = {
+        '人工复核状态': {'未复核', ''}, '最终批准状态': {'未批准', ''},
+        '负责人复核结论': {'待复核', ''},
+        '授权凭据': {'用户会话确认；见authorization.md', '组员陈述；见authorization.md'},
+        '允许对外展示': {'否（公开展示/分发未确认）'},
+    }
+    existing = []
+    for name in ('review.csv', 'candidates_100.csv', 'issues.csv'):
+        path = OUT / name
+        if path.exists():
+            with path.open(encoding='utf-8-sig', newline='') as handle:
+                reader = csv.DictReader(handle)
+                if set(reader.fieldnames or ()) - set(fieldnames) - {'text'}:
+                    raise ValueError(f'{name}: unknown columns; preserve and merge manually')
+                existing.extend((name, row) for row in reader)
+    path = OUT / 'review_data.json'
+    if path.exists():
+        existing.extend((path.name, row) for row in json.loads(path.read_text(encoding='utf-8')))
+    for name, row in existing:
+        if set(row) - set(fieldnames) - {'text'}:
+            raise ValueError(f'{name}: unknown columns; preserve and merge manually')
+        for key, allowed in defaults.items():
+            if key in row and row[key] not in allowed:
+                raise ValueError(f'{name}: human-edited {key} at {row.get("legacy_chunk_id")}; generation stopped')
 
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
-    raw = SOURCE.read_bytes()
+    raw = SOURCE.read_bytes().replace(b'\r\n', b'\n')
     rows = [json.loads(s) for s in raw.decode('utf-8').splitlines() if s.strip()]
     # Run existing validator without changing its historical report.
     path = ROOT / 'knowledge_base/validate_chunks.py'
@@ -32,8 +68,6 @@ def main():
     spec.loader.exec_module(mod)
     chunks, issues = mod.load_and_validate(SOURCE)
     stats = mod.build_statistics(chunks, issues)
-    save('validation_current.json', {'input_file': 'knowledge_base/ds_chunks.jsonl',
-         'statistics': stats, 'issues': [vars(i) for i in issues]})
     # Execute ONLY the unchanged pure prepare() AST from the checked-in tool.
     # This is an offline fallback, explicitly not a successful V2 CLI run.
     tool = ROOT / 'backend/v2/tools/import_course.py'
@@ -42,10 +76,6 @@ def main():
     scope = {'Path': Path, 'hashlib': hashlib, 'json': json, 're': re}
     exec(compile(ast.Module(body=[fn], type_ignores=[]), str(tool), 'exec'), scope)
     data, manifest = scope['prepare'](SOURCE)
-    save('prepare_offline.json', {'mode': 'offline AST of unchanged prepare(); NOT V2 CLI acceptance',
-         'tool_sha256': digest(tool.read_bytes()), 'source_jsonl': {'records':len(rows), 'bytes':len(raw), 'sha256':digest(raw)},
-         'derived_txt': {k:v for k,v in manifest.items() if k != 'mapping'}, 'validation_errors': []})
-    save('preview_mapping.json', manifest['mapping'])
     flags = defaultdict(list)
     for issue in issues:
         if issue.chunk_id:
@@ -79,7 +109,6 @@ def main():
                 pairs.append({'id_a':rows[j]['chunk_id'], 'id_b':cid, 'trigram_jaccard':round(sim,4)})
                 for x,y in [(cid, rows[j]['chunk_id']), (rows[j]['chunk_id'],cid)]:
                     flags[x].append(('NEAR_DUPLICATE', f'与 {y} 字符三元组 Jaccard={sim:.4f}；不自动合并'))
-    save('near_duplicates.json', pairs)
     notes_path = Path(__file__).with_name('content_notes.json')
     notes = json.loads(notes_path.read_text(encoding='utf-8')) if notes_path.exists() else {}
     for cid, note in notes.items():
@@ -106,6 +135,7 @@ def main():
     # Review notes are maintained separately by stable ID after actual AI reading.
     if any(flags[cid] for cid in candidate_ids):
         raise ValueError('Candidate now has review issues: revise selection explicitly')
+    require_candidate_reviews(candidates, notes)
     table = []
     for r in rows:
         cid = r['chunk_id']
@@ -117,28 +147,44 @@ def main():
             '审查说明':'；'.join(x[1] for x in fs) or '自动规则未命中；不代表内容或页码正确',
             '建议处理':'对照原资料复核后决定保留/补充/合并' if fs else '负责人核对原文、页码及授权',
             '是否首批候选':'是（限非商用研究试验；待内容复核）' if cid in candidate_ids else '否',
-            '来源授权确认状态':'用户确认：非商用研究试验使用',
+            '来源授权确认状态':'组员陈述：限非商用研究试验；未独立核验',
+            '自动初审状态':'规则筛查完成；AI内容初审已记录' if note else '仅规则筛查；未做AI内容初审',
+            '人工复核状态':'未复核', '最终批准状态':'未批准',
             '复核方式':'自动检查 + AI辅助内容初审' if note else '自动检查；未做逐条内容初审',
             '内容初审说明':note.get('note',''),
             '用途': {'concept':'概念问答','algorithm':'算法步骤讲解','code':'代码分析','exercise':'习题讲解'}[r['content_type']] if cid in candidate_ids else '',
-            '筛选理由': ('章节/小节及类型覆盖；自动规则未命中异常；' + note.get('note','待AI内容初审')) if cid in candidate_ids else '',
+            '筛选理由': ('章节/小节及类型覆盖；自动规则未命中异常；' + notes[cid]['note']) if cid in candidate_ids else '',
             '负责人复核结论':'待复核',
-            '授权凭据':'用户会话确认；见authorization.md',
-            '允许对外展示':'否（公开展示/分发未确认）', 'text':r['text']})
+            '授权凭据':'组员陈述；见authorization.md',
+            '允许对外展示':'否（公开展示/分发未确认）'})
+    protect_human_records(list(table[0]))
+    # All review/overwrite checks happen before writing any report.
+    save('validation_current.json', {'input_file': 'knowledge_base/ds_chunks.jsonl',
+         'statistics': stats, 'issues': [vars(i) for i in issues]})
+    save('prepare_offline.json', {'mode': 'offline AST of unchanged prepare(); NOT V2 CLI acceptance',
+         'hash_byte_convention':'UTF-8 with LF line endings',
+         'tool_sha256': digest(tool.read_bytes().replace(b'\r\n', b'\n')),
+         'source_jsonl': {'records':len(rows), 'bytes':len(raw), 'sha256':digest(raw)},
+         'derived_txt': {k:v for k,v in manifest.items() if k != 'mapping'}, 'validation_errors': []})
+    save('preview_mapping.json', manifest['mapping'])
+    save('near_duplicates.json', pairs)
     for name, selected in [('review.csv',table),('candidates_100.csv',[r for r in table if r['legacy_chunk_id'] in candidate_ids]),
                            ('issues.csv',[r for r in table if r['异常类型']])]:
         with (OUT/name).open('w',encoding='utf-8-sig',newline='') as f:
-            writer=csv.DictWriter(f,fieldnames=list(table[0]));writer.writeheader();writer.writerows(selected)
+            writer=csv.DictWriter(f,fieldnames=list(table[0]),lineterminator='\n');writer.writeheader();writer.writerows(selected)
     save('review_data.json', table)
     blob = subprocess.run(['git','show','HEAD:knowledge_base/ds_chunks.jsonl'],cwd=ROOT,check=True,capture_output=True).stdout
     save('summary.json', {'source_sha256':digest(raw), 'source_bytes':len(raw),
-        'git_blob_bytes':len(blob),'git_blob_sha256':digest(blob),'lf_normalized_matches_git_blob':raw.replace(b'\r\n',b'\n') == blob,
+        'hash_byte_convention':'UTF-8 with LF line endings',
+        'git_blob_bytes':len(blob),'git_blob_sha256':digest(blob),'lf_normalized_matches_git_blob':raw == blob,
         'statistics':stats,
-        'flag_counts': dict(Counter(code for fs in flags.values() for code in {x[0] for x in fs})),
+        'flag_counts': dict(Counter(code for fs in flags.values() for code in sorted({x[0] for x in fs}))),
         'flagged_records':sum(bool(flags[r['chunk_id']]) for r in rows), 'candidate_count':len(candidates),
         'ai_content_review_count':len(notes),
-        'authorization': {'status':'user-confirmed', 'scope':'noncommercial research experiments',
+        'authorization': {'status':'member-reported; not independently verified', 'scope':'noncommercial research experiments',
                           'records':len(rows), 'written_evidence_attached':False, 'public_distribution_confirmed':False},
+        'review_states': {'ai_content_reviewed':len(notes), 'human_reviewed':0, 'finally_approved':0},
+        'public_exports_include_source_text':False, 'public_workbook_tracked':False,
         'candidate_types':dict(Counter(r['content_type'] for r in candidates)),
         'candidate_chapters':dict(Counter(r['chapter'] for r in candidates)),
         'unknown_page_ids':[r['chunk_id'] for r in rows if r['page'] is None]})

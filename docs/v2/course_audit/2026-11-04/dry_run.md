@@ -53,7 +53,7 @@ python -m backend.v2.tools.import_course knowledge_base/ds_chunks.jsonl
 | prepare 校验错误 | 无 |
 | mapping 条数 | 1010 |
 
-源JSONL摘要和Windows换行差异见README；本表 bytes/sha256 仅针对工具生成的 UTF-8 TXT 字节。TXT未落盘，映射写入新的 preview_mapping.json，保留原ID、原来源、原页码及正文hash。
+源JSONL摘要统一按UTF-8/LF字节计算，Windows检出换行说明见README；本表 bytes/sha256 仅针对工具生成的 UTF-8 TXT 字节。TXT未落盘，映射写入新的 preview_mapping.json，只保留原ID、原来源、原页码及正文hash，不包含完整正文。当前公开CSV/JSON同样不导出正文，含原文Excel不再跟踪。
 
 ## 支持环境中的复现步骤
 

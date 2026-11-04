@@ -1,6 +1,7 @@
 {
-  "source_sha256": "44f7d8295ea40480c16bca7f546f608a523041e69b9553e93de00ae0e86d0c93",
-  "source_bytes": 377304,
+  "source_sha256": "e338116ac715055d440a9cc86bc8ae2f6b2de1e19d59cece78a480c2b97a3e28",
+  "source_bytes": 376294,
+  "hash_byte_convention": "UTF-8 with LF line endings",
   "git_blob_bytes": 376294,
   "git_blob_sha256": "e338116ac715055d440a9cc86bc8ae2f6b2de1e19d59cece78a480c2b97a3e28",
   "lf_normalized_matches_git_blob": true,
@@ -56,12 +57,19 @@
   "candidate_count": 100,
   "ai_content_review_count": 130,
   "authorization": {
-    "status": "user-confirmed",
+    "status": "member-reported; not independently verified",
     "scope": "noncommercial research experiments",
     "records": 1010,
     "written_evidence_attached": false,
     "public_distribution_confirmed": false
   },
+  "review_states": {
+    "ai_content_reviewed": 130,
+    "human_reviewed": 0,
+    "finally_approved": 0
+  },
+  "public_exports_include_source_text": false,
+  "public_workbook_tracked": false,
   "candidate_types": {
     "concept": 42,
     "code": 27,

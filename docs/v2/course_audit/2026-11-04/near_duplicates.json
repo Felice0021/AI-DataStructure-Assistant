@@ -1,0 +1,57 @@
+[
+  {
+    "id_a": "ds_ch02_0034",
+    "id_b": "ds_ch02_0068",
+    "trigram_jaccard": 0.7625
+  },
+  {
+    "id_a": "ds_ch02_0076",
+    "id_b": "ds_ch02_0077",
+    "trigram_jaccard": 0.8148
+  },
+  {
+    "id_a": "ds_ch03_0002",
+    "id_b": "ds_ch03_0022",
+    "trigram_jaccard": 0.7784
+  },
+  {
+    "id_a": "ds_ch05_0046",
+    "id_b": "ds_ch05_0062",
+    "trigram_jaccard": 0.8222
+  },
+  {
+    "id_a": "ds_ch06_0017",
+    "id_b": "ds_ch06_0053",
+    "trigram_jaccard": 0.8
+  },
+  {
+    "id_a": "ds_ch06_0043",
+    "id_b": "ds_ch06_0069",
+    "trigram_jaccard": 0.9067
+  },
+  {
+    "id_a": "ds_ch06_0092",
+    "id_b": "ds_ch06_0093",
+    "trigram_jaccard": 0.75
+  },
+  {
+    "id_a": "ds_ch07_0070",
+    "id_b": "ds_ch07_0071",
+    "trigram_jaccard": 0.8
+  },
+  {
+    "id_a": "ds_ch07_0082",
+    "id_b": "ds_ch07_0083",
+    "trigram_jaccard": 0.7778
+  },
+  {
+    "id_a": "ds_ch09_0022",
+    "id_b": "ds_ch09_0061",
+    "trigram_jaccard": 0.8942
+  },
+  {
+    "id_a": "ds_ch09_0012",
+    "id_b": "ds_ch09_0062",
+    "trigram_jaccard": 0.9091
+  }
+]

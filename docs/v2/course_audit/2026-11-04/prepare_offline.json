@@ -1,0 +1,16 @@
+{
+  "mode": "offline AST of unchanged prepare(); NOT V2 CLI acceptance",
+  "tool_sha256": "60f030c8f511555d1df46348f246852f333a9c08761162659b997cda9b86801f",
+  "source_jsonl": {
+    "records": 1010,
+    "bytes": 377304,
+    "sha256": "44f7d8295ea40480c16bca7f546f608a523041e69b9553e93de00ae0e86d0c93"
+  },
+  "derived_txt": {
+    "source_records": 1010,
+    "bytes": 383572,
+    "sha256": "e0a548c93bc7d562dd4c0ab4d2e1e6add59c1a3f42d2293817e09026ecd4659a",
+    "filename": "v1-course-e0a548c93bc7d562.txt"
+  },
+  "validation_errors": []
+}

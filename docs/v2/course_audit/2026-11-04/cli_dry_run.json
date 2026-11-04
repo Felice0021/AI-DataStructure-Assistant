@@ -1,0 +1,35 @@
+{
+  "verified_at": "2026-11-04T22:25:31+08:00",
+  "platform": "Windows",
+  "python": "3.12.14",
+  "command": "python -B -m backend.v2.tools.import_course knowledge_base/ds_chunks.jsonl",
+  "exit_code": 0,
+  "stdout": {
+    "source_records": 1010,
+    "bytes": 383572,
+    "sha256": "e0a548c93bc7d562dd4c0ab4d2e1e6add59c1a3f42d2293817e09026ecd4659a",
+    "filename": "v1-course-e0a548c93bc7d562.txt"
+  },
+  "stderr": "",
+  "repeat_with_new_mapping_output_exit_code": 0,
+  "repeat_stdout_matches": true,
+  "mapping_matches_offline": true,
+  "mapping_records": 1010,
+  "scope": "Original CLI dry-run on native Windows; no --apply; not a full Windows/WSL backend acceptance",
+  "installed_packages": {
+    "SQLAlchemy": "2.0.55",
+    "annotated-types": "0.8.0",
+    "anyio": "4.16.0",
+    "greenlet": "3.5.6",
+    "idna": "3.20",
+    "pgvector": "0.5.0",
+    "pip": "25.0.1",
+    "pydantic": "2.14.2",
+    "pydantic-settings": "2.16.1",
+    "pydantic_core": "2.50.2",
+    "python-dotenv": "1.2.4",
+    "starlette": "1.10.0",
+    "typing-inspection": "0.4.5",
+    "typing_extensions": "4.16.0"
+  }
+}

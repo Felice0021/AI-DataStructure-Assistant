@@ -1,0 +1,52 @@
+:root {
+  --ink: #1f2328;
+  --muted: #5c6672;
+  --line: #e3e6ea;
+  --bg: #f6f7f9;
+  --brand: #185fa5;
+
+  --font-sans:
+    "Segoe UI", system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB",
+    sans-serif;
+
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 1px;
+}

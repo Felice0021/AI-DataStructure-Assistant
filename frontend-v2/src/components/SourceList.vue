@@ -1,0 +1,103 @@
+<script setup lang="ts">
+import type { AnswerSource } from '@/types/api'
+
+defineProps<{
+  sources: AnswerSource[]
+  highlight: string | null
+}>()
+</script>
+
+<template>
+  <section v-if="sources.length > 0" class="sources">
+    <h3 class="sources-title">资料来源（{{ sources.length }}）</h3>
+    <ol class="source-list">
+      <li
+        v-for="source in sources"
+        :id="`source-${source.citation_id.replace(/[[\]]/g, '')}`"
+        :key="source.citation_id"
+        class="source-item"
+        :class="{ 'is-active': highlight === source.citation_id }"
+      >
+        <span class="source-cite">{{ source.citation_id }}</span>
+        <div class="source-body">
+          <p class="source-name">{{ source.source_filename }}</p>
+          <p class="source-meta">
+            <span v-if="source.page_number !== null">第 {{ source.page_number }} 页</span>
+            <span v-else>页码未知</span>
+            <span v-if="source.section_title">· {{ source.section_title }}</span>
+            <span>· 片段 #{{ source.chunk_index }}</span>
+          </p>
+        </div>
+      </li>
+    </ol>
+  </section>
+</template>
+
+<style scoped>
+.sources {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--line);
+}
+
+.sources-title {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.source-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.source-item {
+  display: flex;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfd;
+}
+
+.source-item.is-active {
+  border-color: var(--brand);
+  background: #f0f6fd;
+}
+
+.source-cite {
+  flex: 0 0 auto;
+  height: fit-content;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: #e8f0fb;
+  color: var(--brand);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.source-body {
+  min-width: 0;
+}
+
+.source-name {
+  margin: 0 0 3px;
+  font-size: 13px;
+  color: var(--ink);
+  word-break: break-all;
+}
+
+.source-meta {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+</style>

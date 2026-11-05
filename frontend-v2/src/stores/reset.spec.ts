@@ -2,6 +2,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { authApi } from '@/api/auth'
+import { ensureCsrf, hasCsrf, invalidateCsrf } from '@/api/csrf'
 import { ApiError } from '@/api/http'
 import { mockAnswered, mockKnowledgeBases, mockUser } from '@/mocks/fixtures'
 
@@ -136,5 +137,48 @@ describe('logoutAndReset 结果区分', () => {
     vi.mocked(authApi.logout).mockRejectedValue(new ApiError(0, 'network_error', 'x'))
 
     await expect(logoutAndReset()).resolves.toBe('failed')
+  })
+
+  it('退出失败时清掉本地 CSRF 缓存（否则重试会用旧会话派生的 token）', async () => {
+    signIn()
+    invalidateCsrf()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ csrf_token: 'a'.repeat(64) }), {
+            headers: { 'Content-Type': 'application/json' },
+          }),
+      ),
+    )
+    await ensureCsrf()
+    expect(hasCsrf()).toBe(true)
+
+    vi.mocked(authApi.logout).mockRejectedValue(new ApiError(500, 'internal_error', 'x'))
+    await logoutAndReset()
+
+    expect(hasCsrf()).toBe(false)
+    vi.unstubAllGlobals()
+  })
+
+  it('退出成功同样作废 CSRF 缓存（Cookie 已变，旧 token 必然失效）', async () => {
+    signIn()
+    invalidateCsrf()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ csrf_token: 'b'.repeat(64) }), {
+            headers: { 'Content-Type': 'application/json' },
+          }),
+      ),
+    )
+    await ensureCsrf()
+
+    vi.mocked(authApi.logout).mockResolvedValue(undefined)
+    await logoutAndReset()
+
+    expect(hasCsrf()).toBe(false)
+    vi.unstubAllGlobals()
   })
 })

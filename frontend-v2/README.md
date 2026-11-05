@@ -63,7 +63,7 @@ http://127.0.0.1:5173/?mock=answered&delay=4000
 | `npm run dev` | 开发服务器，固定 `127.0.0.1:5173`（`strictPort`，端口被占会直接报错而不是换端口） |
 | `npm run build` | `vue-tsc` 类型检查 + 生产构建到 `dist/` |
 | `npm run preview` | 预览构建产物（`127.0.0.1:4173`） |
-| `npm run test` | Vitest 单测（48 项） |
+| `npm run test` | Vitest 单测（56 项） |
 
 ## 3. 目录结构
 
@@ -154,7 +154,7 @@ src/
 npm run test
 ```
 
-覆盖 8 个文件 48 个用例：
+覆盖 9 个文件 56 个用例：
 
 - `api/csrf.spec.ts`：并发单飞、缓存、作废后重取、异常响应、**旧响应不覆盖新 token**
 - `api/http.spec.ts`：401 触发清理、登录 401 不触发、422 双形态、503 混合体、CSRF 头注入、204、业务 404
@@ -163,7 +163,8 @@ npm run test
 - `components/AuthPanel.spec.ts`：会话失效提示、首次访问不误报、注册页不显示、错误优先
 - `stores/isolation.spec.ts`：**退出后旧答案/旧列表不写回、旧 401 不影响新会话、超 20 个库本地拦截**
 - `stores/knowledgeBase.spec.ts`：**全选按 20 截断、第 21 个被拒、翻页取全**
-- `stores/reset.spec.ts`：401/退出后无私人残留、幂等、**退出结果三态（ok / expired / failed）**
+- `stores/reset.spec.ts`：401/退出后无私人残留、幂等、**退出结果三态（ok / expired / failed）**、退出后作废 CSRF 缓存
+- `mocks/handlers.spec.ts`：**未覆盖的 /api/v2 请求被兜底拦下（501），不漏到真实后端**
 
 ## 8. 验证状态
 
@@ -173,7 +174,7 @@ npm run test
 |---|---|---|
 | `npm run dev` 启动 | 本机 Windows | 通过 |
 | `npm run build` | 本机 Windows | 通过（gzip 约 38K） |
-| 单元测试 48 项 | Vitest | 通过 |
+| 单元测试 56 项 | Vitest | 通过 |
 | 生产包不含 msw | 产物清单 | 通过（`dist/` 仅 html + css + js + vite.svg，无 `mockServiceWorker.js`） |
 | mock：列库 → 选库 → ask → 引用渲染 | MSW + 真实浏览器 | 通过（`docs/screenshots/01-answered.png`） |
 | mock：200 资料不足（不当成成功） | MSW + 真实浏览器 | 通过（`02-refused.png`） |
@@ -226,8 +227,8 @@ rm -rf frontend-v2
 | 场景 | 处理方式 |
 |---|---|
 | **请求与用户状态隔离** | `api/session.ts` 维护会话代际（epoch），登录/退出/401 时自增。请求发出时记录 epoch 与自身序号，返回时任一变化即丢弃结果；旧会话迟到的 401 不再清理新会话。 |
-| **退出登录结果** | `logoutAndReset()` 返回 `ok / expired / failed`。本地一律清干净，但 `failed` 时登录页明确提示"服务端会话可能仍有效，请关闭浏览器"。 |
+| **退出登录结果** | `logoutAndReset()` 返回 `ok / expired / failed`。本地一律清干净并作废 CSRF 缓存；`failed` 时登录页提示"服务端会话可能仍有效"，并提供**「重试退出」按钮**（不承诺关浏览器即可退出）。 |
 | **CSRF 并发** | token 缓存加代际计数：Cookie 变化后在飞的旧请求不会覆盖新 token，而是递归取新值。 |
 | **知识库数量与分页** | 选择上限 20（后端 `max_length=20`），全选按上限截断并提示，未选项禁用；列表按 100/页翻页取全，超过 5 页才显示"仅显示前 N 个"。 |
-| **Mock 隔离** | `onUnhandledRequest: 'warn'`（原 `bypass` 会把未覆盖的请求悄悄打到真实后端）；`mockServiceWorker.js` 移出 `public/`，改由开发服务器中间件映射，生产产物不再包含。 |
+| **Mock 隔离** | 末尾加兜底 handler：mock 模式下未被覆盖的 `/api/v2/*` 请求就地返回 `501 mock_unhandled`，**不再发到真实后端**（`onUnhandledRequest` 仅作提示，单靠它挡不住）；`mockServiceWorker.js` 移出 `public/`，由开发服务器中间件映射，生产产物不含该文件。 |
 

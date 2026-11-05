@@ -9,6 +9,7 @@
  */
 
 import { authApi } from '@/api/auth'
+import { invalidateCsrf } from '@/api/csrf'
 import { ApiError } from '@/api/http'
 
 import { useAskStore } from './ask'
@@ -49,6 +50,9 @@ export async function logoutAndReset(): Promise<LogoutOutcome> {
   } catch (error) {
     outcome = error instanceof ApiError && error.status === 401 ? 'expired' : 'failed'
   } finally {
+    // 退出后会话 Cookie 已变（或可能已变）：缓存的 CSRF token 一律作废。
+    // 失败时更要清——否则重试退出会用上一个会话派生的 token。
+    invalidateCsrf()
     resetAllPrivateState()
   }
   return outcome

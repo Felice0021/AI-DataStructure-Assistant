@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 
 import { errorMessage } from '@/composables/useErrorMessage'
 import { useAuthStore } from '@/stores/auth'
-import { resetPrivateData } from '@/stores/reset'
+import { resetPrivateData, logoutAndReset } from '@/stores/reset'
 
 /**
  * 注册 / 登录。安全要点：
@@ -30,6 +30,21 @@ const errorText = computed(
 const showExpiredNotice = computed(() => auth.sessionExpired && !isRegister.value && !errorText.value && !auth.notice)
 /** 退出请求失败：本机已清，但服务端会话可能仍有效，必须明确告知 */
 const showLogoutWarning = computed(() => auth.logoutFailed && !isRegister.value)
+
+const retryingLogout = ref(false)
+
+/** 重试退出：把「请重试」变成可点击的动作，而不是让用户自己关浏览器 */
+async function retryLogout(): Promise<void> {
+  retryingLogout.value = true
+  try {
+    const outcome = await logoutAndReset()
+    // logoutAndReset 内部会复位 logoutFailed（它走 resetAllPrivateState），
+    // 所以这里必须按结果重新赋值，否则「仍然失败」时提示会消失。
+    auth.logoutFailed = outcome === 'failed'
+  } finally {
+    retryingLogout.value = false
+  }
+}
 
 function switchMode(next: Mode): void {
   mode.value = next
@@ -90,8 +105,13 @@ async function submit(): Promise<void> {
         登录状态已失效，请重新登录
       </p>
 
-      <p v-else-if="showLogoutWarning" class="banner banner-warn" role="status">
-        本机登录状态已清除，但服务端会话可能仍然有效。在公共设备上请关闭浏览器以彻底退出。
+      <p v-else-if="showLogoutWarning" class="banner banner-warn" role="alert">
+        <span class="banner-text">
+          本机登录状态已清除，但服务端会话可能仍然有效。请重试退出；若持续失败，请联系管理员吊销会话。
+        </span>
+        <button type="button" class="banner-action" :disabled="retryingLogout" @click="retryLogout">
+          {{ retryingLogout ? '重试中…' : '重试退出' }}
+        </button>
       </p>
 
       <div class="tabs" role="tablist">
@@ -193,6 +213,31 @@ async function submit(): Promise<void> {
   border: 1px solid #e6c07a;
   background: #fff8e8;
   color: #8a6114;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.banner-text {
+  flex: 1 1 220px;
+}
+
+.banner-action {
+  flex: 0 0 auto;
+  padding: 4px 10px;
+  border: 1px solid #d9a94a;
+  border-radius: 6px;
+  background: #fff;
+  color: #8a6114;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.banner-action:disabled {
+  cursor: default;
+  opacity: 0.6;
 }
 
 .tabs {

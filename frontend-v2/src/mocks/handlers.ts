@@ -179,4 +179,24 @@ export const handlers = [
     }
     return HttpResponse.json(mockAnswered)
   }),
+
+  /**
+   * 兜底：mock 模式下，任何没有被上面覆盖的 /api/v2/ 请求就地拦下。
+   *
+   * 为什么必须有：`onUnhandledRequest: 'warn'` 只是控制台提示，请求仍会真的发出去——
+   * 若本机后端在跑，就会拿到真数据混进 mock 演示里，很难分辨。
+   * 这条 handler 必须放在数组最后（MSW 按顺序匹配，先命中先用）。
+   */
+  http.all('*/api/v2/*', ({ request }) => {
+    const { pathname } = new URL(request.url)
+    return HttpResponse.json(
+      {
+        error: {
+          code: 'mock_unhandled',
+          message: `Mock 未覆盖该请求：${request.method} ${pathname}`,
+        },
+      },
+      { status: 501 },
+    )
+  }),
 ]

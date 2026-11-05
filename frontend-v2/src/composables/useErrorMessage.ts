@@ -43,6 +43,8 @@ const CODE_MESSAGES: Record<string, string> = {
   // 限流 / 通用
   login_rate_limited: '尝试次数过多，请稍后再试',
   internal_error: '服务内部错误，请稍后再试',
+  // 仅开发环境：mock 没覆盖该接口（已被本地拦下，未发到后端）
+  mock_unhandled: '该接口尚未被 Mock 覆盖（开发环境）',
   invalid_request: '请求参数不合法',
 }
 

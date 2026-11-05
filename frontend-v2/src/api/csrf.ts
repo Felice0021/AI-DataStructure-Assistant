@@ -14,8 +14,11 @@ import { apiUrl } from './config'
 
 let cachedToken: string | null = null
 let inFlight: Promise<string> | null = null
+/** 代际计数：invalidate 时自增，用来丢弃「旧 Cookie 下的过期响应」 */
+let generation = 0
 
 export function invalidateCsrf(): void {
+  generation += 1
   cachedToken = null
   inFlight = null
 }
@@ -51,8 +54,12 @@ export async function ensureCsrf(): Promise<string> {
   if (cachedToken) return cachedToken
   if (inFlight) return inFlight
 
+  const gen = generation
   const task = fetchCsrf()
     .then((token) => {
+      // Cookie 在请求飞行期间变过（登录/登出/被拒后重取）：这个 token 已作废，
+      // 不能写进缓存，否则会把新会话的 token 覆盖成旧值。
+      if (gen !== generation) return ensureCsrf()
       cachedToken = token
       return token
     })

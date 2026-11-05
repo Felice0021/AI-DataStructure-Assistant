@@ -9,6 +9,7 @@
  */
 
 import { authApi } from '@/api/auth'
+import { ApiError } from '@/api/http'
 
 import { useAskStore } from './ask'
 import { useAuthStore } from './auth'
@@ -27,13 +28,28 @@ export function resetAllPrivateState(): void {
   useAuthStore().clear()
 }
 
-/** 退出登录：即使服务端登出失败（会话已过期），本地也一定要清干净 */
-export async function logoutAndReset(): Promise<void> {
+/**
+ * 退出登录的结果：
+ * - ok       服务端已吊销会话（204）
+ * - expired  会话本来就失效了（401），等同于退出成功
+ * - failed   真正失败了（网络/500）：本机已清，但服务端会话可能仍有效
+ */
+export type LogoutOutcome = 'ok' | 'expired' | 'failed'
+
+/**
+ * 退出登录。
+ *
+ * 本地一律清干净（安全优先）；但必须把「服务端到底有没有退成功」如实返回，
+ * 否则会出现「界面显示已退出、服务端 Session 仍有效」的错觉。
+ */
+export async function logoutAndReset(): Promise<LogoutOutcome> {
+  let outcome: LogoutOutcome = 'ok'
   try {
     await authApi.logout()
-  } catch {
-    // 忽略：会话可能已失效，本地清理才是关键
+  } catch (error) {
+    outcome = error instanceof ApiError && error.status === 401 ? 'expired' : 'failed'
   } finally {
     resetAllPrivateState()
   }
+  return outcome
 }

@@ -1,12 +1,18 @@
 import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { authApi } from '@/api/auth'
+import { ApiError } from '@/api/http'
 import { mockAnswered, mockKnowledgeBases, mockUser } from '@/mocks/fixtures'
 
 import { useAskStore } from './ask'
 import { useAuthStore } from './auth'
 import { useKnowledgeBaseStore } from './knowledgeBase'
-import { resetAllPrivateState, resetPrivateData } from './reset'
+import { logoutAndReset, resetAllPrivateState, resetPrivateData } from './reset'
+
+vi.mock('@/api/auth', () => ({
+  authApi: { me: vi.fn(), login: vi.fn(), register: vi.fn(), logout: vi.fn() },
+}))
 
 describe('resetAllPrivateState', () => {
   beforeEach(() => {
@@ -78,5 +84,57 @@ describe('resetAllPrivateState', () => {
     // 登录成功后提示自动消失
     auth.sessionExpired = false
     expect(auth.sessionExpired).toBe(false)
+  })
+})
+
+describe('logoutAndReset 结果区分', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.clearAllMocks()
+  })
+
+  function signIn(): void {
+    const auth = useAuthStore()
+    auth.user = { ...mockUser }
+    auth.status = 'authenticated'
+  }
+
+  it('服务端退出成功 → ok，并且本地清空', async () => {
+    signIn()
+    vi.mocked(authApi.logout).mockResolvedValue(undefined)
+
+    const outcome = await logoutAndReset()
+
+    expect(outcome).toBe('ok')
+    expect(useAuthStore().status).toBe('anonymous')
+  })
+
+  it('会话本就失效（401）→ 视为已退出，不当失败', async () => {
+    signIn()
+    vi.mocked(authApi.logout).mockRejectedValue(new ApiError(401, 'unauthorized', 'x'))
+
+    const outcome = await logoutAndReset()
+
+    expect(outcome).toBe('expired')
+    expect(useAuthStore().status).toBe('anonymous')
+  })
+
+  it('退出请求真失败（500）→ 返回 failed，仍清空本地但需提示用户', async () => {
+    signIn()
+    vi.mocked(authApi.logout).mockRejectedValue(new ApiError(500, 'internal_error', 'x'))
+
+    const outcome = await logoutAndReset()
+
+    expect(outcome).toBe('failed')
+    // 本机必须清干净，不能因为失败就把用户留在已登录界面
+    expect(useAuthStore().status).toBe('anonymous')
+    expect(useAuthStore().user).toBeNull()
+  })
+
+  it('网络不可用也算 failed', async () => {
+    signIn()
+    vi.mocked(authApi.logout).mockRejectedValue(new ApiError(0, 'network_error', 'x'))
+
+    await expect(logoutAndReset()).resolves.toBe('failed')
   })
 })

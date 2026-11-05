@@ -25,6 +25,8 @@ function visibilityLabel(kb: KnowledgeBase): string {
       <span class="picker-count">已选 {{ kbStore.selectedCount }} / {{ kbStore.total }}</span>
     </header>
 
+    <p v-if="kbStore.limitNotice" class="notice" role="status">{{ kbStore.limitNotice }}</p>
+
     <div v-if="kbStore.loading" class="state">加载中…</div>
 
     <div v-else-if="kbStore.errorCode" class="state state-error">
@@ -41,6 +43,7 @@ function visibilityLabel(kb: KnowledgeBase): string {
           <input
             type="checkbox"
             :checked="kbStore.isSelected(kb.id)"
+            :disabled="kbStore.selectionFull && !kbStore.isSelected(kb.id)"
             @change="kbStore.toggle(kb.id)"
           />
           <span class="item-body">
@@ -57,6 +60,7 @@ function visibilityLabel(kb: KnowledgeBase): string {
           <input
             type="checkbox"
             :checked="kbStore.isSelected(kb.id)"
+            :disabled="kbStore.selectionFull && !kbStore.isSelected(kb.id)"
             @change="kbStore.toggle(kb.id)"
           />
           <span class="item-body">
@@ -66,6 +70,10 @@ function visibilityLabel(kb: KnowledgeBase): string {
           <span class="tag tag-public">{{ visibilityLabel(kb) }}</span>
         </label>
       </div>
+
+      <p v-if="kbStore.truncated" class="state">
+        仅显示前 {{ kbStore.items.length }} 个，共 {{ kbStore.total }} 个。
+      </p>
 
       <div class="actions">
         <button type="button" class="link" @click="kbStore.selectAll()">全选</button>
@@ -98,6 +106,17 @@ function visibilityLabel(kb: KnowledgeBase): string {
 .picker-count {
   font-size: 12px;
   color: var(--muted);
+}
+
+.notice {
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid #e6c07a;
+  background: #fff8e8;
+  color: #8a6114;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.6;
 }
 
 .state {

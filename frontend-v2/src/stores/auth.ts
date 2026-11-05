@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 
 import { authApi } from '@/api/auth'
 import { ApiError } from '@/api/http'
+import { bumpEpoch } from '@/api/session'
 import type { User } from '@/types/api'
 
 export type AuthStatus = 'anonymous' | 'loading' | 'authenticated'
@@ -13,6 +14,8 @@ interface AuthState {
   notice: string | null
   /** 是否因会话失效（401）被动登出；用于在登录页给出明确提示，而不是静默跳转 */
   sessionExpired: boolean
+  /** 退出请求失败（服务端会话可能仍有效）；需要如实告诉用户 */
+  logoutFailed: boolean
 }
 
 export const useAuthStore = defineStore('auth', {
@@ -22,6 +25,7 @@ export const useAuthStore = defineStore('auth', {
     errorCode: null,
     notice: null,
     sessionExpired: false,
+    logoutFailed: false,
   }),
 
   getters: {
@@ -71,6 +75,9 @@ export const useAuthStore = defineStore('auth', {
         this.status = 'authenticated'
         // 登录成功后清除「会话失效」提示，避免提示语残留到新会话
         this.sessionExpired = false
+        this.logoutFailed = false
+        // 换人了：之前账号在飞的请求必须作废（见 stores/ask、knowledgeBase 的 epoch 校验）
+        bumpEpoch()
         return true
       } catch (error) {
         this.user = null
@@ -92,6 +99,9 @@ export const useAuthStore = defineStore('auth', {
       this.errorCode = null
       this.notice = null
       this.sessionExpired = false
+      this.logoutFailed = false
+      // 会话结束：作废所有在飞请求的结果（含旧会话的 401）
+      bumpEpoch()
     },
   },
 })

@@ -28,6 +28,8 @@ const errorText = computed(
 )
 /** 会话失效提示只在登录表单显示（注册表单里说这个没意义） */
 const showExpiredNotice = computed(() => auth.sessionExpired && !isRegister.value && !errorText.value && !auth.notice)
+/** 退出请求失败：本机已清，但服务端会话可能仍有效，必须明确告知 */
+const showLogoutWarning = computed(() => auth.logoutFailed && !isRegister.value)
 
 function switchMode(next: Mode): void {
   mode.value = next
@@ -67,10 +69,10 @@ async function submit(): Promise<void> {
         password.value = ''
       }
     } else {
-      const ok = await auth.login(mail, password.value)
-      // 登录成功后清掉上一段会话的残留（错误卡片、旧答案、旧选中项），
-      // 否则用户会先看到一条过时的「登录已失效」再看到自己已登录，非常困惑。
-      if (ok) resetPrivateData()
+      // 登录「前」清掉上一段会话的残留（旧错误卡片、旧答案、旧选中项）：
+      // 放在登录后会把刚挂载的知识库列表加载结果一起作废，导致列表空掉。
+      resetPrivateData()
+      await auth.login(mail, password.value)
     }
   } finally {
     submitting.value = false
@@ -86,6 +88,10 @@ async function submit(): Promise<void> {
 
       <p v-if="showExpiredNotice" class="banner banner-warn" role="status">
         登录状态已失效，请重新登录
+      </p>
+
+      <p v-else-if="showLogoutWarning" class="banner banner-warn" role="status">
+        本机登录状态已清除，但服务端会话可能仍然有效。在公共设备上请关闭浏览器以彻底退出。
       </p>
 
       <div class="tabs" role="tablist">

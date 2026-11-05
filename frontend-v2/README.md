@@ -46,6 +46,14 @@ VITE_MOCK_SCENARIO=answered      # 正常回答（默认）
 VITE_MOCK_SCENARIO=refuse        # 200 + 资料不足（正常拒答）
 VITE_MOCK_SCENARIO=unavailable   # 503 生成服务不可用
 VITE_MOCK_SCENARIO=unauthorized  # 401 会话失效
+VITE_MOCK_SCENARIO=logout-fail   # 退出接口 500，验证「退出失败」提示
+VITE_MOCK_SCENARIO=many-kbs      # 25 个知识库，验证 20 个选择上限
+```
+
+再叠加 `&delay=毫秒` 可以让响应变慢，用来手工复现「请求还在飞时退出登录」：
+
+```
+http://127.0.0.1:5173/?mock=answered&delay=4000
 ```
 
 ## 2. 脚本
@@ -55,7 +63,7 @@ VITE_MOCK_SCENARIO=unauthorized  # 401 会话失效
 | `npm run dev` | 开发服务器，固定 `127.0.0.1:5173`（`strictPort`，端口被占会直接报错而不是换端口） |
 | `npm run build` | `vue-tsc` 类型检查 + 生产构建到 `dist/` |
 | `npm run preview` | 预览构建产物（`127.0.0.1:4173`） |
-| `npm run test` | Vitest 单测（27 项） |
+| `npm run test` | Vitest 单测（48 项） |
 
 ## 3. 目录结构
 
@@ -138,7 +146,7 @@ src/
 | 引用不能编造 | 只有 `citation_id` 存在于本次 `sources` 才渲染成可点标记，否则降级灰色纯文本 |
 | 401 清除旧私人答案 | 唯一入口 `resetAllPrivateState()`，由 `main.ts` 注入到 `http.ts` 的 401 兜底；单测锁定该行为 |
 | 不显示后端英文 message | 按 `error.code` 映射中文，未知 code 走兜底文案 |
-| mock 不进生产包 | `import.meta.env.DEV` + 动态 `import()` 双重保护，已确认 `dist/` 无 msw 痕迹 |
+| mock 不进生产包 | `import.meta.env.DEV` + 动态 `import()` 双重保护；SW 文件放 `src/mocks/` 由开发服务器映射，`dist/` 无 msw 代码也无 `mockServiceWorker.js` |
 
 ## 7. 测试
 
@@ -146,13 +154,16 @@ src/
 npm run test
 ```
 
-覆盖 5 个文件 27 个用例：
+覆盖 8 个文件 48 个用例：
 
-- `api/csrf.spec.ts`：并发单飞、缓存、作废后重取、异常响应
+- `api/csrf.spec.ts`：并发单飞、缓存、作废后重取、异常响应、**旧响应不覆盖新 token**
 - `api/http.spec.ts`：401 触发清理、登录 401 不触发、422 双形态、503 混合体、CSRF 头注入、204、业务 404
 - `components/AnswerText.spec.ts`：`[S1]` 切分、未知引用降级、HTML 转义（XSS）
-- `components/AnswerView.spec.ts`：拒答不渲染成成功、502/503 文案不同、401 无重试按钮
-- `stores/reset.spec.ts`：401/退出后无私人残留、幂等
+- `components/AnswerView.spec.ts`：拒答不渲染成成功、502/503 徽标不同、401 无重试按钮
+- `components/AuthPanel.spec.ts`：会话失效提示、首次访问不误报、注册页不显示、错误优先
+- `stores/isolation.spec.ts`：**退出后旧答案/旧列表不写回、旧 401 不影响新会话、超 20 个库本地拦截**
+- `stores/knowledgeBase.spec.ts`：**全选按 20 截断、第 21 个被拒、翻页取全**
+- `stores/reset.spec.ts`：401/退出后无私人残留、幂等、**退出结果三态（ok / expired / failed）**
 
 ## 8. 验证状态
 
@@ -161,9 +172,9 @@ npm run test
 | 项目 | 方式 | 状态 |
 |---|---|---|
 | `npm run dev` 启动 | 本机 Windows | 通过 |
-| `npm run build` | 本机 Windows | 通过（产物 125K，gzip 约 40K） |
-| 单元测试 27 项 | Vitest | 通过 |
-| 生产包不含 msw | 产物 grep | 通过 |
+| `npm run build` | 本机 Windows | 通过（gzip 约 38K） |
+| 单元测试 48 项 | Vitest | 通过 |
+| 生产包不含 msw | 产物清单 | 通过（`dist/` 仅 html + css + js + vite.svg，无 `mockServiceWorker.js`） |
 | mock：列库 → 选库 → ask → 引用渲染 | MSW + 真实浏览器 | 通过（`docs/screenshots/01-answered.png`） |
 | mock：200 资料不足（不当成成功） | MSW + 真实浏览器 | 通过（`02-refused.png`） |
 | mock：503 生成不可用（与拒答区分） | MSW + 真实浏览器 | 通过（`03-generate-unavailable.png`） |
@@ -188,6 +199,9 @@ npm run test
 | `04-login.png` | 退出登录后的登录页 |
 | `05-real-backend-login.png` | 真实后端登录成功：真实用户 + 真实知识库列表 |
 | `06-real-backend-answer.png` | 真实后端完整问答：已回答 + `[S1]` + 资料来源 |
+| `07-kb-selection-cap.png` | 25 个知识库点「全选」：截断为 20 个并提示上限 |
+| `08-logout-failed.png` | 退出请求失败：登录页提示「服务端会话可能仍有效」 |
+| `09-stale-response-discarded.png` | 提问中途退出、旧响应迟到：重新登录后答案区无残留 |
 
 ## 9. 环境说明
 
@@ -204,3 +218,16 @@ rm -rf frontend-v2
 ```
 
 不需要撤销其他任何改动。
+
+## 11. 并发与边界处理
+
+首版后补充的 5 项健壮性处理，均有单测覆盖：
+
+| 场景 | 处理方式 |
+|---|---|
+| **请求与用户状态隔离** | `api/session.ts` 维护会话代际（epoch），登录/退出/401 时自增。请求发出时记录 epoch 与自身序号，返回时任一变化即丢弃结果；旧会话迟到的 401 不再清理新会话。 |
+| **退出登录结果** | `logoutAndReset()` 返回 `ok / expired / failed`。本地一律清干净，但 `failed` 时登录页明确提示"服务端会话可能仍有效，请关闭浏览器"。 |
+| **CSRF 并发** | token 缓存加代际计数：Cookie 变化后在飞的旧请求不会覆盖新 token，而是递归取新值。 |
+| **知识库数量与分页** | 选择上限 20（后端 `max_length=20`），全选按上限截断并提示，未选项禁用；列表按 100/页翻页取全，超过 5 页才显示"仅显示前 N 个"。 |
+| **Mock 隔离** | `onUnhandledRequest: 'warn'`（原 `bypass` 会把未覆盖的请求悄悄打到真实后端）；`mockServiceWorker.js` 移出 `public/`，改由开发服务器中间件映射，生产产物不再包含。 |
+

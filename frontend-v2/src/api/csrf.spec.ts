@@ -62,4 +62,29 @@ describe('csrf token 管理', () => {
     await expect(ensureCsrf()).rejects.toThrow(/HTTP 500/)
     expect(hasCsrf()).toBe(false)
   })
+
+  it('飞行期间 Cookie 变化时，旧请求不会覆盖新 token', async () => {
+    const OLD = 'b'.repeat(64)
+    const NEW = 'c'.repeat(64)
+
+    let releaseOld!: (response: Response) => void
+    const fetchMock = vi
+      .fn()
+      .mockImplementationOnce(() => new Promise<Response>((resolve) => (releaseOld = resolve)))
+      .mockImplementation(async () => jsonResponse({ csrf_token: NEW }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const stale = ensureCsrf() // 旧 Cookie 下的请求，挂在半空
+    invalidateCsrf() // 登录成功 / 被拒后重取：Cookie 已变
+
+    const fresh = await ensureCsrf()
+    expect(fresh).toBe(NEW)
+
+    // 旧请求此刻才返回——不能把缓存改回旧 token
+    releaseOld(jsonResponse({ csrf_token: OLD }))
+    await stale
+
+    expect(await ensureCsrf()).toBe(NEW)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
 })

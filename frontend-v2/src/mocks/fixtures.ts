@@ -12,7 +12,20 @@ import type {
   User,
 } from '@/types/api'
 
-export type MockScenario = 'answered' | 'refuse' | 'unavailable' | 'unauthorized'
+/**
+ * 演示/取证用场景：
+ * - answered / refuse / unavailable / unauthorized：答案与错误态
+ * - logout-fail：POST /auth/logout 返回 500，用于验证「退出失败」提示
+ * - many-kbs：返回 25 个知识库，用于验证 20 个选择上限与分页
+ * 配合 ?delay=毫秒 可以让响应变慢，制造「请求还在飞」的时间窗。
+ */
+export type MockScenario =
+  | 'answered'
+  | 'refuse'
+  | 'unavailable'
+  | 'unauthorized'
+  | 'logout-fail'
+  | 'many-kbs'
 
 export const mockUser: User = {
   id: '11111111-1111-4111-8111-111111111111',

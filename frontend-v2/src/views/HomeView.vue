@@ -28,7 +28,9 @@ const mockHint =
 async function onLogout(): Promise<void> {
   leaving.value = true
   try {
-    await logoutAndReset()
+    const outcome = await logoutAndReset()
+    // 服务端没退成功：必须告知，否则用户以为已经退出（公共电脑上很危险）
+    if (outcome === 'failed') auth.logoutFailed = true
   } finally {
     leaving.value = false
   }

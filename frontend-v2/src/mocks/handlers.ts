@@ -11,7 +11,7 @@
 
 import { HttpResponse, delay, http } from 'msw'
 
-import type { AskRequest, Credentials } from '@/types/api'
+import type { AskRequest, Credentials, KnowledgeBase } from '@/types/api'
 
 import {
   mockAnswered,
@@ -23,7 +23,14 @@ import {
   type MockScenario,
 } from './fixtures'
 
-const SCENARIOS: MockScenario[] = ['answered', 'refuse', 'unavailable', 'unauthorized']
+const SCENARIOS: MockScenario[] = [
+  'answered',
+  'refuse',
+  'unavailable',
+  'unauthorized',
+  'logout-fail',
+  'many-kbs',
+]
 
 /** 每次请求现算：URL 参数优先于环境变量，这样切换场景不用重启 dev server */
 function currentScenario(): MockScenario {
@@ -32,6 +39,16 @@ function currentScenario(): MockScenario {
   if (typeof window === 'undefined') return fallback
   const fromUrl = new URLSearchParams(window.location.search).get('mock')
   return fromUrl && (SCENARIOS as string[]).includes(fromUrl) ? (fromUrl as MockScenario) : fallback
+}
+
+/**
+ * 演示/取证用：?delay=3000 让响应额外慢 3 秒。
+ * 用来制造「请求还在飞」的时间窗，肉眼验证退出/切换账号后旧响应不会写回页面。
+ */
+function extraDelay(): number {
+  if (typeof window === 'undefined') return 0
+  const ms = Number(new URLSearchParams(window.location.search).get('delay'))
+  return Number.isFinite(ms) && ms > 0 && ms <= 30_000 ? ms : 0
 }
 
 /** 模拟后端的 CSRF 校验：没有合法的 X-CSRF-Token 就 403，逼真且能验证前端注入是否正确 */
@@ -52,6 +69,23 @@ const unauthorized = () =>
     { error: { code: 'unauthorized', message: 'Authentication required' } },
     { status: 401 },
   )
+
+/** 25 个知识库（> 后端 20 的上限），用于演示全选截断与限额提示 */
+function manyKnowledgeBases(): KnowledgeBase[] {
+  return Array.from({ length: 25 }, (_, index) => {
+    const isPublic = index % 3 === 0
+    return {
+      id: `44444444-4444-4444-8444-${String(index).padStart(12, '0')}`,
+      owner_id: isPublic ? null : mockUser.id,
+      name: `课程资料 ${index + 1}`,
+      description: isPublic ? '公共课程资料' : '私人上传的资料',
+      visibility: isPublic ? 'public' : 'private',
+      index_version: 1,
+      created_at: '2026-10-10T09:00:00Z',
+      updated_at: '2026-10-20T09:00:00Z',
+    } satisfies KnowledgeBase
+  })
+}
 
 export const handlers = [
   http.get('*/api/v2/auth/csrf', async () => {
@@ -97,19 +131,27 @@ export const handlers = [
     const rejected = csrfGuard(request)
     if (rejected) return rejected
     await delay(60)
+    if (currentScenario() === 'logout-fail') {
+      return HttpResponse.json(
+        { error: { code: 'internal_error', message: 'Logout failed' } },
+        { status: 500 },
+      )
+    }
     return new HttpResponse(null, { status: 204 })
   }),
 
   http.get('*/api/v2/knowledge-bases', async ({ request }) => {
-    await delay(80)
+    await delay(80 + extraDelay())
     if (currentScenario() === 'unauthorized') return unauthorized()
     const url = new URL(request.url)
     const limit = Number(url.searchParams.get('limit') ?? 50)
     const offset = Number(url.searchParams.get('offset') ?? 0)
-    const page = mockKnowledgeBases.slice(offset, offset + limit)
+    // many-kbs：25 个库，用来验证「一次最多 20 个」的截断与提示
+    const source = currentScenario() === 'many-kbs' ? manyKnowledgeBases() : mockKnowledgeBases
+    const page = source.slice(offset, offset + limit)
     return HttpResponse.json({
       items: page,
-      total: mockKnowledgeBases.length,
+      total: source.length,
       limit,
       offset,
     })
@@ -120,7 +162,7 @@ export const handlers = [
     if (rejected) return rejected
 
     const body = (await request.json()) as Partial<AskRequest>
-    await delay(700)
+    await delay(700 + extraDelay())
 
     if (!body.query || !Array.isArray(body.knowledge_base_ids) || body.knowledge_base_ids.length === 0) {
       return HttpResponse.json(

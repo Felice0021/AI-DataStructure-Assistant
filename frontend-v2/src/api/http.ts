@@ -12,6 +12,7 @@
 
 import { apiUrl } from './config'
 import { ensureCsrf, invalidateCsrf } from './csrf'
+import { currentEpoch } from './session'
 
 export type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'DELETE'
 
@@ -165,6 +166,8 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   const method = options.method ?? 'GET'
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS
   const retryOnCsrf = options.retryOnCsrf ?? true
+  // 记录发请求时的会话代际：返回时若会话已换人，这个响应的 401 不该影响新会话
+  const epochAtStart = currentEpoch()
 
   let response = await send(path, method, options.body, timeoutMs)
 
@@ -178,9 +181,13 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   }
 
   if (response.status === 401) {
-    // 会话已失效，旧 token 必然无效
-    invalidateCsrf()
-    if (!options.skipAuthHandler) unauthorizedHandler?.()
+    // 会话已失效，旧 token 必然无效。
+    // 但若期间已换账号（epoch 变化），这个 401 属于上一个会话，不能再清理当前状态。
+    const sameSession = epochAtStart === currentEpoch()
+    if (sameSession) {
+      invalidateCsrf()
+      if (!options.skipAuthHandler) unauthorizedHandler?.()
+    }
   }
 
   if (response.status === 204) {

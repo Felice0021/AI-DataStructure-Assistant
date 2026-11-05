@@ -19,7 +19,9 @@ async function bootstrap(): Promise<void> {
   // 开发环境下默认启用 mock；要连真实后端请设 VITE_USE_MOCK=false
   if (import.meta.env.DEV && import.meta.env.VITE_USE_MOCK !== 'false') {
     const { worker } = await import('./mocks/browser')
-    await worker.start({ onUnhandledRequest: 'bypass' })
+    // 用 warn 而不是 bypass：bypass 会把「mock 没覆盖的接口」悄悄打到真实后端，
+    // 造成真数据与假数据混在一起、难以判断。warn 只在控制台提示，不阻断页面。
+    await worker.start({ onUnhandledRequest: 'warn' })
   }
 
   const app = createApp(App)

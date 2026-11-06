@@ -1,4 +1,4 @@
-> 当前集成交付版本：2026-10-26，Alembic **0007_cloud_consents**，Generator **qwen3.8-flash**。当前启动、用途授权与API以 TEAM_ONBOARDING.md、FRONTEND_HANDOFF.md、openapi.json 及本文“最终集成”章节为准。以下旧阶段验收（0006、NOT VERIFIED、云生成硬阻塞）是历史记录，不代表当前状态。
+> 当前集成交付版本：2026-10-26，Alembic **0008_conversations**，Generator **qwen3.8-flash**。当前启动、用途授权与API以 TEAM_ONBOARDING.md、FRONTEND_HANDOFF.md、openapi.json 及本文“最终集成”章节为准。以下旧阶段验收（0006、NOT VERIFIED、云生成硬阻塞）是历史记录，不代表当前状态。
 
 # V2 API 合约：健康检查、认证、知识库、文件、检索与RAG
 
@@ -470,3 +470,32 @@ Consent字段：id、knowledge_base_id、purpose、provider、model、service_ke
 PATCH知识库的name/description可省略但显式null为422，OpenAPI已移除null类型和null默认。非预期500保留安全错误格式，对明确允许的Origin返回CORS+credentials响应头；不允许来源不会获此头。所有私人API继续no-store。
 
 合成真实模型测试可用性通过不改变任何接口默认云授权；前端必须说明外发数据、用途、服务商、模型、当前及未来版本范围、可撤销及无法撤回历史调用。正式上线前还需确认服务商保留策略。
+
+## 会话与消息 (Conversations & Messages)
+
+### GET /api/v2/conversations
+获取当前用户的会话列表。支持 `limit` 和 `offset` 分页。
+返回 `{ items: [ConversationResponse], total, limit, offset }`。
+
+### POST /api/v2/conversations
+创建一个新会话。
+请求体：`{ title: string }`（默认 "新会话"）
+返回 `{ conversation: ConversationResponse }`。
+
+### GET /api/v2/conversations/{id}
+获取指定会话详情。跨用户或已删除返回 404。
+
+### PATCH /api/v2/conversations/{id}
+修改会话标题。跨用户或已删除返回 404。
+
+### DELETE /api/v2/conversations/{id}
+软删除指定会话。底层保留消息记录，但外部无法再访问。
+
+### GET /api/v2/conversations/{id}/messages
+获取指定会话的消息列表。按 `seq` 升序返回。支持分页。
+跨用户或已删除会话返回 404。
+
+### POST /api/v2/conversations/{id}/messages
+向指定会话追加一条用户消息。
+请求体：`{ role: "user", content: string }`。
+系统会自动生成会话内递增的 `seq` 并更新会话的 `updated_at`。

@@ -20,8 +20,9 @@ from backend.v2.routers.health import router
 from backend.v2.routers.auth import router as auth_router
 from backend.v2.core.errors import AuthError
 from backend.v2.routers.knowledge_bases import router as knowledge_base_router, admin_router
+from backend.v2.routers.conversations import router as conversation_router
 
-PRIVATE_API_PREFIXES = ("/api/v2/rag", "/api/v2/retrieval", "/api/v2/auth", "/api/v2/knowledge-bases", "/api/v2/admin/knowledge-bases")
+PRIVATE_API_PREFIXES = ("/api/v2/rag", "/api/v2/retrieval", "/api/v2/auth", "/api/v2/knowledge-bases", "/api/v2/conversations", "/api/v2/admin/knowledge-bases")
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -56,6 +57,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(retrieval_router)
     app.include_router(rag_router)
     app.include_router(cloud_router)
+    app.include_router(conversation_router)
 
     @app.middleware("http")
     async def auth_cache_control(request: Request, call_next):

@@ -1,9 +1,9 @@
-> 当前集成交付版本：2026-10-26，Alembic **0007_cloud_consents**，Generator **qwen3.8-flash**。当前启动、用途授权与API以 TEAM_ONBOARDING.md、FRONTEND_HANDOFF.md、openapi.json 及本文“最终集成”章节为准。以下旧阶段验收（0006、NOT VERIFIED、云生成硬阻塞）是历史记录，不代表当前状态。
+> 当前集成交付版本：2026-10-26，Alembic **0008_conversations**，Generator **qwen3.8-flash**。当前启动、用途授权与API以 TEAM_ONBOARDING.md、FRONTEND_HANDOFF.md、openapi.json 及本文“最终集成”章节为准。以下旧阶段验收（0006、NOT VERIFIED、云生成硬阻塞）是历史记录，不代表当前状态。
 
 # V2 数据库模型
 
 数据库：PostgreSQL 17；扩展：pgvector；编码 UTF-8。
-迁移链：`0001_auth_foundation` → `0002_login_limits` → `0003_knowledge_bases` → `0004_documents` → `0005_document_ingestion` → `0006_chunk_embeddings`（当前 head）。既有 0001–0005 保持原样。
+迁移链：`0001_auth_foundation` → `0002_login_limits` → `0003_knowledge_bases` → `0004_documents` → `0005_document_ingestion` → `0006_chunk_embeddings` → `0007_cloud_consents` → `0008_conversations`（当前 head）。既有 0001–0005 保持原样。
 所有 UUID 由数据库 `gen_random_uuid()` 生成，不依赖整数自增序列。
 时间列均为 `timestamptz`，应用使用带时区时间，建议统一 UTC。
 
@@ -311,3 +311,28 @@ service_key覆盖purpose、provider、model、endpoint及Embedding revision，�
 开发库upgrade head、重复upgrade和Alembic check已实测；原有10张业务表行指纹不变，仅alembic_version推进到0007，两张新表在开发库为空。集成测试使用随机隔离库，授权数据/真实合成调用审计均在隔离库测试后清理，不把测试账号留在开发库。
 
 当前document_chunks读取支持parsed、indexing、ready、index_failed中仍匹配parsed_version的当前代次；检索三模式要求ready及完整当前向量空间，不能把parsed课程导入当成可检索ready。0007不改变Chunk/Embedding发布语义。
+
+## 0008: Conversations & Messages
+
+引入了两张新表，用于支持多轮历史消息的持久化。
+
+### conversations
+- `id` (Uuid, PK)
+- `user_id` (Uuid, FK -> users.id, ON DELETE CASCADE)
+- `title` (String(200), default="新会话")
+- `created_at` (DateTime)
+- `updated_at` (DateTime)
+- `deleted_at` (DateTime, nullable) 软删除标记
+
+### messages
+- `id` (Uuid, PK)
+- `conversation_id` (Uuid, FK -> conversations.id, ON DELETE CASCADE)
+- `seq` (Integer) 会话内递增序号
+- `role` (String(16)) 仅限 'user' 和 'assistant'
+- `content` (Text)
+- `metadata_json` (JSONB) 保留与 RAG 相关的少量状态
+- `created_at` (DateTime)
+
+约束：
+- 唯一约束 `uq_messages_conversation_seq` (conversation_id, seq)
+- 无软删除，依赖会话级联清理。

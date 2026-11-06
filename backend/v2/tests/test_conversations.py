@@ -151,6 +151,9 @@ def test_message_validation_and_seq(config, database):
         login(client, cred)
         conv_id = create_conversation(client)
 
+        # 创建会话标题含 NUL -> 422（防止输入通过 Pydantic 后触发数据库错误）
+        assert client.post("/api/v2/conversations", json={"title": "test\x00"}, headers=csrf_headers(client)).status_code == 422
+
         # 空白内容 / NUL 字符 / 伪造角色
         assert client.post(f"/api/v2/conversations/{conv_id}/messages", json={"content": "   \n  "}, headers=csrf_headers(client)).status_code == 422
         assert client.post(f"/api/v2/conversations/{conv_id}/messages", json={"content": "test\x00"}, headers=csrf_headers(client)).status_code == 422

@@ -53,6 +53,13 @@ class MessageCreate(BaseModel):
     role: Literal["user"] = "user"
     content: str = Field(min_length=1, max_length=20000)
 
+    @field_validator("content", mode="before")
+    @classmethod
+    def reject_blank(cls, v):
+        if isinstance(v, str) and not v.strip():
+            raise ValueError("content must not be blank")
+        return v
+
 
 class MessageResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)

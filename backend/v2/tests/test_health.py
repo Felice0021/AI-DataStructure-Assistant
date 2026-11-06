@@ -38,9 +38,11 @@ def test_liveness_and_openapi(app):
             "/api/v2/knowledge-bases/{kb_id}/documents/{doc_id}/ingestion",
             "/api/v2/knowledge-bases/{kb_id}/documents/{doc_id}/chunks",
             "/api/v2/knowledge-bases/{kb_id}/documents/{doc_id}/embedding",
+            "/api/v2/conversations",
+            "/api/v2/conversations/{conversation_id}",
+            "/api/v2/conversations/{conversation_id}/messages",
         }
         assert "503" in paths["/api/v2/health/db"]["get"]["responses"]
-
 
 def test_database_error_is_sanitized(app, caplog):
     secret = "private-driver-password-and-stack-trace"

@@ -142,6 +142,12 @@ def test_message_validation_and_seq(config, database):
 
         # 空白内容 422
         assert client.post(f"/api/v2/conversations/{conv_id}/messages", json={"content": "   \n  "}, headers=csrf_headers(client)).status_code == 422
+
+        # NUL 字符 422
+        assert client.post(f"/api/v2/conversations/{conv_id}/messages", json={"content": "test\x00"}, headers=csrf_headers(client)).status_code == 422
+
+        # 标题含 NUL 字符 422
+        assert client.post("/api/v2/conversations", json={"title": "test\x00"}, headers=csrf_headers(client)).status_code == 422
         
         # 伪造角色 422
         assert client.post(f"/api/v2/conversations/{conv_id}/messages", json={"role": "assistant", "content": "test"}, headers=csrf_headers(client)).status_code == 422

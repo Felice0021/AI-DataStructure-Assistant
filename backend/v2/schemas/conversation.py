@@ -11,9 +11,12 @@ class ConversationCreate(BaseModel):
 
     @field_validator("title", mode="before")
     @classmethod
-    def reject_blank(cls, v):
-        if isinstance(v, str) and not v.strip():
-            raise ValueError("title must not be blank")
+    def validate_title(cls, v):
+        if isinstance(v, str):
+            if "\x00" in v:
+                raise ValueError("title must not contain NUL")
+            if not v.strip():
+                raise ValueError("title must not be blank")
         return v
 
 
@@ -23,9 +26,12 @@ class ConversationUpdate(BaseModel):
 
     @field_validator("title", mode="before")
     @classmethod
-    def reject_blank(cls, v):
-        if isinstance(v, str) and not v.strip():
-            raise ValueError("title must not be blank")
+    def validate_title(cls, v):
+        if isinstance(v, str):
+            if "\x00" in v:
+                raise ValueError("title must not contain NUL")
+            if not v.strip():
+                raise ValueError("title must not be blank")
         return v
 
 
@@ -55,9 +61,12 @@ class MessageCreate(BaseModel):
 
     @field_validator("content", mode="before")
     @classmethod
-    def reject_blank(cls, v):
-        if isinstance(v, str) and not v.strip():
-            raise ValueError("content must not be blank")
+    def validate_content(cls, v):
+        if isinstance(v, str):
+            if "\x00" in v:
+                raise ValueError("content must not contain NUL")
+            if not v.strip():
+                raise ValueError("content must not be blank")
         return v
 
 

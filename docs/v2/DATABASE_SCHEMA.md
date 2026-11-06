@@ -1,9 +1,9 @@
-> 当前集成交付版本：2026-10-26，Alembic **0007_cloud_consents**，Generator **qwen3.8-flash**。当前启动、用途授权与API以 TEAM_ONBOARDING.md、FRONTEND_HANDOFF.md、openapi.json 及本文“最终集成”章节为准。以下旧阶段验收（0006、NOT VERIFIED、云生成硬阻塞）是历史记录，不代表当前状态。
+> 当前集成交付版本：2026-10-26，Alembic **0008_conversations**，Generator **qwen3.8-flash**。当前启动、用途授权与API以 TEAM_ONBOARDING.md、FRONTEND_HANDOFF.md、openapi.json 及本文“最终集成”章节为准。以下旧阶段验收（0006、NOT VERIFIED、云生成硬阻塞）是历史记录，不代表当前状态。
 
 # V2 数据库模型
 
 数据库：PostgreSQL 17；扩展：pgvector；编码 UTF-8。
-迁移链：`0001_auth_foundation` → `0002_login_limits` → `0003_knowledge_bases` → `0004_documents` → `0005_document_ingestion` → `0006_chunk_embeddings`（当前 head）。既有 0001–0005 保持原样。
+迁移链：`0001_auth_foundation` → `0002_login_limits` → `0003_knowledge_bases` → `0004_documents` → `0005_document_ingestion` → `0006_chunk_embeddings` → `0007_cloud_consents` → `0008_conversations`（当前 head）。既有 0001–0005 保持原样。
 所有 UUID 由数据库 `gen_random_uuid()` 生成，不依赖整数自增序列。
 时间列均为 `timestamptz`，应用使用带时区时间，建议统一 UTC。
 

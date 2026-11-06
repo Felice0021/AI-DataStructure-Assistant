@@ -83,10 +83,26 @@ def test_conversation_crud_isolation_and_admin(config, database):
         # 非法 UUID
         assert client_a.get("/api/v2/conversations/not-a-uuid").status_code == 422
 
+        # 本人成功改名
+        resp = client_a.patch(f"/api/v2/conversations/{conv_id}", json={"title": "A 改名了"}, headers=csrf_headers(client_a))
+        assert resp.status_code == 200
+        assert resp.json()["conversation"]["title"] == "A 改名了"
+
+        # 改名含 NUL 字符 -> 422
+        assert client_a.patch(f"/api/v2/conversations/{conv_id}", json={"title": "A\x00"}, headers=csrf_headers(client_a)).status_code == 422
+
         # 跨用户隔离
         assert client_b.get(f"/api/v2/conversations/{conv_id}").status_code == 404
         assert client_b.patch(f"/api/v2/conversations/{conv_id}", json={"title": "hacked"}, headers=csrf_headers(client_b)).status_code == 404
         assert client_b.post(f"/api/v2/conversations/{conv_id}/messages", json={"content": "test"}, headers=csrf_headers(client_b)).status_code == 404
+
+        # 本人成功改名
+        resp = client_a.patch(f"/api/v2/conversations/{conv_id}", json={"title": "A 改名了"}, headers=csrf_headers(client_a))
+        assert resp.status_code == 200
+        assert resp.json()["conversation"]["title"] == "A 改名了"
+
+        # 改名含 NUL 字符 -> 422
+        assert client_a.patch(f"/api/v2/conversations/{conv_id}", json={"title": "A\x00"}, headers=csrf_headers(client_a)).status_code == 422
 
         # 管理员也无法读取他人会话
         with Session(database[0]) as s:
@@ -111,6 +127,18 @@ def test_soft_delete(config, database):
         assert client.get(f"/api/v2/conversations/{conv_id}").status_code == 404
         assert client.get(f"/api/v2/conversations/{conv_id}/messages").status_code == 404
         assert client.post(f"/api/v2/conversations/{conv_id}/messages", json={"content": "test"}, headers=csrf_headers(client)).status_code == 404
+
+        # 跨用户读取消息 -> 404
+        with client_for(config) as client_b:
+            cred_b = register(client_b)
+            login(client_b, cred_b)
+            assert client_b.get(f"/api/v2/conversations/{conv_id}/messages").status_code == 404
+
+        # 跨用户读取消息 -> 404
+        with client_for(config) as client_b:
+            cred_b = register(client_b)
+            login(client_b, cred_b)
+            assert client_b.get(f"/api/v2/conversations/{conv_id}/messages").status_code == 404
 
 
 def test_updated_at_and_csrf(config, database):
@@ -155,6 +183,18 @@ def test_message_validation_and_seq(config, database):
         r1 = client.post(f"/api/v2/conversations/{conv_id}/messages", json={"content": "第一条"}, headers=csrf_headers(client))
         r2 = client.post(f"/api/v2/conversations/{conv_id}/messages", json={"content": "第二条"}, headers=csrf_headers(client))
         assert r1.json()["seq"] == 1 and r2.json()["seq"] == 2
+
+        # 消息分页
+        page1 = client.get(f"/api/v2/conversations/{conv_id}/messages?limit=1&offset=0").json()
+        assert len(page1["items"]) == 1 and page1["items"][0]["seq"] == 1 and page1["total"] == 2
+        page2 = client.get(f"/api/v2/conversations/{conv_id}/messages?limit=1&offset=1").json()
+        assert len(page2["items"]) == 1 and page2["items"][0]["seq"] == 2
+
+        # 消息分页
+        page1 = client.get(f"/api/v2/conversations/{conv_id}/messages?limit=1&offset=0").json()
+        assert len(page1["items"]) == 1 and page1["items"][0]["seq"] == 1 and page1["total"] == 2
+        page2 = client.get(f"/api/v2/conversations/{conv_id}/messages?limit=1&offset=1").json()
+        assert len(page2["items"]) == 1 and page2["items"][0]["seq"] == 2
 
 
 def test_concurrent_message_append(config, database):

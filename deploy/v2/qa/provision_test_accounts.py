@@ -1,8 +1,10 @@
-"""Create two private QA students and seed one private KB over the real HTTPS API.
+"""Create QA student accounts and a private test KB using real application routes.
 
-No API key, password or session cookie is ever printed or committed.
-Run only against a checked, tailnet-private QA instance. Existing credentials file is
-never overwritten; leave recovery of partial runs to the maintainer.
+--in-process invokes FastAPI via TestClient using the exact external HTTPS Origin:
+this is needed when Cloudflare Quick Tunnel uses interactive email authorization.
+It verifies application logic, not Cloudflare/browser connectivity. Browser QA is
+required separately. Passwords, API keys and session cookies are not logged.
+Existing credentials file is never overwritten; recover partial runs manually.
 """
 import argparse
 import http.cookiejar
@@ -11,7 +13,6 @@ import os
 from pathlib import Path
 import secrets
 import sys
-import time
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 from urllib.request import HTTPCookieProcessor, Request, build_opener
@@ -19,9 +20,10 @@ from urllib.request import HTTPCookieProcessor, Request, build_opener
 
 def validate_origin(origin: str) -> str:
     parsed = urlsplit(origin)
-    if (parsed.scheme != "https" or not parsed.hostname or not parsed.hostname.endswith(".ts.net")
+    if (parsed.scheme != "https" or not parsed.hostname
+        or not parsed.hostname.endswith((".ts.net", ".trycloudflare.com"))
         or parsed.username or parsed.password or parsed.port or parsed.path or parsed.query or parsed.fragment):
-        raise ValueError("Expected exact Tailscale HTTPS origin: https://host.tailnet.ts.net")
+        raise ValueError("Expected exact approved QA HTTPS origin under *.ts.net or *.trycloudflare.com")
     return origin
 
 
@@ -56,6 +58,58 @@ class BrowserSession:
         self.request("POST", "/api/v2/auth/login", {"email": email, "password": password})
 
 
+
+class InProcessBrowserSession(BrowserSession):
+    """Exercise FastAPI with secure HTTPS cookies without bypassing email Access.
+
+    This test client never opens a tunnel or external connection; it uses the QA
+    database in DS_V2_QA_DB_NAME and private QA storage. The actual public HTTPS
+    hostname must still be tested separately in a real browser.
+    """
+    def __init__(self, origin: str):
+        from fastapi.testclient import TestClient
+        from backend.v2.core.config import Settings
+        from backend.v2.main import create_app
+
+        self.origin = origin
+        settings = Settings(
+            environment="development", allow_insecure_loopback=False,
+            allowed_origins=[origin],
+            db_name=os.getenv("DS_V2_QA_DB_NAME", "ds_assistant_v2_qa"),
+            file_storage_root=Path(os.getenv(
+                "DS_V2_QA_STORAGE_ROOT",
+                str(Path.home() / ".local/share/ds-assistant-v2/qa/files"))),
+            embedding_provider="deterministic", embedding_allow_test_provider=True,
+            embedding_cloud_enabled=False,
+            rerank_provider="deterministic", rerank_allow_test_provider=True,
+            rerank_cloud_enabled=False,
+            generation_provider="deterministic", generation_allow_test_provider=True,
+            generation_cloud_enabled=False,
+        )
+        self.client = TestClient(create_app(settings), base_url=origin,
+                                 client=("127.0.0.1", 45211))
+        self.client.__enter__()
+
+    def request(self, method: str, path: str, body=None, content_type: str | None = None):
+        headers = {"Accept": "application/json"}
+        if method != "GET":
+            headers["Origin"] = self.origin
+            csrf = self.client.get("/api/v2/auth/csrf")
+            if csrf.status_code != 200:
+                raise RuntimeError(f"GET /api/v2/auth/csrf returned HTTP {csrf.status_code}")
+            headers["X-CSRF-Token"] = csrf.json()["csrf_token"]
+            if content_type:
+                headers["Content-Type"] = content_type
+        kwargs = {"content": body} if isinstance(body, bytes) else (
+            {"json": body} if body is not None else {})
+        response = self.client.request(method, path, headers=headers, **kwargs)
+        if not response.is_success:
+            raise RuntimeError(f"{method} {path.split('?')[0]} returned HTTP {response.status_code}")
+        return response.status_code, response.json() if response.content else {}
+
+    def close(self):
+        self.client.__exit__(None, None, None)
+
 def save_private(path: Path, payload: dict):
     path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
     os.chmod(path.parent, 0o700)
@@ -67,7 +121,8 @@ def save_private(path: Path, payload: dict):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--origin", required=True, help="Exact private Tailscale Serve HTTPS origin")
+    parser.add_argument("--origin", required=True, help="Exact private HTTPS QA origin (Tailscale or protected Quick Tunnel)")
+    parser.add_argument("--in-process", action="store_true", help="Seed through FastAPI TestClient when external email Access blocks scripts")
     parser.add_argument("--source", type=Path, default=Path(__file__).resolve().parents[3] / "docs/v2/qa_synthetic_ds.txt")
     parser.add_argument("--confirm-source-rights", action="store_true",
                         help="Required to upload a source other than the authored synthetic sample")
@@ -94,9 +149,10 @@ def main():
     save_private(args.output, creds)
     print(f"Credentials securely stored at: {args.output} (0600). Do not commit or post them.")
 
-    a = BrowserSession(origin)
+    SessionClass = InProcessBrowserSession if args.in_process else BrowserSession
+    a = SessionClass(origin)
     a.register_and_login(creds["student_a"]["email"], creds["student_a"]["password"])
-    b = BrowserSession(origin)
+    b = SessionClass(origin)
     b.register_and_login(creds["student_b"]["email"], creds["student_b"]["password"])
 
     _, kb = a.request("POST", "/api/v2/knowledge-bases", {
@@ -130,6 +186,9 @@ def main():
     else:
         raise RuntimeError("SECURITY CHECK FAILED: second user read private KB")
 
+    if args.in_process:
+        a.close()
+        b.close()
     print(json.dumps({"student_a_email": creds["student_a"]["email"],
                       "student_b_email": creds["student_b"]["email"],
                       "kb_id": kb_id, "document_id": doc_id,

@@ -48,6 +48,20 @@ tailscale serve status
 
 如已经占用 API 8001 或 Caddy 8088，先查明占用者，**不要 kill 未确认的已有进程**。需要禁用本次 Serve 时使用 `tailscale serve off`，执行前确认 443 没有承载其他服务。若命令行入口/标志随 Tailscale 版本变化，以当前官方 `tailscale serve --help` 核对。
 
+## 自动创建专用账号与私人知识库（服务启动后）
+
+在 Mac 的仓库根目录，且 Tailscale Serve、API 与两个 Worker 都正常运行时：
+
+```bash
+python deploy/v2/qa/provision_test_accounts.py --origin "$DS_V2_QA_ORIGIN"
+```
+
+脚本将通过 **真实 HTTPS API**（带真实 CSRF/Origin/Cookie）创建学生 A、隔离验证学生 B，并在 A 名下创建 private KB、上传默认的原创 `docs/v2/qa_synthetic_ds.txt`，最后确认 B 读取 A 的 KB 返回 404。生成的随机密码**不会出现在终端和 Git 仓库**，只保存到 Mac 本地 `~/.local/share/ds-assistant-v2/qa/credentials.json`（0600）。脚本如发现该凭证文件已存在就会拒绝覆盖；出现部分失败时先检查已有账户与私有文件，不要删除凭证后盲目反复注册。
+
+**上传不等于可问答。** 等待解析完成（document.status=parsed），由负责人调用已存在的 `POST /api/v2/knowledge-bases/{kb_id}/documents/{doc_id}/embedding`，请求体 `{"allow_cloud": false}`；等待 `ready` 后再交付给常慧思。若需要通过脚本调用，可以由本机 Codex 使用该专用账号和真实 Cookie/CSRF 执行，所有秘密仅在本机读取。
+
+如选择本机已获明确授权的 PDF 或经筛选的 V1 资料，运行 `--source /本机/路径/资料.pdf --confirm-source-rights`；使用者必须先核查权限，不得仅凭选项将任何版权材料视为公开可分发。
+
 ## 必须通过的验证
 
 - Mac 与常慧思的 Windows 电脑均能通过 Tailscale 登录访问 **同一** `https://*.ts.net` 页面，证书有效；不需要在 Windows 上配置 Python、Docker 或 DB。

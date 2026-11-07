@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Use from an activated V2 Python environment; never source secrets from other projects.
-# Usage: DS_V2_QA_ORIGIN=https://host.tailnet.ts.net bash deploy/v2/qa/run-secure-test-provider.sh api|parser|embedding|migrate|check
+# Usage: DS_V2_QA_ORIGIN=https://host.trycloudflare.com bash deploy/v2/qa/run-secure-test-provider.sh api|parser|embedding|migrate|check
 set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 cd "$repo_root"
 action="${1:-}"
-if [[ ! "${DS_V2_QA_ORIGIN:-}" =~ ^https://[A-Za-z0-9.-]+\.ts\.net$ ]]; then
-  echo "Set DS_V2_QA_ORIGIN to your exact HTTPS Tailscale Serve hostname (*.ts.net)" >&2
+if [[ ! "${DS_V2_QA_ORIGIN:-}" =~ ^https://[A-Za-z0-9.-]+\.(ts\.net|trycloudflare\.com)$ ]]; then
+  echo "Set DS_V2_QA_ORIGIN to your exact HTTPS private QA hostname (*.ts.net or *.trycloudflare.com)" >&2
   exit 2
 fi
 export DS_V2_ENVIRONMENT=development
@@ -31,7 +31,7 @@ case "$action" in
   migrate) exec python -m alembic -c backend/v2/alembic.ini upgrade head ;;
   check) exec python -m alembic -c backend/v2/alembic.ini check ;;
   *)
-    echo "Usage: DS_V2_QA_ORIGIN=https://host.tailnet.ts.net bash $0 api|parser|embedding|migrate|check" >&2
+    echo "Usage: DS_V2_QA_ORIGIN=https://host.trycloudflare.com bash $0 api|parser|embedding|migrate|check" >&2
     exit 2
     ;;
 esac

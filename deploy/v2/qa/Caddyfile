@@ -1,0 +1,24 @@
+# Only listens on host loopback. Tailscale Serve terminates HTTPS for tailnet members.
+# Launch from repository root: DS_V2_QA_WEB_ROOT="$PWD/frontend-v2/dist" caddy run --config deploy/v2/qa/Caddyfile
+http://127.0.0.1:8088 {
+    @api path /api/v2 /api/v2/*
+    handle @api {
+        # HTTPS is terminated by Tailscale Serve. Uvicorn trusts forwarded proto ONLY
+        # from this loopback reverse proxy (--forwarded-allow-ips 127.0.0.1).
+        reverse_proxy 127.0.0.1:8001 {
+            header_up X-Forwarded-Proto https
+        }
+    }
+
+    handle {
+        root * {$DS_V2_QA_WEB_ROOT}
+        try_files {path} /index.html
+        file_server
+    }
+
+    header {
+        X-Content-Type-Options nosniff
+        Referrer-Policy no-referrer
+        X-Frame-Options DENY
+    }
+}

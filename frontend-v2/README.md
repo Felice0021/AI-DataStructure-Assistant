@@ -232,3 +232,11 @@ rm -rf frontend-v2
 | **知识库数量与分页** | 选择上限 20（后端 `max_length=20`），全选按上限截断并提示，未选项禁用；列表按 100/页翻页取全，超过 5 页才显示"仅显示前 N 个"。 |
 | **Mock 隔离** | 末尾加兜底 handler：mock 模式下未被覆盖的 `/api/v2/*` 请求就地返回 `501 mock_unhandled`，**不再发到真实后端**（`onUnhandledRequest` 仅作提示，单靠它挡不住）；`mockServiceWorker.js` 移出 `public/`，由开发服务器中间件映射，生产产物不含该文件。 |
 
+
+## 12. MSW 生产构建修复复验（2026-11-07）
+
+移除过时的 `package.json` → `msw.workerDirectory: ["public"]`：该配置会让 MSW 安装脚本在 `npm ci` 后重新生成 `public/mockServiceWorker.js`，随后被 Vite 复制到生产包。开发 Worker 继续由 `vite.config.ts` 从 `src/mocks/mockServiceWorker.js` 映射，不需要 public 副本；依赖和 package-lock.json 无需变更。
+
+本次 macOS / Node 24.22.0 实际复验：`npm ci --no-audit --no-fund` 退出 0，未生成 public Worker；Vitest 9 个文件 56 项通过；`npm run build` 退出 0，dist 无 Worker、生产 JS 无 MSW 注册逻辑。生产预览 `/mockServiceWorker.js` 返回 SPA HTML 回退（200 text/html），不是 Worker；开发服务器同路径返回正确 Worker（200 JavaScript）。
+
+Safari 真实验证 MSW answered、refuse、unavailable 三个场景；原有 handler 测试确认未覆盖的 `/api/v2/*` GET/POST 仍返回 501。该兜底仅覆盖 `/api/v2/*`，不保证拦截任意其他网络请求。真实后端模式在独立来源 127.0.0.1:5174 设置 `VITE_USE_MOCK=false`，页面未出现 Mock 用户或知识库，实际尝试后端连接并显示后端未启动提示；配合实际提供的环境开关及启动条件核对，确认未启动 MSW。本轮未启动或操作后端及测试数据库，也未重跑完整后端联调。

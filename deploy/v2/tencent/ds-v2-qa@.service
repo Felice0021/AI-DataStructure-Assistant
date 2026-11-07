@@ -1,0 +1,16 @@
+[Unit]
+Description=Data Structure Assistant V2 QA %i
+After=network-online.target docker.service
+Wants=network-online.target
+[Service]
+Type=simple
+User=ubuntu
+Environment=HOME=/home/ubuntu
+Environment=DS_V2_QA_ORIGIN=https://43-161-243-116.sslip.io
+WorkingDirectory=/home/ubuntu/projects/AI-DataStructure-Assistant
+ExecStart=/bin/bash /home/ubuntu/projects/AI-DataStructure-Assistant/deploy/v2/tencent/run.sh %i
+Restart=on-failure
+RestartSec=5
+UMask=0077
+[Install]
+WantedBy=multi-user.target

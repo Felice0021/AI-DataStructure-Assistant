@@ -4,3 +4,10 @@ __pycache__
 .env
 .env.*
 .pytest_cache
+**/.env
+**/.env.*
+**/*.pem
+**/*.key
+**/*credentials*.json
+**/node_modules
+**/.venv

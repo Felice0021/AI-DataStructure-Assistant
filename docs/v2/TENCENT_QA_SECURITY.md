@@ -26,9 +26,26 @@ container and data volumes. Verify failure is closed when the rootless socket or
 resource controls are unavailable, then run real isolated parsing, indexing, RAG,
 cross-user authorization, restart and rollback tests before changing QA traffic.
 
-As audited on 2026-11-07, the host lacked `newuidmap`, `newgidmap`, rootlesskit,
-and a rootless engine; AppArmor restricted unprivileged user namespaces. These
-are observations, not an installation recipe or evidence that the proposed
-identity and runtime have been deployed. Existing `.env`, uploaded files and
-database credentials remain private and must never be copied into image builds,
-Git, screenshots or test logs.
+On 2026-11-08 Ubuntu's Podman and uidmap packages were installed and the separate
+`ds-v2-parser` identity was provisioned with no sudo and no Docker group. A
+synthetic TXT was parsed successfully with rootless Podman. Inside the container,
+`memory.max` was 268435456 and `pids.max` was 16; the host reported systemd
+cgroup v2. This identity could not write the rootful Docker socket or traverse
+`/home/ubuntu`. Existing QA services were not switched to that identity.
+
+The remaining integration blocker is material: `LocalFileStorage.directory()`
+and `open()` require the directory and file owner to equal the service UID and
+their modes to be private. Merely adding ACLs for a separate worker is therefore
+not sufficient. Design and test a secure, reversible storage and credential
+access boundary before switching services; do not relax these checks merely to
+make the worker start. AppArmor restricts unprivileged user namespaces on the
+host, although the isolated rootless Podman test above succeeded without changing
+that kernel setting.
+
+The separate server-side Chromium test on 2026-11-08 passed HTTPS page load,
+application login, knowledge-base selection, an answered response with matching
+`[S1]`, insufficient-evidence refusal, and logout followed by a 401. Its eight
+observed API requests used same-origin HTTPS and it made no MSW worker request.
+This was a server-side browser test, not an independent-network acceptance.
+Existing `.env`, uploaded files and database credentials remain private and
+must never be copied into image builds, Git, screenshots or test logs.

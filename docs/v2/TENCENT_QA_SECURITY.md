@@ -49,3 +49,50 @@ observed API requests used same-origin HTTPS and it made no MSW worker request.
 This was a server-side browser test, not an independent-network acceptance.
 Existing `.env`, uploaded files and database credentials remain private and
 must never be copied into image builds, Git, screenshots or test logs.
+
+## Shared-UID candidate, not yet a service cutover
+
+The candidate unit runs API, parser and embedding as `ds-v2-parser`, which has
+no sudo or rootful Docker socket access. The three processes share an OS UID;
+this does not isolate their access to application data from each other. Source
+and virtualenv trees must be root-owned and not writable or replaceable by that
+UID. The settings file must be private to root and this service group. Keep the
+file storage root and its files owned by the service UID with modes 0700/0600;
+never weaken `LocalFileStorage` ownership checks.
+
+The Docker-compatible parser wrapper calls only local, rootless Podman and
+requires cgroup v2, systemd and delegated CPU, memory and PID controllers. It
+checks effective limits in a no-network, read-only probe container before each
+parse and does not pull an image or fall back to rootful Docker. A missing
+engine, image or failed check must fail the job closed. Enable user lingering,
+configure subordinate UID/GID ranges and pre-load the pinned parser image in
+the service user's image store before starting the worker.
+
+The template expects root-managed `/opt/ds-v2-qa/current` and a private
+`/etc/ds-v2-qa/runtime.env` containing `DS_V2_QA_ORIGIN`, `DS_V2_DB_NAME`,
+`DS_V2_FILE_STORAGE_ROOT` and `DS_V2_PYTHON`; database credentials belong only
+in a private server-local settings file, never in the repository. Before any
+cutover, test the exact release and service units against an isolated database
+and a hash-verified private storage copy, including parsing, indexing, RAG,
+access control and fail-closed behavior. Retain the old unit, configuration and
+storage intact. Stop only the three application services for a final consistent
+copy, verify every file, switch the root-managed release and unit configuration,
+then run authenticated HTTPS tests. On failure, stop the new units, restore the
+previous unit and configuration, reload systemd and restart the old services;
+do not remove either storage tree or change the database during rollback.
+Database and application writes during a failed cutover require reconciliation;
+do not roll back storage after accepting new uploads without a verified plan.
+
+An isolated 2026-11-08 experiment ran three systemd processes as UID 1002,
+restored a QA backup into a separate loopback PostgreSQL container and opened a
+hash-verified storage copy with the unchanged ownership checks. A real HTTP
+smoke run using rootless Podman and deterministic providers passed parsing,
+indexing, RAG citations and cross-account authorization. This evidence does not
+mean that the live QA services were switched. The existing QA database role was
+observed to be a PostgreSQL superuser; introduce a least-privileged application
+role and verify permissions before handing its credentials to a new service.
+The same isolated systemd chain also passed with a newly created test database
+role lacking superuser and database-creation privileges. The root filesystem
+was verified read-only; Podman provides a writable temporary filesystem at
+`/tmp`, bounded by the container memory limit. An invalid runtime directory was
+rejected, but that test alone does not prove every possible engine failure mode.

@@ -107,9 +107,7 @@ matching SHA-256 hashes before starting the new units. API, parser and embedding
 then ran as UID 1002; the existing QA user's ready document, RAG citation and
 cross-user denial passed, as did server-side TLS and site authentication. The
 service UID could not use sudo, access the rootful Docker socket or read the
-student credential file. This is a service cutover, not a reboot or external
-network test. The remaining rotation, reboot-recovery and independent-network
-TLS acceptance have not been performed as part of this change.
+student credential file. That cutover test was not an external-network test.
 
 For rollback, first stop QA traffic and the three application units. Since the
 old storage copy becomes stale after the cutover, reconcile every newly created
@@ -118,3 +116,47 @@ an existing object or discard either storage tree. Once reconciliation is
 verified, restore the saved unit, reload systemd, restart the original services
 and validate existing document access before reopening QA traffic. The saved
 unit alone is insufficient for a safe rollback after new uploads.
+
+## 2026-11-08 rotation and restart verification
+
+The previous broad-context parser build could include the repository's local
+`deploy/v2/.env`. The original image is no longer present in the local image
+list; that observation alone does not prove all build-cache copies were erased.
+At this review the relevant environment file contained only database
+configuration keys. The site's Basic Auth and student credential files are
+outside that repository tree; their exposure in other historical copies has
+not been independently ruled out.
+
+The old database administration role was rotated after a fresh private QA
+backup and an isolated SCRAM rotation and rollback test. The new credential
+was verified to connect and the old credential was rejected. The former
+settings are retained in a root-only server-local rollback file; never put them
+in Git, command history, logs or reports. QA services continue to use the
+separate non-superuser runtime role. The existing container's historical
+environment can still contain the now-invalid old value; do not expose container
+configuration in reports.
+
+On this host `/etc/systemd/system/ds-v2-qa@.service.d/20-runtime-deps.conf`
+orders application units after Docker and the lingering rootless user's systemd
+manager, and requires both. Its `user@1002.service` value is host-specific:
+derive the UID with `id -u ds-v2-parser` on another host. A controlled machine
+reboot changed the boot ID; Docker, PostgreSQL, Caddy, TAT, all three QA units
+and the rootless user manager recovered. PostgreSQL became healthy; the
+rootless parser image and cgroup v2 were available; synthetic PDF/DOCX/TXT
+parser tests passed (3 passed). Server-side HTTPS Basic Auth, student login,
+the existing ready document, RAG citation, private-KB isolation and logout were
+verified. This does not establish access from a student's independent network.
+
+An independent SSL Labs probe on 2026-11-08 connected to
+`43-161-243-116.sslip.io`, reported grade A, a trusted certificate chain for
+Windows and HTTP 401 from the site. A separate direct request from the owner's
+Mac connected to TCP 443 but timed out during TLS. The cloud firewall allows
+TCP 443; the contrasting results indicate a client-path-dependent issue, but
+do not identify whether IOA, an upstream network or another middlebox is
+responsible. Do not disable TLS validation or site authentication to work
+around it. A named student's own network and browser still need confirmation.
+
+The rollback unit described above predates the systemd drop-in. If rolling back,
+review and remove or adjust this host-specific drop-in as part of planned
+maintenance, after storage and database reconciliation. Never remove the QA
+database, storage tree, backup or Docker volume to perform rollback.

@@ -1,11 +1,11 @@
 # Tencent QA: parser isolation review
 
-The current QA deployment is a draft and is not ready for production. Its API,
-parser worker, and embedding worker run as `ubuntu`; the audited host grants
-that account unrestricted passwordless sudo. The parser's `sudo docker`
-wrapper therefore grants effective host-root capability, regardless of the
-network, filesystem, and resource flags applied to the normal parser container.
-Do not treat the wrapper or membership in the Docker group as isolation.
+The QA deployment is a draft and is not ready for production. Before the
+cutover recorded below, its API, parser and embedding processes ran as `ubuntu`,
+which has unrestricted passwordless sudo. The old parser's `sudo docker`
+wrapper granted effective host-root capability regardless of the normal
+container's sandbox flags. Do not treat that wrapper or membership in the
+Docker group as isolation.
 
 The parser image is built with `backend/v2` as its build context. Its Dockerfile
 copies only the parser entry point, error definitions, chunking, file validation,
@@ -33,7 +33,7 @@ synthetic TXT was parsed successfully with rootless Podman. Inside the container
 cgroup v2. This identity could not write the rootful Docker socket or traverse
 `/home/ubuntu`. Existing QA services were not switched to that identity.
 
-The remaining integration blocker is material: `LocalFileStorage.directory()`
+The integration constraint is material: `LocalFileStorage.directory()`
 and `open()` require the directory and file owner to equal the service UID and
 their modes to be private. Merely adding ACLs for a separate worker is therefore
 not sufficient. Design and test a secure, reversible storage and credential
@@ -50,7 +50,7 @@ This was a server-side browser test, not an independent-network acceptance.
 Existing `.env`, uploaded files and database credentials remain private and
 must never be copied into image builds, Git, screenshots or test logs.
 
-## Shared-UID candidate, not yet a service cutover
+## Shared-UID QA deployment
 
 The candidate unit runs API, parser and embedding as `ds-v2-parser`, which has
 no sudo or rootful Docker socket access. The three processes share an OS UID;
@@ -87,12 +87,34 @@ An isolated 2026-11-08 experiment ran three systemd processes as UID 1002,
 restored a QA backup into a separate loopback PostgreSQL container and opened a
 hash-verified storage copy with the unchanged ownership checks. A real HTTP
 smoke run using rootless Podman and deterministic providers passed parsing,
-indexing, RAG citations and cross-account authorization. This evidence does not
-mean that the live QA services were switched. The existing QA database role was
-observed to be a PostgreSQL superuser; introduce a least-privileged application
-role and verify permissions before handing its credentials to a new service.
+indexing, RAG citations and cross-account authorization. The original QA
+database role was observed to be a PostgreSQL superuser. A separate restricted
+QA runtime role was created without superuser or database-creation privileges;
+the original role and its credentials were retained for administration and
+rollback. Schema migrations must run under an appropriately privileged
+administrative role, and privileges on newly created objects must be reviewed.
 The same isolated systemd chain also passed with a newly created test database
 role lacking superuser and database-creation privileges. The root filesystem
 was verified read-only; Podman provides a writable temporary filesystem at
 `/tmp`, bounded by the container memory limit. An invalid runtime directory was
 rejected, but that test alone does not prove every possible engine failure mode.
+
+The QA services were switched on 2026-11-08 after stopping the QA entry point
+and all three application processes. The original systemd unit was retained at
+`/etc/ds-v2-qa/rollback-original.service`, and the original `ubuntu` settings and
+storage were left intact. The final service-owned storage copy was checked for
+matching SHA-256 hashes before starting the new units. API, parser and embedding
+then ran as UID 1002; the existing QA user's ready document, RAG citation and
+cross-user denial passed, as did server-side TLS and site authentication. The
+service UID could not use sudo, access the rootful Docker socket or read the
+student credential file. This is a service cutover, not a reboot or external
+network test. The remaining rotation, reboot-recovery and independent-network
+TLS acceptance have not been performed as part of this change.
+
+For rollback, first stop QA traffic and the three application units. Since the
+old storage copy becomes stale after the cutover, reconcile every newly created
+object and any database changes before restoring the old unit; do not overwrite
+an existing object or discard either storage tree. Once reconciliation is
+verified, restore the saved unit, reload systemd, restart the original services
+and validate existing document access before reopening QA traffic. The saved
+unit alone is insufficient for a safe rollback after new uploads.

@@ -1,0 +1,47 @@
+#!/bin/sh
+# docker_parser.py invokes a Docker-compatible CLI. Never contact a rootful daemon.
+set -eu
+[ "$(id -u)" -ne 0 ] || exit 125
+unset CONTAINER_HOST CONTAINER_CONNECTION DOCKER_HOST
+controllers="/sys/fs/cgroup/user.slice/user-$(id -u).slice/user@$(id -u).service/cgroup.controllers"
+[ -r "$controllers" ] || exit 125
+for controller in cpu memory pids; do
+    grep -qw "$controller" "$controllers" || exit 125
+done
+/usr/bin/podman info --format json | /usr/bin/python3 -I -c '
+import json, sys
+h = json.load(sys.stdin)["host"]
+assert h["security"]["rootless"] and h["cgroupVersion"] == "v2" and h["cgroupManager"] == "systemd"
+' || exit 125
+case "${1:-}" in
+    run)
+        shift
+        # The parser image is the penultimate argument; the last is its options JSON.
+        previous= image= memory= want_memory=false
+        for arg do
+            image=$previous
+            previous=$arg
+            if [ "$want_memory" = true ]; then memory=$arg; want_memory=false; fi
+            [ "$arg" != --memory ] || want_memory=true
+        done
+        case "$memory" in *m) ;; *) exit 125 ;; esac
+        [ -n "$image" ] || exit 125
+        # Check actual cgroup values and sandbox flags, not only engine configuration.
+        /usr/bin/podman --remote=false run --pull=never --rm --network none --read-only \
+            --cap-drop ALL --security-opt no-new-privileges --pids-limit 16 --cpus 1 \
+            --memory "$memory" --memory-swap "$memory" --entrypoint python "$image" \
+            -I -c 'import os,pathlib,sys
+p=pathlib.Path("/sys/fs/cgroup")
+assert (p/"memory.max").read_text().strip()==str(int(sys.argv[1][:-1])*1048576)
+assert (p/"pids.max").read_text().strip()=="16"
+quota,period=(p/"cpu.max").read_text().split(); assert int(quota)==int(period)
+s=pathlib.Path("/proc/self/status").read_text()
+assert "CapEff:\t0000000000000000" in s and "NoNewPrivs:\t1" in s
+assert os.geteuid()!=0 and os.listdir("/sys/class/net")==["lo"]
+assert os.statvfs("/").f_flag & os.ST_RDONLY' "$memory" \
+            >/dev/null 2>&1 || exit 125
+        exec /usr/bin/podman --remote=false run --pull=never "$@"
+        ;;
+    rm) exec /usr/bin/podman --remote=false "$@" ;;
+    *) exit 125 ;;
+esac

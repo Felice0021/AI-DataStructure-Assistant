@@ -1,0 +1,17 @@
+[Unit]
+Description=Data Structure Assistant V2 QA %i
+After=network-online.target
+Wants=network-online.target
+[Service]
+Type=simple
+User=ds-v2-parser
+Group=ds-v2-parser
+Environment=HOME=/var/lib/ds-v2-parser
+EnvironmentFile=/etc/ds-v2-qa/runtime.env
+WorkingDirectory=/opt/ds-v2-qa/current
+ExecStart=/bin/bash /opt/ds-v2-qa/current/deploy/v2/tencent/run.sh %i
+Restart=on-failure
+RestartSec=5
+UMask=0077
+[Install]
+WantedBy=multi-user.target

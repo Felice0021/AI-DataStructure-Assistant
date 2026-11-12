@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     environment: Literal["production", "development"] = "production"
     allow_insecure_loopback: bool = False
     allowed_origins: list[str] = []
+    registration_enabled: bool = True
     session_ttl_seconds: int = Field(default=28800, ge=60, le=604800)
     login_max_failures: int = Field(default=5, ge=1, le=100)
     login_ip_max_failures: int = Field(default=20, ge=1, le=1000)

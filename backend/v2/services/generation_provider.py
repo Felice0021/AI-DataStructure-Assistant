@@ -7,6 +7,7 @@ import time
 from typing import Protocol
 
 import httpx2
+from backend.v2.services.answer_validation import SOURCE_PROSE
 from backend.v2.services.retrieval_service import capacity
 
 
@@ -50,7 +51,9 @@ class DeterministicProvider:
         mode='code' if '回答模式：code' in messages[0]['content'] else 'exercise' if '回答模式：exercise' in messages[0]['content'] else 'qa'
         prefix={'qa':'资料原文：','exercise':'题目分析：仅能根据所给资料说明。\n解题过程：引用原文，不补充未经证实的推导。\n最终答案：',
                 'code':'代码作用与问题分析：仅引用资料。\n修改建议、复杂度和边界条件需以原文为依据：'}[mode]
-        answer=prefix+'\n'+block['content']+' '+citation
+        # Preserve the evidence; omit source-like strings from the generated quote.
+        quote=SOURCE_PROSE.sub('[来源信息略]', block['content'])
+        answer=prefix+'\n'+quote+' '+citation
         return Completion(json.dumps({'status':'answered','answer':answer,'used_source_ids':[citation]},ensure_ascii=False))
 
 

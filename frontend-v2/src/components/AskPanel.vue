@@ -6,6 +6,7 @@ import { useKnowledgeBaseStore } from '@/stores/knowledgeBase'
 import type { AnswerModeRequest, RetrievalMode } from '@/types/api'
 
 import AnswerView from './AnswerView.vue'
+import CloudConsentPanel from './CloudConsentPanel.vue'
 
 const askStore = useAskStore()
 const kbStore = useKnowledgeBaseStore()
@@ -13,6 +14,9 @@ const kbStore = useKnowledgeBaseStore()
 const query = ref('')
 const answerMode = ref<AnswerModeRequest>('auto')
 const retrievalMode = ref<RetrievalMode>('hybrid')
+const allowCloud = ref(false)
+const allowCloudRerank = ref(false)
+const allowCloudGeneration = ref(false)
 
 const MAX_QUERY = 2000
 
@@ -34,6 +38,9 @@ async function submit(): Promise<void> {
     knowledgeBaseIds: [...kbStore.selectedIds],
     answerMode: answerMode.value,
     retrievalMode: retrievalMode.value,
+    allowCloud: allowCloud.value,
+    allowCloudRerank: allowCloudRerank.value,
+    allowCloudGeneration: allowCloudGeneration.value,
   })
 }
 
@@ -91,6 +98,14 @@ function onKeydown(event: KeyboardEvent): void {
       </div>
     </div>
 
+    <CloudConsentPanel />
+    <fieldset class="cloud-options">
+      <legend>本次请求的云端用途</legend>
+      <p>仅在已逐知识库授权后勾选；勾选不切换服务器模型，是否使用云模型以服务配置和返回结果为准。</p>
+      <label><input v-model="allowCloud" type="checkbox" /> 查询向量</label>
+      <label><input v-model="allowCloudRerank" type="checkbox" /> 重排序</label>
+      <label><input v-model="allowCloudGeneration" type="checkbox" /> 生成回答</label>
+    </fieldset>
     <p v-if="blockReason" class="block-reason">{{ blockReason }}</p>
 
     <div class="answer-area">
@@ -112,6 +127,8 @@ function onKeydown(event: KeyboardEvent): void {
   flex-direction: column;
   gap: 14px;
 }
+.cloud-options { border: 1px solid var(--line); border-radius: 8px; font-size: 13px; }
+.cloud-options label { display: inline-block; margin-right: 14px; }
 
 .field {
   display: flex;

@@ -1,5 +1,6 @@
 """Static control instructions, JSON question, and untrusted evidence in distinct roles."""
 import json
+import re
 from backend.v2.core.errors import AuthError
 
 MODE_RULES={
@@ -18,10 +19,31 @@ answered必须在实质回答中使用有效[S编号]，used_source_ids是所有
 拒答时answer为空字符串、used_source_ids为空数组。禁止输出Markdown JSON围栏、工具调用或额外字段。'''
 
 
+def model_evidence(context):
+    """Remove known V1 import wrappers from model input; keep stored evidence unchanged."""
+    blocks=json.loads(context['context_text']) if context['context_text'] else []
+    result=[]
+    keys={'chunk_id','chapter','section','source_file','page','content_type'}
+    for block in blocks:
+        content=block['content']
+        filename=block.get('source',{}).get('source_filename','')
+        if isinstance(filename,str) and re.fullmatch(r'v1-course-\d+\.txt',filename,re.IGNORECASE):
+            clean=[]
+            for line in content.splitlines(keepends=True):
+                if re.fullmatch(r'# V1:[^\s]+\s*',line):continue
+                try: metadata=json.loads(line)
+                except (ValueError,TypeError): metadata=None
+                if isinstance(metadata,dict) and set(metadata)==keys:continue
+                clean.append(line)
+            content=''.join(clean)
+        if content.strip():result.append({'citation_id':block['citation_id'],'content':content})
+    return result
+
+
 def build_prompt(query,mode,context,settings,*,feedback=None):
     messages=[{'role':'system','content':BASE_RULES+'\n回答模式：'+mode+'。'+MODE_RULES[mode]},
         {'role':'user','content':json.dumps({'type':'user_question','text':query},ensure_ascii=False)},
-        {'role':'user','content':json.dumps({'type':'untrusted_evidence','blocks':json.loads(context['context_text']) if context['context_text'] else []},ensure_ascii=False)}]
+        {'role':'user','content':json.dumps({'type':'untrusted_evidence','blocks':model_evidence(context)},ensure_ascii=False)}]
     if feedback is not None:
         messages.append({'role':'user','content':json.dumps({'type':'validation_feedback','code':feedback})})
     size=len(json.dumps(messages,ensure_ascii=False,separators=(',',':')).encode())

@@ -70,6 +70,7 @@ function onCite(citationId: string): void {
       <header class="card-head">
         <span class="badge badge-success">已回答</span>
         <span class="head-meta">
+          {{ result.generation_model?.startsWith('deterministic-') ? '确定性工程演示' : result.generation_model ? `生成模型：${result.generation_model}` : '生成模型未知' }} ·
           {{ RETRIEVAL_LABELS[result.retrieval_mode] ?? result.retrieval_mode }}
           · {{ ANSWER_MODE_LABELS[result.answer_mode] ?? result.answer_mode }}
           <span v-if="result.rerank_applied"> · 已重排</span>

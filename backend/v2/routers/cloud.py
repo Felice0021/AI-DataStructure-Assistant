@@ -25,13 +25,47 @@ class Consent(BaseModel):
 def listing(kb_id:UUID,user:CurrentUser,session:Database):return cloud_service.list_consents(session,user,kb_id)
 
 
+class ConsentTarget(BaseModel):
+    purpose:Literal['embedding','reranking','generation']
+    provider:str
+    model:str
+    service_key:str
+
+
+class ConsentExpectation(BaseModel):
+    model_config=ConfigDict(extra='forbid')
+    expected_service_key:str
+
+
+@router.get('/targets',response_model=list[ConsentTarget])
+def targets(kb_id:UUID,request:Request,user:CurrentUser,session:Database):
+    from backend.v2.services import knowledge_base_service
+    knowledge_base_service.get_readable(session,user,kb_id)
+    result=[]
+    for purpose in ('embedding','reranking','generation'):
+        model,key=cloud_service.target(request.app.state.settings,purpose)
+        result.append({'purpose':purpose,'provider':'dashscope','model':model,'service_key':key})
+    return result
+
+
+def check_target(kb_id,purpose,request,user,session,data):
+    if data is not None:
+        from backend.v2.services import knowledge_base_service
+        knowledge_base_service.get_readable(session,user,kb_id)
+        if data.expected_service_key!=cloud_service.target(request.app.state.settings,purpose)[1]:
+            from backend.v2.core.errors import AuthError
+            raise AuthError(409,'cloud_target_changed','Cloud processing target changed')
+
+
 @router.post('/{purpose}',response_model=Consent)
-def grant(kb_id:UUID,purpose:Literal['embedding','reranking','generation'],request:Request,user:CurrentUser,session:Database):
+def grant(kb_id:UUID,purpose:Literal['embedding','reranking','generation'],request:Request,user:CurrentUser,session:Database,data:ConsentExpectation|None=None):
+    check_target(kb_id,purpose,request,user,session,data)
     return cloud_service.change(session,user,kb_id,purpose,request.app.state.settings)
 
 
 @router.delete('/{purpose}',response_model=Consent)
-def revoke(kb_id:UUID,purpose:Literal['embedding','reranking','generation'],request:Request,user:CurrentUser,session:Database):
+def revoke(kb_id:UUID,purpose:Literal['embedding','reranking','generation'],request:Request,user:CurrentUser,session:Database,data:ConsentExpectation|None=None):
+    check_target(kb_id,purpose,request,user,session,data)
     return cloud_service.change(session,user,kb_id,purpose,request.app.state.settings,revoke=True)
 
 

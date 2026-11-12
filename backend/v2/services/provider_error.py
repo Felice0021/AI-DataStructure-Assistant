@@ -15,6 +15,15 @@ async def safe_error_code(response):
         payload=json.loads(raw)
         if not isinstance(payload,dict):return 'other'
         error=payload.get('error')
-        code=error.get('code') if isinstance(error,dict) else payload.get('code')
-        return code if isinstance(code,str) and code in ALLOWED else 'other'
+        code=(error.get('code') if isinstance(error,dict) else None) or payload.get('code')
+        if isinstance(code,str) and code in ALLOWED:return code
+        # Emit only fixed labels; never emit arbitrary provider strings.
+        lowered=bytes(raw).decode('utf-8','ignore').lower()
+        for label,terms in [('quota_or_balance',('quota','balance','arrear','credit','free tier')),
+                            ('region_or_workspace',('region','workspace')),
+                            ('authentication',('api key','apikey','api_key','authentication','unauthorized')),
+                            ('permission',('permission','accessdenied','access denied','forbidden','ip address')),
+                            ('model',('model',))]:
+            if any(term in lowered for term in terms):return label
+        return 'other'
     except (AttributeError,ValueError,UnicodeError,TypeError):return 'other'

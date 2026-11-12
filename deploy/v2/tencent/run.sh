@@ -9,7 +9,7 @@ cd "$repo"
 [ "$(id -u)" -ne 0 ] || { echo 'root is not permitted' >&2; exit 1; }
 export XDG_RUNTIME_DIR="/run/user/$(id -u)"
 export DS_V2_ENVIRONMENT=development DS_V2_ALLOW_INSECURE_LOOPBACK=false
-export DS_V2_ALLOWED_ORIGINS="[\"$DS_V2_QA_ORIGIN\"]"
+export DS_V2_ALLOWED_ORIGINS="${DS_V2_ALLOWED_ORIGINS:-[\"$DS_V2_QA_ORIGIN\"]}"
 export DS_V2_DB_NAME DS_V2_FILE_STORAGE_ROOT
 export DS_V2_PARSER_BACKEND=docker
 for purpose in EMBEDDING RERANK GENERATION; do
@@ -25,3 +25,4 @@ case "${1:-}" in
  embedding) exec "$python" -m backend.v2.embedding_worker ;;
  *) echo 'usage: run.sh api|parser|embedding' >&2; exit 2 ;;
 esac
+

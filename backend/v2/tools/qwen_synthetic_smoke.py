@@ -10,7 +10,7 @@ from sqlalchemy import func, select
 from backend.v2.core.config import Settings
 from backend.v2.db.session import build_session_factory
 from backend.v2.embedding_worker import run_once as embed_once
-from backend.v2.models import CloudAudit, Document, ChunkEmbedding
+from backend.v2.models import CloudAudit, Document, ChunkEmbedding, EmbeddingJob
 from backend.v2.tests.support import isolated_database
 from backend.v2.tests.test_auth import client_for, csrf_headers, local_settings, post, register
 from backend.v2.tests.test_ingestion import upload
@@ -39,6 +39,9 @@ def main():
                        'rerank_endpoint':host+'/api/v1/services/rerank/text-rerank/text-rerank',
                        'generation_endpoint':host+'/compatible-mode/v1/chat/completions'}
         source=Settings(_env_file=None,**endpoints).model_copy(update={name+'_api_key':SecretStr(key) for name in ('embedding','rerank','generation')})
+        if args.key_region=='singapore':
+            # Regional catalog differs from the Beijing defaults.
+            source=source.model_copy(update={'embedding_model':'qwen3.7-text-embedding','rerank_model':'qwen3-rerank'})
     if not all(getattr(source, name+'_api_key') for name in ('embedding','rerank','generation')):
         print('BLOCKED missing_v2_cloud_key');return 2
     if args.diagnose_http_status:
@@ -120,7 +123,8 @@ def main():
             with factory() as db:
                 doc=db.get(Document,UUID(record['id']))
                 count=db.scalar(select(func.count()).select_from(ChunkEmbedding).where(ChunkEmbedding.document_id==doc.id))
-                print('REAL_EMBEDDING',config.embedding_model,'status',doc.status,'vectors',count,flush=True)
+                job=db.scalar(select(EmbeddingJob).where(EmbeddingJob.document_id==doc.id))
+                print('REAL_EMBEDDING',config.embedding_model,'status',doc.status,'vectors',count,'error',job.error_code if job else None,flush=True)
                 if doc.status!='ready' or not count:return 1
             for mode in ('bm25','dense','hybrid'):
                 payload={'query':'AVL树','knowledge_base_ids':[second['kb']['id']],'mode':mode,'top_k':3,'allow_cloud':mode!='bm25'}

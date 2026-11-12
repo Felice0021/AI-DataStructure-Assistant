@@ -5,6 +5,7 @@ interface ImportMetaEnv {
   readonly VITE_API_BASE?: string
   /** 'true' 时启用 MSW 模拟 */
   readonly VITE_USE_MOCK?: string
+  readonly VITE_REGISTRATION_ENABLED?: string
   /** mock 场景：answered | refuse | unavailable | unauthorized */
   readonly VITE_MOCK_SCENARIO?: string
 }

@@ -5,6 +5,7 @@ from pathlib import Path
 import tempfile
 from uuid import UUID, uuid4
 
+from pydantic import SecretStr
 from sqlalchemy import func, select
 from backend.v2.core.config import Settings
 from backend.v2.db.session import build_session_factory
@@ -18,9 +19,17 @@ from backend.v2.worker import run_once as parse_once
 
 def main():
     parser=argparse.ArgumentParser()
-    parser.add_argument('--v2-env-file', required=True, help='Existing private V2 dotenv; never printed or copied')
+    keys=parser.add_mutually_exclusive_group(required=True)
+    keys.add_argument('--v2-env-file', help='Existing private V2 dotenv; never printed or copied')
+    keys.add_argument('--v2-key-file', help='Existing private single-line Key; read only in memory')
     args=parser.parse_args()
-    source=Settings(_env_file=Path(args.v2_env_file))
+    if args.v2_env_file:
+        source=Settings(_env_file=Path(args.v2_env_file))
+    else:
+        key=Path(args.v2_key_file).read_text().strip()
+        if not key.startswith('sk-') or any(c.isspace() for c in key):
+            print('BLOCKED invalid_key_format');return 2
+        source=Settings(_env_file=None).model_copy(update={name+'_api_key':SecretStr(key) for name in ('embedding','rerank','generation')})
     if not all(getattr(source, name+'_api_key') for name in ('embedding','rerank','generation')):
         print('BLOCKED missing_v2_cloud_key');return 2
     with isolated_database() as (engine,base), tempfile.TemporaryDirectory(prefix='ds-qwen-synthetic-') as temp:

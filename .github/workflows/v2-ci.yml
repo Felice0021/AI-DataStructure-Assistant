@@ -49,9 +49,9 @@ jobs:
       # These three tests specifically exercise macOS Seatbelt; they run in the job below.
       - run: >-
           python -m pytest -q backend/v2/tests
-          --deselect backend/v2/tests/test_parsing.py::test_real_sandbox_denies_network_secret_read_write_and_spawn
-          --deselect backend/v2/tests/test_parsing.py::test_actual_timeout_kills_process
-          --deselect backend/v2/tests/test_parsing.py::test_actual_rss_limit_kills_process
+          --deselect tests/test_parsing.py::test_real_sandbox_denies_network_secret_read_write_and_spawn
+          --deselect tests/test_parsing.py::test_actual_timeout_kills_process
+          --deselect tests/test_parsing.py::test_actual_rss_limit_kills_process
 
   macos_parser:
     name: V2 macOS parser isolation

@@ -22,6 +22,8 @@ def main():
     keys=parser.add_mutually_exclusive_group(required=True)
     keys.add_argument('--v2-env-file', help='Existing private V2 dotenv; never printed or copied')
     keys.add_argument('--v2-key-file', help='Existing private single-line Key; read only in memory')
+    parser.add_argument('--bm25-only',action='store_true',help='Stop after the first BM25 + generation check')
+    parser.add_argument('--key-region',choices=('beijing','singapore'),default='beijing')
     args=parser.parse_args()
     if args.v2_env_file:
         source=Settings(_env_file=Path(args.v2_env_file))
@@ -29,7 +31,13 @@ def main():
         key=Path(args.v2_key_file).read_text().strip()
         if not key.startswith('sk-') or any(c.isspace() for c in key):
             print('BLOCKED invalid_key_format');return 2
-        source=Settings(_env_file=None).model_copy(update={name+'_api_key':SecretStr(key) for name in ('embedding','rerank','generation')})
+        endpoints={}
+        if args.key_region=='singapore':
+            host='https://trial.ap-southeast-1.maas.aliyuncs.com'
+            endpoints={'embedding_endpoint':host+'/api/v1/services/embeddings/text-embedding/text-embedding',
+                       'rerank_endpoint':host+'/api/v1/services/rerank/text-rerank/text-rerank',
+                       'generation_endpoint':host+'/compatible-mode/v1/chat/completions'}
+        source=Settings(_env_file=None,**endpoints).model_copy(update={name+'_api_key':SecretStr(key) for name in ('embedding','rerank','generation')})
     if not all(getattr(source, name+'_api_key') for name in ('embedding','rerank','generation')):
         print('BLOCKED missing_v2_cloud_key');return 2
     with isolated_database() as (engine,base), tempfile.TemporaryDirectory(prefix='ds-qwen-synthetic-') as temp:
@@ -64,8 +72,9 @@ def main():
                 valid='[S1]' in (body.get('answer') or '') and any(s.get('citation_id')=='[S1]' and s.get('knowledge_base_id')==env['kb']['id'] for s in sources)
                 text=body.get('answer') or ''
                 natural='chunk_id' not in text and 'source_file' not in text and len(text.strip())>8
-                print('MODEL',body.get('generation_model'),'CITATION_VALID',valid,'NO_IMPORT_METADATA',natural,'RERANK',body.get('rerank_applied'),flush=True)
-                return valid and natural
+                full_copy=data.decode().strip() in text
+                print('MODEL',body.get('generation_model'),'CITATION_VALID',valid,'NO_IMPORT_METADATA',natural,'WHOLE_SOURCE_COPIED',full_copy,'RERANK',body.get('rerank_applied'),flush=True)
+                return valid and natural and not full_copy
             data=('# 原创合成示例\nAVL树是一种二叉搜索树。每个节点的左右子树高度差绝对值不超过1。\n'
                   '栈采用后进先出，队列采用先进先出。\n'
                   '图的广度优先遍历按距离逐层访问，通常用队列保存待访问节点。\n'
@@ -77,6 +86,7 @@ def main():
             assert parse_once(factory,config) and embed_once(factory,config)
             bm25_ok=ask(first,'bm25')
             if not bm25_ok:print('STOP generation_failed',flush=True);return 1
+            if args.bm25_only:return 0
             config.embedding_provider='dashscope';config.embedding_cloud_enabled=True
             config.embedding_api_key=source.embedding_api_key;config.embedding_endpoint=source.embedding_endpoint
             config.embedding_model=source.embedding_model;config.embedding_model_revision='synthetic-e2e-v1'

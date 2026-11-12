@@ -24,6 +24,7 @@ def main():
     keys.add_argument('--v2-key-file', help='Existing private single-line Key; read only in memory')
     parser.add_argument('--bm25-only',action='store_true',help='Stop after the first BM25 + generation check')
     parser.add_argument('--key-region',choices=('beijing','singapore'),default='beijing')
+    parser.add_argument('--diagnose-http-status',action='store_true',help='Print provider HTTP status only')
     args=parser.parse_args()
     if args.v2_env_file:
         source=Settings(_env_file=Path(args.v2_env_file))
@@ -40,6 +41,21 @@ def main():
         source=Settings(_env_file=None,**endpoints).model_copy(update={name+'_api_key':SecretStr(key) for name in ('embedding','rerank','generation')})
     if not all(getattr(source, name+'_api_key') for name in ('embedding','rerank','generation')):
         print('BLOCKED missing_v2_cloud_key');return 2
+    if args.diagnose_http_status:
+        from backend.v2.services.generation_provider import QwenProvider,GenerationError
+        import httpx2
+        def safe_status(self,messages):
+            s=self.settings
+            try:
+                with httpx2.Client(timeout=s.generation_timeout_seconds,trust_env=False,follow_redirects=False) as client:
+                    response=client.post(s.generation_endpoint,headers={'Authorization':'Bearer '+s.generation_api_key.get_secret_value()},json={
+                        'model':self.model,'messages':messages,'temperature':s.generation_temperature,'max_tokens':s.generation_max_output_tokens,
+                        'stream':False,'enable_thinking':False,'response_format':{'type':'json_object'}})
+                    print('PROVIDER_HTTP_STATUS',response.status_code,flush=True)
+                    if response.status_code!=200:raise GenerationError('generation_http_error')
+                    return response.json()
+            except httpx2.RequestError:raise GenerationError('generation_unavailable') from None
+        QwenProvider._http=safe_status
     with isolated_database() as (engine,base), tempfile.TemporaryDirectory(prefix='ds-qwen-synthetic-') as temp:
         config=local_settings(base,file_storage_root=Path(temp).resolve()/'objects',
             embedding_provider='deterministic',embedding_allow_test_provider=True,

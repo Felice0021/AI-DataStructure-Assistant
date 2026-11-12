@@ -6,7 +6,8 @@ import { useKnowledgeBaseStore } from '@/stores/knowledgeBase'
 import type { AnswerModeRequest, RetrievalMode } from '@/types/api'
 
 import AnswerView from './AnswerView.vue'
-import CloudConsentPanel from './CloudConsentPanel.vue'
+import { cloudConsentApi, type CloudPurpose } from '@/api/cloudConsent'
+import { currentEpoch } from '@/api/session'
 
 const askStore = useAskStore()
 const kbStore = useKnowledgeBaseStore()
@@ -14,18 +15,17 @@ const kbStore = useKnowledgeBaseStore()
 const query = ref('')
 const answerMode = ref<AnswerModeRequest>('auto')
 const retrievalMode = ref<RetrievalMode>('hybrid')
-const allowCloud = ref(false)
-const allowCloudRerank = ref(false)
-const allowCloudGeneration = ref(false)
+const checking = ref(false)
+const consentError = ref('')
 
 const MAX_QUERY = 2000
 
 const canSubmit = computed(
-  () => query.value.trim().length > 0 && kbStore.selectedCount > 0 && !askStore.isLoading,
+  () => query.value.trim().length > 0 && kbStore.selectedCount > 0 && !askStore.isLoading && !checking.value,
 )
 
 const blockReason = computed(() => {
-  if (askStore.isLoading) return '正在处理上一条问题'
+  if (askStore.isLoading || checking.value) return '正在处理上一条问题'
   if (kbStore.selectedCount === 0) return '请先在左侧勾选至少一个知识库'
   if (query.value.trim().length === 0) return '请输入问题'
   return ''
@@ -33,15 +33,28 @@ const blockReason = computed(() => {
 
 async function submit(): Promise<void> {
   if (!canSubmit.value) return
-  await askStore.ask({
-    query: query.value,
-    knowledgeBaseIds: [...kbStore.selectedIds],
-    answerMode: answerMode.value,
-    retrievalMode: retrievalMode.value,
-    allowCloud: allowCloud.value,
-    allowCloudRerank: allowCloudRerank.value,
-    allowCloudGeneration: allowCloudGeneration.value,
-  })
+  const ids = [...kbStore.selectedIds]
+  const epoch = currentEpoch()
+  const submittedQuery = query.value
+  checking.value = true
+  consentError.value = ''
+  try {
+    const states = await Promise.all(ids.map(async (id) => {
+      const [records, targets] = await Promise.all([cloudConsentApi.list(id), cloudConsentApi.targets(id)])
+      return (purpose: CloudPurpose) => {
+        const target = targets.find((item) => item.purpose === purpose)
+        return !!target && records.some((item) => item.purpose === purpose && item.service_key === target.service_key && !item.revoked_at)
+      }
+    }))
+    if (epoch !== currentEpoch() || ids.length !== kbStore.selectedIds.length || ids.some((id) => !kbStore.selectedIds.includes(id))) return
+    // Flags express only existing user- and resource-specific grants. Guard rechecks on every cloud call.
+    await askStore.ask({ query: submittedQuery, knowledgeBaseIds: ids, answerMode: answerMode.value, retrievalMode: retrievalMode.value,
+      allowCloud: states.every((state) => state('embedding')),
+      allowCloudRerank: states.every((state) => state('reranking')),
+      allowCloudGeneration: states.every((state) => state('generation')) })
+  } catch {
+    if (epoch === currentEpoch()) consentError.value = '无法确认知识库的处理授权，请稍后重试或联系管理员。'
+  } finally { checking.value = false }
 }
 
 function onKeydown(event: KeyboardEvent): void {
@@ -71,7 +84,9 @@ function onKeydown(event: KeyboardEvent): void {
       </div>
     </div>
 
-    <div class="row">
+    <details class="advanced">
+      <summary>高级选项</summary>
+      <div class="row">
       <div class="field field-inline">
         <label class="field-label" for="ask-answer-mode">回答模式</label>
         <select id="ask-answer-mode" v-model="answerMode" class="select">
@@ -91,21 +106,10 @@ function onKeydown(event: KeyboardEvent): void {
         </select>
       </div>
 
-      <div class="submit-area">
-        <button type="button" class="submit" :disabled="!canSubmit" @click="submit">
-          {{ askStore.isLoading ? '生成中…' : '提问' }}
-        </button>
       </div>
-    </div>
-
-    <CloudConsentPanel />
-    <fieldset class="cloud-options">
-      <legend>本次请求的云端用途</legend>
-      <p>仅在已逐知识库授权后勾选；勾选不切换服务器模型，是否使用云模型以服务配置和返回结果为准。</p>
-      <label><input v-model="allowCloud" type="checkbox" /> 查询向量</label>
-      <label><input v-model="allowCloudRerank" type="checkbox" /> 重排序</label>
-      <label><input v-model="allowCloudGeneration" type="checkbox" /> 生成回答</label>
-    </fieldset>
+    </details>
+    <div class="submit-area"><button type="button" class="submit" :disabled="!canSubmit" @click="submit">{{ askStore.isLoading || checking ? '生成中…' : '提问' }}</button></div>
+    <p v-if="consentError" role="alert" class="block-reason">{{ consentError }}</p>
     <p v-if="blockReason" class="block-reason">{{ blockReason }}</p>
 
     <div class="answer-area">
@@ -127,8 +131,8 @@ function onKeydown(event: KeyboardEvent): void {
   flex-direction: column;
   gap: 14px;
 }
-.cloud-options { border: 1px solid var(--line); border-radius: 8px; font-size: 13px; }
-.cloud-options label { display: inline-block; margin-right: 14px; }
+.advanced { color: var(--muted); font-size: 13px; }
+.advanced summary { cursor: pointer; margin-bottom: 8px; }
 
 .field {
   display: flex;
@@ -218,5 +222,12 @@ function onKeydown(event: KeyboardEvent): void {
 
 .answer-area {
   padding-top: 4px;
+}
+@media (max-width: 600px) {
+  .row { align-items: stretch; }
+  .field-inline { flex: 1 1 100%; }
+  .select { width: 100%; }
+  .submit-area { margin-left: 0; }
+  .submit { width: 100%; }
 }
 </style>

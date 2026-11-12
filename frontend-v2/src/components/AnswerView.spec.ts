@@ -13,6 +13,13 @@ const baseProps = {
 } as const
 
 describe('AnswerView 状态分发', () => {
+  it('keeps sources folded until a citation is clicked', async () => {
+    const wrapper = mount(AnswerView, { props: { ...baseProps, phase: 'answered', result: mockAnswered } })
+    expect(wrapper.find('details').attributes('open')).toBeUndefined()
+    await wrapper.find('button.cite').trigger('click')
+    expect(wrapper.find('details').attributes('open')).toBeDefined()
+    expect(wrapper.find('.source-item.is-active').exists()).toBe(true)
+  })
   it('answered 渲染成功卡片', () => {
     const wrapper = mount(AnswerView, {
       props: { ...baseProps, phase: 'answered', result: mockAnswered },

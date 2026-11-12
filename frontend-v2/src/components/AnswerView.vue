@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 
 import { reasonMessage } from '@/composables/useErrorMessage'
 import type { AskResponse } from '@/types/api'
@@ -28,6 +28,8 @@ const emit = defineEmits<{
 }>()
 
 const highlight = ref<string | null>(null)
+const sourcesOpen = ref(false)
+watch(() => props.result, () => { sourcesOpen.value = false; highlight.value = null })
 
 const RETRIEVAL_LABELS: Record<string, string> = {
   bm25: 'BM25 关键词',
@@ -46,8 +48,10 @@ const showRetry = computed(() => props.phase === 'failed' && ![401, 403].include
 
 const refusalDetail = computed(() => reasonMessage(props.result?.reason ?? null))
 
-function onCite(citationId: string): void {
+async function onCite(citationId: string): Promise<void> {
   highlight.value = citationId
+  sourcesOpen.value = true
+  await nextTick()
   const element = document.getElementById(`source-${citationId.replace(/[[\]]/g, '')}`)
   try {
     element?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
@@ -78,7 +82,7 @@ function onCite(citationId: string): void {
         </span>
       </header>
       <AnswerText :text="result.answer ?? ''" :sources="result.sources" @cite="onCite" />
-      <SourceList :sources="result.sources" :highlight="highlight" />
+      <SourceList :sources="result.sources" :highlight="highlight" :open="sourcesOpen" @toggle="sourcesOpen = $event" />
     </section>
 
     <section v-else-if="phase === 'refused'" class="card card-warn" data-testid="answer-refused">
@@ -194,6 +198,10 @@ function onCite(citationId: string): void {
 .head-meta {
   font-size: 12px;
   color: var(--muted);
+}
+@media (max-width: 600px) {
+  .card { padding: 12px; }
+  .head-meta { flex-basis: 100%; }
 }
 
 .refusal-reason {

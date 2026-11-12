@@ -4,12 +4,14 @@ import type { AnswerSource } from '@/types/api'
 defineProps<{
   sources: AnswerSource[]
   highlight: string | null
+  open?: boolean
 }>()
+const emit = defineEmits<{ (event: 'toggle', open: boolean): void }>()
 </script>
 
 <template>
-  <section v-if="sources.length > 0" class="sources">
-    <h3 class="sources-title">资料来源（{{ sources.length }}）</h3>
+  <details v-if="sources.length > 0" class="sources" :open="open" @toggle="emit('toggle', ($event.target as HTMLDetailsElement).open)">
+    <summary class="sources-title">资料来源（{{ sources.length }}）</summary>
     <ol class="source-list">
       <li
         v-for="source in sources"
@@ -29,7 +31,7 @@ defineProps<{
         </div>
       </li>
     </ol>
-  </section>
+  </details>
 </template>
 
 <style scoped>
@@ -44,6 +46,7 @@ defineProps<{
   font-size: 13px;
   font-weight: 500;
   color: var(--muted);
+  cursor: pointer;
 }
 
 .source-list {

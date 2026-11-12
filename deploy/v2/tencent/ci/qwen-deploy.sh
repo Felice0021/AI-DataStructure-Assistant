@@ -7,7 +7,7 @@ export PATH
 readonly base=/opt/ds-v2-qa
 readonly repo=https://github.com/Felice0021/AI-DataStructure-Assistant.git
 readonly branch=refs/heads/deploy/qwen-demo
-readonly node_bin=/home/ubuntu/.local/opt/node-v24.22.0-linux-x64/bin
+readonly node_bin=/opt/ds-v2-qa/toolchains/node-v24.22.0-linux-x64/bin
 readonly api=https://api.github.com/repos/Felice0021/AI-DataStructure-Assistant
 test "$(id -u)" -eq 0
 test -f /etc/ds-v2-qa/qwen-ci-enabled

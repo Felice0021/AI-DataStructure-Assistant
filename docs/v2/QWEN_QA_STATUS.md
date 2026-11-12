@@ -20,4 +20,12 @@
 
 本机还使用隔离 PostgreSQL、原创合成资料、真实 FastAPI 和本机 Edge 无头浏览器验证了登录、知识库选择、BM25 + Qwen 回答、`[S1]` 来源卡片、无匹配拒答和退出；API 指向本地真实服务，Mock 未启用，测试进程和数据库已清理。该项为本机 HTTP 验证，不能替代公网 HTTPS 或 Windows 验收。另一次仅 BM25 的真实 Qwen 测试确认回答不包含完整原始合成 Chunk。
 
-香港 QA 服务器上，百炼北京默认入口 DNS 可解析但 TCP 超时；新加坡官方试用入口 TLS 可用，现有 Key 的合成测试返回 401。临时数据库已清理，未切换正式网站，也未把 V1 内容发送到新加坡。地域 API Key 不互通，不能据此声称真实云 QA 已部署。
+香港 QA 服务器上，百炼北京默认入口 DNS 可解析但 TCP 超时；新加坡入口的原 Key 返回 401。随后负责人提供新加坡地域 Key，明确允许将原创合成资料发送至该地域并确认可能产生费用；这一许可不包含 V1 课程资料。采用新加坡可用的 `qwen3.7-text-embedding`、`qwen3-rerank` 和 `qwen3.8-flash` 后，隔离数据库的真实模型调用完成。一次生成输出校验失败并经有限重试恢复，亦曾观察到上游 403/503；这些故障未被伪装为成功。
+
+## 独立 HTTPS 演示环境
+
+`https://qwen.dsassistant.cn` 是与 `qa.dsassistant.cn` 分离的合成资料演示入口，使用独立数据库 `ds_assistant_v2_qwen_demo` 和私有文件目录；原 QA 数据、账号、确定性索引和 synthetic 回退库保留。当前运行 release 为 `qa-qwen-9e5eb3f`，不代表原 QA release 已切换。合成库 `be7d44c9-20d1-42b5-a528-cbd9f9e8a3e4` 有一份 ready 文档、一个真实 Qwen 向量；V1 云索引数量为零。演示账号仅能访问自身授权的私人资源；凭据存放在服务器受限目录，不能提交或写入报告。
+
+服务器侧真实 HTTPS Chromium 验证通过登录、选库、问答、引用、拒答、退出、跨用户 404、Cookie 属性及同源 API，未启用 Mock；外部浏览器已打开登录页面。Windows 独立设备完整问答及人工语义质量评审尚未执行。独立 API、Parser、Embedding、Caddy 服务启用自动启动并完成服务级重启，未在本轮进行整机重启。云调用实际账单金额尚未核对。
+
+停止隔离环境可使用 `systemctl stop ds-v2-qwen@api ds-v2-qwen@parser ds-v2-qwen@embedding ds-v2-qwen-caddy`；重新启动将 `stop` 改为 `start`。操作仅针对隔离服务，不删除其数据库和文件，也不更改原 QA 入口。上线 V1 云处理前仍需完成来源级权利分类，并确认向新加坡地域发送课程内容的范围；现阶段不应将合成演示宣称为 V1 真实课程问答。

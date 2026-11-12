@@ -1,0 +1,20 @@
+[Unit]
+Description=DS Assistant QA Cloudflare named tunnel
+Wants=network-online.target
+After=network-online.target caddy.service
+
+[Service]
+Type=simple
+User=ds-v2-tunnel
+Group=ds-v2-tunnel
+ExecStart=/usr/local/bin/ds-v2-cloudflared tunnel run --token-file /etc/cloudflared/qa-tunnel.token
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+
+[Install]
+WantedBy=multi-user.target

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 
 import { reasonMessage } from '@/composables/useErrorMessage'
 import type { AskResponse } from '@/types/api'
@@ -28,6 +28,8 @@ const emit = defineEmits<{
 }>()
 
 const highlight = ref<string | null>(null)
+const sourcesOpen = ref(false)
+watch(() => props.result, () => { sourcesOpen.value = false; highlight.value = null })
 
 const RETRIEVAL_LABELS: Record<string, string> = {
   bm25: 'BM25 关键词',
@@ -42,12 +44,15 @@ const ANSWER_MODE_LABELS: Record<string, string> = {
   code: '代码分析',
 }
 
-const showRetry = computed(() => props.phase === 'failed' && ![401, 403].includes(props.errorStatus))
+const authorizationError = computed(() => props.errorCode?.includes('consent_required') === true)
+const showRetry = computed(() => props.phase === 'failed' && ![401, 403].includes(props.errorStatus) && !authorizationError.value)
 
 const refusalDetail = computed(() => reasonMessage(props.result?.reason ?? null))
 
-function onCite(citationId: string): void {
+async function onCite(citationId: string): Promise<void> {
   highlight.value = citationId
+  sourcesOpen.value = true
+  await nextTick()
   const element = document.getElementById(`source-${citationId.replace(/[[\]]/g, '')}`)
   try {
     element?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
@@ -70,6 +75,7 @@ function onCite(citationId: string): void {
       <header class="card-head">
         <span class="badge badge-success">已回答</span>
         <span class="head-meta">
+          {{ result.generation_model?.startsWith('deterministic-') ? '确定性工程演示' : result.generation_model ? `生成模型：${result.generation_model}` : '生成模型未知' }} ·
           {{ RETRIEVAL_LABELS[result.retrieval_mode] ?? result.retrieval_mode }}
           · {{ ANSWER_MODE_LABELS[result.answer_mode] ?? result.answer_mode }}
           <span v-if="result.rerank_applied"> · 已重排</span>
@@ -77,7 +83,7 @@ function onCite(citationId: string): void {
         </span>
       </header>
       <AnswerText :text="result.answer ?? ''" :sources="result.sources" @cite="onCite" />
-      <SourceList :sources="result.sources" :highlight="highlight" />
+      <SourceList :sources="result.sources" :highlight="highlight" :open="sourcesOpen" @toggle="sourcesOpen = $event" />
     </section>
 
     <section v-else-if="phase === 'refused'" class="card card-warn" data-testid="answer-refused">
@@ -92,12 +98,12 @@ function onCite(citationId: string): void {
     <section v-else-if="phase === 'failed'" class="card card-error" data-testid="answer-error">
       <header class="card-head">
         <span class="badge badge-error">
-          {{ errorStatus === 503 ? '服务不可用' : errorStatus === 502 ? '生成结果未通过校验' : '请求失败' }}
+          {{ authorizationError ? '需要处理授权' : errorStatus === 503 ? '服务不可用' : errorStatus === 502 ? '生成结果未通过校验' : '请求失败' }}
         </span>
         <span v-if="errorCode" class="head-meta">错误码 {{ errorCode }}</span>
       </header>
       <p class="error-message">{{ errorMessage }}</p>
-      <p v-if="errorStatus === 503" class="hint">
+      <p v-if="errorStatus === 503 && !authorizationError" class="hint">
         这与「资料不足」不同：那是正常结果，这是服务端出错。
       </p>
       <button v-if="showRetry" type="button" class="retry" @click="emit('retry')">重试</button>
@@ -193,6 +199,10 @@ function onCite(citationId: string): void {
 .head-meta {
   font-size: 12px;
   color: var(--muted);
+}
+@media (max-width: 600px) {
+  .card { padding: 12px; }
+  .head-meta { flex-basis: 100%; }
 }
 
 .refusal-reason {

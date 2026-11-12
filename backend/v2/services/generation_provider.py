@@ -3,11 +3,13 @@ from contextlib import nullcontext
 import asyncio
 from dataclasses import dataclass
 import json
+import logging
 import time
 from typing import Protocol
 
 import httpx2
 from backend.v2.services.answer_validation import SOURCE_PROSE
+from backend.v2.services.provider_error import safe_error_code
 from backend.v2.services.retrieval_service import capacity
 
 
@@ -74,6 +76,7 @@ class QwenProvider:
                     'response_format':{'type':'json_object'}}) as response:
                     status=response.status_code
                     if status!=200:
+                        logging.getLogger(__name__).warning('Qwen generation HTTP status %d code %s',status,await safe_error_code(response))
                         code='generation_rate_limited' if status==429 else 'generation_model_unavailable' if status==404 else 'generation_parameter_error' if status in {400,422} else 'generation_http_error'
                         raise GenerationError(code,status in {408,429,500,502,503,504})
                     if response.headers.get('content-encoding','identity') not in {'','identity'}:raise GenerationError('generation_response_encoding')

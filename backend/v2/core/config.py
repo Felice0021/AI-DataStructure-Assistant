@@ -109,6 +109,7 @@ class Settings(BaseSettings):
     context_max_chunk_chars: int = Field(default=8000, ge=1, le=8000)
     context_max_chars: int = Field(default=16000, ge=1, le=64000)
     context_token_budget: int = Field(default=6000, ge=1, le=24000)
+    course_source_mapping_path: Path | None = None
 
     generation_provider: Literal["disabled", "deterministic", "qwen"] = "disabled"
     generation_cloud_enabled: bool = False

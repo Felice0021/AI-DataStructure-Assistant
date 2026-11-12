@@ -13,6 +13,13 @@ const baseProps = {
 } as const
 
 describe('AnswerView 状态分发', () => {
+  it('keeps sources folded until a citation is clicked', async () => {
+    const wrapper = mount(AnswerView, { props: { ...baseProps, phase: 'answered', result: mockAnswered } })
+    expect(wrapper.find('details').attributes('open')).toBeUndefined()
+    await wrapper.find('button.cite').trigger('click')
+    expect(wrapper.find('details').attributes('open')).toBeDefined()
+    expect(wrapper.find('.source-item.is-active').exists()).toBe(true)
+  })
   it('answered 渲染成功卡片', () => {
     const wrapper = mount(AnswerView, {
       props: { ...baseProps, phase: 'answered', result: mockAnswered },
@@ -59,6 +66,12 @@ describe('AnswerView 状态分发', () => {
     expect(unavailable.text()).toContain('服务暂不可用，请稍后重试')
     expect(unavailable.find('[data-testid="answer-success"]').exists()).toBe(false)
     expect(validation.find('[data-testid="answer-success"]').exists()).toBe(false)
+  })
+
+  it('does not present missing cloud authorization as a model outage', () => {
+    const wrapper = mount(AnswerView, { props: { ...baseProps, phase: 'failed', errorCode: 'generation_cloud_consent_required', errorStatus: 503, errorMessage: '请联系管理员' } })
+    expect(wrapper.find('.badge').text()).toBe('需要处理授权')
+    expect(wrapper.text()).not.toContain('这是服务端出错')
   })
 
   it('401 不提供重试按钮（应重新登录）', () => {

@@ -4,12 +4,14 @@ import type { AnswerSource } from '@/types/api'
 defineProps<{
   sources: AnswerSource[]
   highlight: string | null
+  open?: boolean
 }>()
+const emit = defineEmits<{ (event: 'toggle', open: boolean): void }>()
 </script>
 
 <template>
-  <section v-if="sources.length > 0" class="sources">
-    <h3 class="sources-title">资料来源（{{ sources.length }}）</h3>
+  <details v-if="sources.length > 0" class="sources" :open="open" @toggle="emit('toggle', ($event.target as HTMLDetailsElement).open)">
+    <summary class="sources-title">资料来源（{{ sources.length }}）</summary>
     <ol class="source-list">
       <li
         v-for="source in sources"
@@ -20,17 +22,16 @@ defineProps<{
       >
         <span class="source-cite">{{ source.citation_id }}</span>
         <div class="source-body">
-          <p class="source-name">{{ source.source_filename }}</p>
+          <p class="source-name">{{ /^v1-course-(?:chapter-)?\d+\.txt$/i.test(source.source_filename) ? '课程资料（来源待核实）' : source.source_filename }}</p>
           <p class="source-meta">
             <span v-if="source.page_number !== null">第 {{ source.page_number }} 页</span>
             <span v-else>页码未知</span>
-            <span v-if="source.section_title">· {{ source.section_title }}</span>
-            <span>· 片段 #{{ source.chunk_index }}</span>
+            <span v-if="source.section_title && !source.section_title.startsWith('V1:')">· {{ source.section_title }}</span>
           </p>
         </div>
       </li>
     </ol>
-  </section>
+  </details>
 </template>
 
 <style scoped>
@@ -45,6 +46,7 @@ defineProps<{
   font-size: 13px;
   font-weight: 500;
   color: var(--muted);
+  cursor: pointer;
 }
 
 .source-list {

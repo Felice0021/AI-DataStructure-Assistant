@@ -157,6 +157,10 @@ export const handlers = [
     })
   }),
 
+  // Mock uses no cloud provider and therefore has no cloud grants.
+  http.get('*/api/v2/knowledge-bases/:id/cloud-consents', () => HttpResponse.json([])),
+  http.get('*/api/v2/knowledge-bases/:id/cloud-consents/targets', () => HttpResponse.json([])),
+
   http.post('*/api/v2/rag/ask', async ({ request }) => {
     const rejected = csrfGuard(request)
     if (rejected) return rejected

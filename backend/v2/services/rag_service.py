@@ -10,6 +10,7 @@ from backend.v2.services.evidence_policy import preflight,resolve_mode
 from backend.v2.services.answer_validation import parse_draft,validate_answer,AnswerValidationError
 from backend.v2.services.generation_provider import build_provider,RequestBudget,GenerationError,Completion
 from backend.v2.services.retrieval_service import capacity
+from backend.v2.services.course_source_labels import read_mapping,source_label
 
 REFUSAL='根据当前授权资料无法确定。'
 
@@ -27,11 +28,15 @@ def ask(factory,user,data,settings,*,verify_session,provider=None,before_cloud_c
                 fresh=validate_evidence(session,user,data.knowledge_base_ids,evidence,settings,verify_session=verify_session)
                 fresh_by_id={row['chunk_id']:row for row in fresh}
                 allowed={e['citation_id']:e for e in evidence};sources=[]
+                labels=read_mapping(settings.course_source_mapping_path)
                 for citation in citations:
                     old=allowed[citation];row=fresh_by_id[old['chunk_id']]
-                    source=AnswerSource.model_validate({**row,'citation_id':citation,
-                        'source_filename':safe_text(row['source_filename']),
-                        'section_title':safe_text(row['section_title']) if row['section_title'] is not None else None})
+                    label=source_label(row,labels)
+                    name=label.get('source_filename',row['source_filename'])
+                    title=label.get('section_title',row['section_title'])
+                    source=AnswerSource.model_validate({**row,**label,'citation_id':citation,
+                        'source_filename':safe_text(name),
+                        'section_title':safe_text(title) if title is not None else None})
                     sources.append(source)
                 verified=verify_session(session)
                 if verified is None or verified.id!=user.id:raise unauthorized()

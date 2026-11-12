@@ -35,13 +35,22 @@ def test_purpose_grant_revoke_and_audit(env):
 
 def test_http_consent_scope_and_csrf(env):
     path='/api/v2/knowledge-bases/'+env['kb']['id']+'/cloud-consents';a=env['client']
+    targets=a.get(path+'/targets')
+    assert targets.status_code==200
+    assert {r['purpose'] for r in targets.json()}=={'embedding','reranking','generation'}
+    assert all(set(r)=={'purpose','provider','model','service_key'} for r in targets.json())
+    assert a.post(path+'/generation',json={'expected_service_key':'stale'},headers=csrf_headers(a)).status_code==409
+    assert a.get(path).json()==[]
     assert a.post(path+'/generation',headers=csrf_headers(a)).status_code==200
     assert a.get(path).json()[0]['purpose']=='generation'
+    assert a.request('DELETE',path+'/generation',json={'expected_service_key':'stale'},headers=csrf_headers(a)).status_code==409
     assert a.delete(path+'/generation').status_code==403
     assert a.delete(path+'/generation',headers=csrf_headers(a)).status_code==200
     with client_for(env['settings']) as b:
         cred,_=register(b);post(b,'login',cred)
         assert b.get(path).status_code==404
+        assert b.get(path+'/targets').status_code==404
+        assert b.post(path+'/generation',json={'expected_service_key':'stale'},headers=csrf_headers(b)).status_code==404
         assert b.post(path+'/generation',headers=csrf_headers(b)).status_code==404
 
 

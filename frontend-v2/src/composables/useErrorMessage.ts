@@ -26,7 +26,9 @@ const CODE_MESSAGES: Record<string, string> = {
   csrf_rejected: '安全校验失败，已自动重试；若持续失败请刷新页面',
   https_required: '该环境要求 HTTPS',
   loopback_required: '该环境只允许本机访问',
-  cloud_consent_required: '该知识库未授予云端处理用途，本次请求被拒绝',
+  cloud_consent_required: '所选知识库尚未获得所需的处理授权，请联系管理员。',
+  generation_cloud_consent_required: '所选知识库尚未获得回答生成授权，请联系管理员。',
+  rerank_cloud_consent_required: '所选知识库尚未获得资料处理授权，请联系管理员。',
 
   // 资源
   not_found: '资源不存在或无权访问',

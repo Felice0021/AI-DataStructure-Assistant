@@ -75,7 +75,7 @@ function onKeydown(event: KeyboardEvent): void {
         class="textarea"
         rows="4"
         :maxlength="MAX_QUERY"
-        placeholder="例如：栈和队列在操作受限方式上有什么区别？"
+        placeholder="例如：栈和队列的区别是什么？"
         @keydown="onKeydown"
       ></textarea>
       <div class="field-foot">

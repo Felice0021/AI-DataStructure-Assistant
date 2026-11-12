@@ -73,6 +73,7 @@ test -z "$(find "$release/frontend-v2/dist" -type l -print -quit)"
 test ! -e "$release/frontend-v2/dist/mockServiceWorker.js"
 test ! -e "$release/frontend-v2/dist/deployment-sha.txt"
 printf '%s\n' "$commit" > "$release/frontend-v2/dist/deployment-sha.txt"
+chmod 0644 "$release/frontend-v2/dist/deployment-sha.txt"
 chown -R root:root "$release"
 chmod -R go-w "$release"
 # mktemp creates the release directory as 0700; application/Caddy must traverse it.
@@ -84,7 +85,10 @@ rollback() {
   trap - ERR
   ln -s "$old" "$base/.qwen-ci-rollback-$$"
   mv -Tf "$base/.qwen-ci-rollback-$$" "$base/qwen-demo"
-  systemctl restart ds-v2-qwen@api ds-v2-qwen@parser ds-v2-qwen@embedding || true
+  if ! systemctl restart ds-v2-qwen@api ds-v2-qwen@parser ds-v2-qwen@embedding; then
+    echo 'rollback service restart failed' >&2
+    exit 1
+  fi
   echo 'release rolled back' >&2
 }
 trap rollback ERR
@@ -101,6 +105,10 @@ for _ in $(seq 1 20); do
 done
 test "$ready" = true
 curl -fsS --max-time 20 https://qwen.dsassistant.cn/api/v2/health/db >/dev/null
-test "$(curl -fsS --max-time 20 -H 'Cache-Control: no-cache' "https://qwen.dsassistant.cn/deployment-sha.txt?sha=$commit")" = "$commit"
+if ! deployed_sha=$(curl -fsS --max-time 20 -H 'Cache-Control: no-cache' "https://qwen.dsassistant.cn/deployment-sha.txt?sha=$commit"); then
+  echo 'HTTPS release marker check failed' >&2
+  false
+fi
+test "$deployed_sha" = "$commit"
 trap - ERR
 echo "deployed $commit"

@@ -95,10 +95,23 @@ jobs:
           VITE_REGISTRATION_ENABLED: 'false'
       - run: test ! -e dist/mockServiceWorker.js
 
+  ssh_preflight:
+    name: Qwen SSH connectivity
+    if: github.event_name == 'push' && github.ref == 'refs/heads/deploy/qwen-demo'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Verify server host key using the independently observed fingerprint
+        shell: bash
+        run: |
+          set -euo pipefail
+          fingerprint=$(ssh-keyscan -T 10 -t ed25519 43.161.243.116 2>/dev/null | ssh-keygen -lf - | awk '{print $2}')
+          test "$fingerprint" = 'SHA256:t4/u/pzrORj1OSqt3ncm+lFyAZOyPHijkKdFQcRVmB0'
+
   deploy:
     name: Deploy Qwen demo
     if: github.event_name == 'push' && github.ref == 'refs/heads/deploy/qwen-demo' && vars.QWEN_AUTO_DEPLOY == 'enabled'
-    needs: [backend, frontend, macos_parser]
+    needs: [backend, frontend, macos_parser, ssh_preflight]
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     environment: qwen-demo

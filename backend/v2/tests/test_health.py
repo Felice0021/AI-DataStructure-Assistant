@@ -18,6 +18,7 @@ def test_liveness_and_openapi(app):
     with TestClient(app) as client:
         response = client.get("/api/v2/health")
         assert response.status_code == 200
+        assert response.headers["X-DS-Health"] == "v2"
         assert response.json() == {
             "status": "ok", "service": "ds-assistant-v2", "version": "2.0.0",
         }

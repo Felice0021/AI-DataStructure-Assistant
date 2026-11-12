@@ -110,7 +110,7 @@ jobs:
 
   deploy:
     name: Deploy Qwen demo
-    if: github.event_name == 'push' && github.ref == 'refs/heads/deploy/qwen-demo' && vars.QWEN_AUTO_DEPLOY == 'enabled'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/deploy/qwen-demo' && (vars.QWEN_AUTO_DEPLOY == 'enabled' || vars.QWEN_DEPLOY_TRIAL_SHA == github.sha)
     needs: [backend, frontend, macos_parser, ssh_preflight]
     runs-on: ubuntu-24.04
     timeout-minutes: 20

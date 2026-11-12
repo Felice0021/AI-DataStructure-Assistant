@@ -11,7 +11,7 @@
 
 ## 行为和限制
 
-PR 只运行测试；部署分支 push 运行测试，只有三个 job 成功、开关开启且环境保护允许后才请求部署。Linux 运行数据库和 Docker 解析测试，macOS 单独运行仅支持 Seatbelt 的三项测试。服务器再次核对最新分支 SHA 和 GitHub Actions 的检查结果，串行构建独立 release，以非特权用户安装前端依赖并构建，切换后重启 Qwen API 和两个 Worker，检查服务、数据库健康及 HTTPS 版本标记。失败时切回旧 release 并重启服务。自动流程不执行 Alembic 和重新索引，也不删除 release；已有后台队列仍可能由原 Worker 按现有规则继续处理。
+PR 只运行测试；部署分支 push 运行测试，只有三个 job 成功、SSH 指纹预检成功、开关开启且环境保护允许后才请求部署。首次受控验收可将仓库变量 `QWEN_DEPLOY_TRIAL_SHA` 设为指定完整提交 SHA，仅允许该提交的 push 运行部署；不需要开启常规自动发布变量，服务器开关、环境保护及全部检查仍然必须满足。验收后移除该变量。Linux 运行数据库和 Docker 解析测试，macOS 单独运行仅支持 Seatbelt 的三项测试。服务器再次核对最新分支 SHA 和 GitHub Actions 的检查结果，串行构建独立 release，以非特权用户安装前端依赖并构建，切换后重启 Qwen API 和两个 Worker，检查服务、数据库健康及 HTTPS 版本标记。失败时切回旧 release 并重启服务。自动流程不执行 Alembic 和重新索引，也不删除 release；已有后台队列仍可能由原 Worker 按现有规则继续处理。
 
 依赖、迁移和关键解析器文件一旦与线上 release 不一致，部署拒绝执行，需要人工单独审查并制定迁移方案。服务器需能够以 HTTPS 访问 GitHub，GitHub 的 check-runs API 限流或不可用会安全拒绝部署。API health 与版本标记不代表问答、授权或浏览器功能通过；首次启用前须进行真实功能验收。构建执行锁定依赖的安装脚本，构建账号仍必须与所有生产凭据隔离。
 

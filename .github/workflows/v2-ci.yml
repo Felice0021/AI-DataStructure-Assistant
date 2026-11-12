@@ -1,0 +1,122 @@
+name: V2 CI and Qwen demo
+
+on:
+  pull_request:
+  push:
+    branches: [deploy/qwen-demo]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v2-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  backend:
+    name: V2 backend tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17@sha256:ac08538c6f8b9904c33c8224c5e5706dbe760aca29db1d096972b4052c22a75d
+        env:
+          POSTGRES_USER: ci_test
+          POSTGRES_PASSWORD: ci-only-disposable-password
+          POSTGRES_DB: ci_test
+        ports: ['5433:5432']
+        options: >-
+          --health-cmd "pg_isready -U ci_test -d ci_test"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      DS_V2_DB_HOST: 127.0.0.1
+      DS_V2_DB_PORT: '5433'
+      DS_V2_DB_USER: ci_test
+      DS_V2_DB_NAME: ci_test
+      DS_V2_DB_PASSWORD: ci-only-disposable-password
+      DS_V2_RUN_DB_TESTS: '1'
+      DS_V2_EMBEDDING_CLOUD_ENABLED: 'false'
+      DS_V2_RERANK_CLOUD_ENABLED: 'false'
+      DS_V2_GENERATION_CLOUD_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r backend/v2/requirements-dev.txt
+      - run: python -m pip check
+      - run: docker build -f deploy/v2/parser.Dockerfile -t ds-assistant-v2-parser:local backend/v2
+      # These three tests specifically exercise macOS Seatbelt; they run in the job below.
+      - run: >-
+          python -m pytest -q backend/v2/tests
+          --deselect backend/v2/tests/test_parsing.py::test_real_sandbox_denies_network_secret_read_write_and_spawn
+          --deselect backend/v2/tests/test_parsing.py::test_actual_timeout_kills_process
+          --deselect backend/v2/tests/test_parsing.py::test_actual_rss_limit_kills_process
+
+  macos_parser:
+    name: V2 macOS parser isolation
+    runs-on: macos-14
+    timeout-minutes: 15
+    env:
+      DS_V2_DB_PASSWORD: ci-only-disposable-password
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r backend/v2/requirements-dev.txt
+      - run: >-
+          python -m pytest -q
+          backend/v2/tests/test_parsing.py::test_real_sandbox_denies_network_secret_read_write_and_spawn
+          backend/v2/tests/test_parsing.py::test_actual_timeout_kills_process
+          backend/v2/tests/test_parsing.py::test_actual_rss_limit_kills_process
+
+  frontend:
+    name: V2 frontend tests and build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend-v2
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend-v2/package-lock.json
+      - run: npm ci
+      - run: npm run test
+      - run: npm run build
+        env:
+          VITE_API_BASE: ''
+          VITE_USE_MOCK: 'false'
+          VITE_REGISTRATION_ENABLED: 'false'
+      - run: test ! -e dist/mockServiceWorker.js
+
+  deploy:
+    name: Deploy Qwen demo
+    if: github.event_name == 'push' && github.ref == 'refs/heads/deploy/qwen-demo' && vars.QWEN_AUTO_DEPLOY == 'enabled'
+    needs: [backend, frontend, macos_parser]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: qwen-demo
+    concurrency:
+      group: qwen-demo-deploy
+      cancel-in-progress: false
+    steps:
+      - name: Submit verified commit to restricted deployment account
+        env:
+          DEPLOY_KEY: ${{ secrets.QWEN_DEPLOY_SSH_KEY }}
+          KNOWN_HOST: ${{ vars.QWEN_SSH_KNOWN_HOST }}
+          COMMIT: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$DEPLOY_KEY" && test -n "$KNOWN_HOST"
+          [[ "$COMMIT" =~ ^[0-9a-f]{40}$ ]]
+          umask 077
+          printf '%s\n' "$DEPLOY_KEY" > "$RUNNER_TEMP/deploy-key"
+          printf '%s\n' "$KNOWN_HOST" > "$RUNNER_TEMP/known-hosts"
+          unset DEPLOY_KEY KNOWN_HOST
+          printf '%s\n' "$COMMIT" | ssh -T -i "$RUNNER_TEMP/deploy-key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/known-hosts" -o ConnectTimeout=20 qwen-ci@43.161.243.116

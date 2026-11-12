@@ -2,6 +2,7 @@
 from contextlib import nullcontext
 import asyncio
 import logging
+from backend.v2.services.provider_error import safe_error_code
 import json
 import math
 import time
@@ -82,7 +83,7 @@ class QwenProvider:
                     'parameters':{'top_n':len(documents)}}) as response:
                     code=response.status_code
                     if code!=200:
-                        logging.getLogger(__name__).warning('Qwen reranking HTTP status %d',code)
+                        logging.getLogger(__name__).warning('Qwen reranking HTTP status %d code %s',code,await safe_error_code(response))
                         label='rerank_rate_limited' if code==429 else 'rerank_model_unavailable' if code==404 else 'rerank_parameter_error' if code in {400,422} else 'rerank_http_error'
                         raise RerankError(label,code in {408,429,500,502,503,504})
                     if response.headers.get('content-encoding','identity') not in {'','identity'}:raise RerankError('rerank_response_encoding')

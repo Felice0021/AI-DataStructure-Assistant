@@ -17,3 +17,7 @@
 两次临时 PostgreSQL 实测使用同一份原创合成示例，不包含 V1 课程原文。第二次覆盖栈、AVL、图、排序、习题和代码，均为 HTTP 200 `answered`、引用与授权知识库来源匹配；无匹配 BM25 查询返回 `insufficient_evidence`，其他账户请求私人库为 404。真实 Embedding 入库 1 条并达到 `ready`；三种检索方式均有结果，Hybrid 的重排及生成已实际调用。此处 HTTP 为应用 ASGI 测试客户端，外部模型调用是真实网络请求，并非独立设备或浏览器验收。
 
 两次测试中 Cloud Guard 汇总分别为：embedding 6、generation 2、reranking 1 次成功；embedding 6、generation 8、reranking 1 次成功。临时数据库在测试结束后清理，原 QA 库未参与。这些次数不代表账单金额或语义正确性；答案未经过人工标注评审。
+
+本机还使用隔离 PostgreSQL、原创合成资料、真实 FastAPI 和本机 Edge 无头浏览器验证了登录、知识库选择、BM25 + Qwen 回答、`[S1]` 来源卡片、无匹配拒答和退出；API 指向本地真实服务，Mock 未启用，测试进程和数据库已清理。该项为本机 HTTP 验证，不能替代公网 HTTPS 或 Windows 验收。另一次仅 BM25 的真实 Qwen 测试确认回答不包含完整原始合成 Chunk。
+
+香港 QA 服务器上，百炼北京默认入口 DNS 可解析但 TCP 超时；新加坡官方试用入口 TLS 可用，现有 Key 的合成测试返回 401。临时数据库已清理，未切换正式网站，也未把 V1 内容发送到新加坡。地域 API Key 不互通，不能据此声称真实云 QA 已部署。

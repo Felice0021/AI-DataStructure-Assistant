@@ -1,29 +1,33 @@
 # Tencent QA named tunnel
 
-The fixed QA hostname is `https://qa.dsassistant.cn`. Cloudflare routes this
-hostname to `http://127.0.0.1:18900` with HTTP Host Header `qa.dsassistant.cn`.
-This loopback listener belongs to Caddy and requires the existing Basic Auth
-before proxying `/api/v2/*` to the QA API. Caddy serves the production frontend
-and sends `Cache-Control: no-store, private`. Browser-to-Cloudflare transport
-uses HTTPS; connector-to-Caddy HTTP stays on loopback. Keep the original HTTPS
-endpoint as a rollback route.
+The QA hostname is `https://qa.dsassistant.cn`. Cloudflare routes it to Caddy
+on `127.0.0.1:18900` using Host `qa.dsassistant.cn`. This QA entry shows the
+application login page without Basic Auth. The original `sslip.io` entry retains
+Basic Auth as a fallback. The API and PostgreSQL remain loopback-only.
 
-The named connector runs as non-login user `ds-v2-tunnel` using
-`ds-v2-qa-tunnel.service`. Its server-local token file is owned by root and
-readable only by the service group. Never place token contents in commands,
-logs, Git or reports. The unit uses `--token-file`. Install cloudflared from
-an authenticated official source and provision the private file securely.
+QA disables public registration with `DS_V2_REGISTRATION_ENABLED=false` and
+builds the frontend with `VITE_REGISTRATION_ENABLED=false` and `VITE_API_BASE`
+empty for same-origin requests. Existing accounts are provisioned separately.
+The backend enforces registration policy; hiding the UI is not sufficient.
 
-Set `DS_V2_ALLOWED_ORIGINS` in the private systemd environment file to a JSON
-array containing exactly the original HTTPS origin and `https://qa.dsassistant.cn`.
-Do not use a wildcard. `run.sh` defaults to the existing single origin when
-this variable is absent. Continue enforcing Secure cookies, Origin and CSRF.
+On the QA Caddy proxy only, set `X-Forwarded-Proto` to `https` and overwrite
+`X-Forwarded-For` with Cloudflare `CF-Connecting-IP`. The origin listener must
+remain bound to loopback and reachable only by the local connector. Do not
+trust client-supplied forwarding headers or expose this listener publicly.
+Cloudflare same-zone Worker subrequests can affect the client IP header: review
+Worker and header-transform rules whenever they change. Login limits remain
+database-backed; cookies remain Secure and HttpOnly, with Origin and CSRF checks.
 
-Check the connector, Caddy, API and Workers with `systemctl is-active`; verify
-that the public endpoint returns 401 before credentials, then test login,
-citations, refusal and logout. Server-side tests do not replace independent
-Windows browser acceptance. Verify Cloudflare does not cache private responses.
+The named connector uses a dedicated non-login user and a private token file
+with `--token-file`; never put token values in commands, logs or Git. Caddy
+returns `Cache-Control: no-store, private` for the QA entry. Check Cloudflare
+cache behavior, the origin listener and the IP trust boundary after changes.
 
-For rollback, stop the named-tunnel service, restore backed-up Caddy and runtime
-configuration, validate Caddy before reloading, and verify the old HTTPS origin.
-Do not delete the database, file storage or volumes.
+Before deployment, save private backups of the Caddy and runtime files and keep
+the previous release and frontend. Validate Caddy and test registration,
+anonymous access, CSRF, forged forwarding headers, login and RAG citations.
+On failure restore the previous release, runtime and Caddy config; reload Caddy
+and restart the API, then verify the old HTTPS entry. Do not remove databases,
+accounts, private files or volumes. The frontend and backend registration flags
+must be deployed together. Browser tests from the server do not replace an
+independent Windows test.

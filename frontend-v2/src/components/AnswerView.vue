@@ -44,7 +44,8 @@ const ANSWER_MODE_LABELS: Record<string, string> = {
   code: '代码分析',
 }
 
-const showRetry = computed(() => props.phase === 'failed' && ![401, 403].includes(props.errorStatus))
+const authorizationError = computed(() => props.errorCode?.includes('consent_required') === true)
+const showRetry = computed(() => props.phase === 'failed' && ![401, 403].includes(props.errorStatus) && !authorizationError.value)
 
 const refusalDetail = computed(() => reasonMessage(props.result?.reason ?? null))
 
@@ -97,12 +98,12 @@ async function onCite(citationId: string): Promise<void> {
     <section v-else-if="phase === 'failed'" class="card card-error" data-testid="answer-error">
       <header class="card-head">
         <span class="badge badge-error">
-          {{ errorStatus === 503 ? '服务不可用' : errorStatus === 502 ? '生成结果未通过校验' : '请求失败' }}
+          {{ authorizationError ? '需要处理授权' : errorStatus === 503 ? '服务不可用' : errorStatus === 502 ? '生成结果未通过校验' : '请求失败' }}
         </span>
         <span v-if="errorCode" class="head-meta">错误码 {{ errorCode }}</span>
       </header>
       <p class="error-message">{{ errorMessage }}</p>
-      <p v-if="errorStatus === 503" class="hint">
+      <p v-if="errorStatus === 503 && !authorizationError" class="hint">
         这与「资料不足」不同：那是正常结果，这是服务端出错。
       </p>
       <button v-if="showRetry" type="button" class="retry" @click="emit('retry')">重试</button>

@@ -68,6 +68,12 @@ describe('AnswerView 状态分发', () => {
     expect(validation.find('[data-testid="answer-success"]').exists()).toBe(false)
   })
 
+  it('does not present missing cloud authorization as a model outage', () => {
+    const wrapper = mount(AnswerView, { props: { ...baseProps, phase: 'failed', errorCode: 'generation_cloud_consent_required', errorStatus: 503, errorMessage: '请联系管理员' } })
+    expect(wrapper.find('.badge').text()).toBe('需要处理授权')
+    expect(wrapper.text()).not.toContain('这是服务端出错')
+  })
+
   it('401 不提供重试按钮（应重新登录）', () => {
     const wrapper = mount(AnswerView, {
       props: {

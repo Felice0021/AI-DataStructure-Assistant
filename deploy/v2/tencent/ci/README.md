@@ -2,6 +2,8 @@
 
 本方案默认关闭自动发布；尚未完成服务器端安装和端到端验收前，不要设置 `QWEN_AUTO_DEPLOY=enabled` 或创建 `/etc/ds-v2-qa/qwen-ci-enabled`。它只针对 `qwen.dsassistant.cn`，不更改 `qa.dsassistant.cn`、数据库、索引或凭据。旧 release 保留。
 
+部署分支受到保护：开发者先提交功能分支并通过 PR 审查与检查，合并后才进入发布流程；直接推送不会替代审查。
+
 ## 发布门槛
 
 1. 在 GitHub **Settings → Rules → Rulesets** 创建针对 `deploy/qwen-demo` 的分支规则：禁止强推和删除；限制直接推送，仅授权负责人；要求通过 PR 合并、审查及 `V2 backend tests`、`V2 frontend tests and build` 和 `V2 macOS parser isolation` 状态检查。确认仓库套餐实际支持并生效，避免管理员绕过。

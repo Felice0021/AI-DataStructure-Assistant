@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, Request, Response
 from sqlalchemy.orm import Session
 
 from backend.v2.core.security import TOKEN_PATTERN, csrf_token, new_token
+from backend.v2.core.errors import AuthError
 from backend.v2.dependencies.auth import check_transport, get_current_user, require_csrf
 from backend.v2.dependencies.database import get_session
 from backend.v2.models import User
@@ -40,7 +41,9 @@ def get_csrf(request: Request, response: Response):
 
 
 @router.post("/register", status_code=201, response_model=UserEnvelope, dependencies=[Depends(require_csrf)])
-def register(data: Registration, session: Annotated[Session, Depends(get_session)]):
+def register(data: Registration, request: Request, session: Annotated[Session, Depends(get_session)]):
+    if not request.app.state.settings.registration_enabled:
+        raise AuthError(403, "registration_disabled", "Registration is disabled")
     user = auth_service.create_user(session, data)
     return UserEnvelope(user=UserResponse.model_validate(user))
 

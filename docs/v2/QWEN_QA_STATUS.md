@@ -45,3 +45,11 @@ Qwen 演示入口运行 `qa-qwen-ca35444`；原 deterministic QA 入口保持原
 服务器侧真实 HTTPS Chromium 验证原始来源名、章节、引用、登录、拒答、退出、用户隔离、Secure/HttpOnly Cookie 及同源真实 API；Mock 未启用。针对栈和队列的真实 Qwen 对比，两次均给出 LIFO/FIFO，候选回答引用资料集合中包含两项对应概念；单次回答从 194 字变成 233 字，引用次数均为 5，不能据此宣称减少重复引用或答案更短。答案事实与逐句引用的语义忠实性仍应人工评审。
 
 发生问题时，可将 `/opt/ds-v2-qa/qwen-demo` 指回 `/opt/ds-v2-qa/releases/qa-qwen-9e5eb3f`，停用本轮 API 的 `course-source-labels.conf` systemd drop-in，执行 `systemctl daemon-reload` 并重启 `ds-v2-qwen@api`；无需迁移、删除或重新索引数据库。切换与回滚均需检查实际路径，避免覆盖其他 release。
+
+## 2026-11-12 问答页面体验
+
+独立 Qwen 入口运行 `qa-qwen-a6d52c0`。回答使用 Markdown 解析器的 token 生成 Vue 节点，不渲染原始 HTML；代码中的引用不转换为按钮。来源默认折叠，点击有效引用后展开并定位。学生页面读取当前用户对每个所选知识库、当前模型及用途的既有授权后设置请求参数；它不创建授权，服务端 Guard 继续逐次复核权限、授权和审计。缺少授权时提示联系管理员；现有后端授权记录仍按用户维护，资料所有者的授权不会自动替代其他用户的记录。
+
+前端 67 项通过并完成生产构建；相关后端授权和 RAG 测试在随机隔离 PostgreSQL 中 79 项通过。服务器侧真实 HTTPS Chromium 在桌面及 390px 视口验证了无需勾选用途的 Qwen 问答、引用展开、来源、拒答、退出和跨用户 404。Markdown 粗体、列表、代码、表格及恶意 HTML 使用单独拦截的合成响应验证，不能称作真实模型生成结果。桌面与移动截图分别存于服务器私有 `ux-qwen-answer.png` 和 `ux-qwen-mobile.png`，位于 `/var/lib/ds-v2-parser/qwen-demo/`，权限 0600。首次移动端检查发现账号栏溢出，修复后复验无页面横向溢出。
+
+原 deterministic 入口未切换；课程库仍为 10 个 ready 文档、1011 个 Chunk、1011 条向量。本次未重新索引。回退 Qwen UI 时将 `/opt/ds-v2-qa/qwen-demo` 安全指回 `/opt/ds-v2-qa/releases/qa-qwen-ca35444` 并重启 `ds-v2-qwen@api`，保留现有来源映射 systemd 配置和数据。

@@ -65,6 +65,8 @@ test ! -e "$release/frontend-v2/dist/mockServiceWorker.js"
 printf '%s\n' "$commit" > "$release/frontend-v2/dist/deployment-sha.txt"
 chown -R root:root "$release"
 chmod -R go-w "$release"
+# Do not publish a commit superseded while its release was building.
+test "$(git ls-remote "$repo" "$branch" | awk '{print $1}')" = "$commit"
 
 rollback() {
   trap - ERR

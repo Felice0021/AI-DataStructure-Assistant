@@ -37,3 +37,11 @@
 服务器侧 Chromium 对课程库完成真实 HTTPS 登录、选库、Qwen 问答、来源、拒答、退出及另一个用户的 404 隔离；使用同源 API、Secure/HttpOnly Cookie，Mock 未启用。完整问答、耗时和来源记录只保存在服务器私有目录 `course-evaluation.json`，供负责人及组员安全复核。`course-v1-chunk-mapping.json` 记录 1010 个 V1 ID 与对应 V2 Chunk、导出文档和原来源；由于 V2 重切分共 1011 个 Chunk，不能假定两种数量一一相等。原来源页码缺失时保持未知。
 
 原 `ds_assistant_v2_qa` 核验仍为 11 个 ready 文档、1011 Chunk 和 1011 条 deterministic 向量，原 synthetic 回退知识库仍存在。独立数据库还包含此前的 1 个原创合成 Chunk；本轮未额外导入团队新编资料。Windows 真实浏览器课程验收和实际账单仍未完成，生产入口未切换。
+
+## 2026-11-12 来源展示与回答格式
+
+Qwen 演示入口运行 `qa-qwen-ca35444`；原 deterministic QA 入口保持原 release。API 可通过 `DS_V2_COURSE_SOURCE_MAPPING_PATH` 读取服务器私有来源标签；仅在已授权 Chunk 的知识库、文档和内容哈希均匹配时使用标签。标签由 V1 原始文件、既有 V1→V2 映射和数据库当前元数据核对得到，1010 条可映射，1 个重切分 Chunk 没有可靠映射时显示“来源待核实”；未知页码保持未知。不重新向量化。课程库仍有 10 个 ready 文档、1011 个 Chunk 和 1011 个向量。
+
+服务器侧真实 HTTPS Chromium 验证原始来源名、章节、引用、登录、拒答、退出、用户隔离、Secure/HttpOnly Cookie 及同源真实 API；Mock 未启用。针对栈和队列的真实 Qwen 对比，两次均给出 LIFO/FIFO，候选回答引用资料集合中包含两项对应概念；单次回答从 194 字变成 233 字，引用次数均为 5，不能据此宣称减少重复引用或答案更短。答案事实与逐句引用的语义忠实性仍应人工评审。
+
+发生问题时，可将 `/opt/ds-v2-qa/qwen-demo` 指回 `/opt/ds-v2-qa/releases/qa-qwen-9e5eb3f`，停用本轮 API 的 `course-source-labels.conf` systemd drop-in，执行 `systemctl daemon-reload` 并重启 `ds-v2-qwen@api`；无需迁移、删除或重新索引数据库。切换与回滚均需检查实际路径，避免覆盖其他 release。

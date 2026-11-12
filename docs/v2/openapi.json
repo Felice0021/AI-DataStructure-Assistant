@@ -2300,6 +2300,53 @@
         }
       }
     },
+    "/api/v2/knowledge-bases/{kb_id}/cloud-consents/targets": {
+      "get": {
+        "tags": [
+          "cloud-consents"
+        ],
+        "summary": "Targets",
+        "operationId": "targets_api_v2_knowledge_bases__kb_id__cloud_consents_targets_get",
+        "parameters": [
+          {
+            "name": "kb_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Kb Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ConsentTarget"
+                  },
+                  "title": "Response Targets Api V2 Knowledge Bases  Kb Id  Cloud Consents Targets Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v2/knowledge-bases/{kb_id}/cloud-consents/{purpose}": {
       "post": {
         "tags": [
@@ -2333,6 +2380,23 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ConsentExpectation"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Data"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -2388,6 +2452,23 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ConsentExpectation"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Data"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -3718,6 +3799,53 @@
           "revoked_at"
         ],
         "title": "Consent"
+      },
+      "ConsentExpectation": {
+        "properties": {
+          "expected_service_key": {
+            "type": "string",
+            "title": "Expected Service Key"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_service_key"
+        ],
+        "title": "ConsentExpectation"
+      },
+      "ConsentTarget": {
+        "properties": {
+          "purpose": {
+            "type": "string",
+            "enum": [
+              "embedding",
+              "reranking",
+              "generation"
+            ],
+            "title": "Purpose"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "service_key": {
+            "type": "string",
+            "title": "Service Key"
+          }
+        },
+        "type": "object",
+        "required": [
+          "purpose",
+          "provider",
+          "model",
+          "service_key"
+        ],
+        "title": "ConsentTarget"
       },
       "ContextResponse": {
         "properties": {

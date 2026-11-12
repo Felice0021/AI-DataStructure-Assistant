@@ -26,6 +26,7 @@ def test_liveness_and_openapi(app):
             "/api/v2/rag/ask",
             "/api/v2/knowledge-bases/{kb_id}/cloud-consents",
             "/api/v2/knowledge-bases/{kb_id}/cloud-consents/audit",
+            "/api/v2/knowledge-bases/{kb_id}/cloud-consents/targets",
             "/api/v2/knowledge-bases/{kb_id}/cloud-consents/{purpose}",
             "/api/v2/retrieval/search", "/api/v2/retrieval/prepare-context",
             "/api/v2/health", "/api/v2/health/db", "/api/v2/auth/csrf",

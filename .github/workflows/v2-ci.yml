@@ -55,7 +55,7 @@ jobs:
 
   macos_parser:
     name: V2 macOS parser isolation
-    runs-on: macos-14
+    runs-on: macos-latest
     timeout-minutes: 15
     env:
       DS_V2_DB_PASSWORD: ci-only-disposable-password

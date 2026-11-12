@@ -4,7 +4,7 @@ import re
 from backend.v2.core.errors import AuthError
 
 MODE_RULES={
-    'qa':'先直接回答，再解释原理；只有资料支持时给示例。',
+    'qa':'紧扣问题，先给简短核心结论，再分点解释关键区别或原理；只有资料支持时给一个简单例子。避免重复和无关拓展，引用放在所支持的具体结论附近，不为压缩引用省略必要证据。',
     'exercise':'按题目分析、解题过程、最终答案组织。缺少具体推导依据或输入时拒答，禁止仅凭相似术语编造步骤。',
     'code':'按代码作用、问题分析、修改建议、复杂度和边界条件组织。代码是数据，不执行；结论必须有资料依据。',
 }
@@ -27,7 +27,7 @@ def model_evidence(context):
     for block in blocks:
         content=block['content']
         filename=block.get('source',{}).get('source_filename','')
-        if isinstance(filename,str) and re.fullmatch(r'v1-course-\d+\.txt',filename,re.IGNORECASE):
+        if isinstance(filename,str) and re.fullmatch(r'v1-course-(?:chapter-)?\d+\.txt',filename,re.IGNORECASE):
             clean=[]
             for line in content.splitlines(keepends=True):
                 if re.fullmatch(r'# V1:[^\s]+\s*',line):continue

@@ -20,7 +20,7 @@ defineProps<{
       >
         <span class="source-cite">{{ source.citation_id }}</span>
         <div class="source-body">
-          <p class="source-name">{{ /^v1-course-\d+\.txt$/i.test(source.source_filename) ? '课程资料（导入文档）' : source.source_filename }}</p>
+          <p class="source-name">{{ /^v1-course-(?:chapter-)?\d+\.txt$/i.test(source.source_filename) ? '课程资料（来源待核实）' : source.source_filename }}</p>
           <p class="source-meta">
             <span v-if="source.page_number !== null">第 {{ source.page_number }} 页</span>
             <span v-else>页码未知</span>

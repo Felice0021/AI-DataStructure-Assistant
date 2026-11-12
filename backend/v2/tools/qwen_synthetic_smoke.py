@@ -64,7 +64,7 @@ def main():
             embedding_provider='deterministic',embedding_allow_test_provider=True,
             generation_provider='qwen',generation_cloud_enabled=True,generation_model_verified=True,
             generation_api_key=source.generation_api_key,generation_endpoint=source.generation_endpoint,
-            generation_model=source.generation_model,generation_retries=0,generation_validation_retries=0,
+            generation_model=source.generation_model,generation_retries=0,generation_validation_retries=1,
             rerank_provider='disabled')
         factory=build_session_factory(engine)
         with client_for(config) as client:
@@ -133,6 +133,7 @@ def main():
                 print('RETRIEVAL',mode,'HTTP',response.status_code,'has_results',bool(body.get('results')),flush=True)
                 if not ok:return 1
             if not ask(second,'hybrid',cloud_embedding=True,rerank='required'):return 1
+            scenarios_ok=True
             for label,question,answer_mode in [
                 ('stack','栈和队列的出入顺序有什么区别？','qa'),
                 ('tree','AVL树的平衡条件是什么？','qa'),
@@ -142,7 +143,7 @@ def main():
                 ('code','示例代码 is_empty 的作用是什么？','code')]:
                 ok=ask(second,'bm25',query=question,answer_mode=answer_mode)
                 print('SCENARIO',label,'PASS' if ok else 'FAIL',flush=True)
-                if not ok:return 1
+                scenarios_ok=scenarios_ok and ok
             missing={'query':'unmatchedzzzzz','knowledge_base_ids':[second['kb']['id']],
                      'retrieval_mode':'bm25','answer_mode':'qa','rerank':'off','allow_cloud_generation':True}
             response=client.post('/api/v2/rag/ask',json=missing,headers=csrf_headers(client));body=response.json()
@@ -159,7 +160,7 @@ def main():
                 summary={}
                 for row in rows:summary[row.purpose+':'+row.event]=summary.get(row.purpose+':'+row.event,0)+1
                 print('AUDIT_COUNTS',json.dumps(summary,sort_keys=True),flush=True)
-            return 0
+            return 0 if scenarios_ok else 1
 
 
 if __name__=='__main__':

@@ -1,8 +1,8 @@
 # 真实模型 QA 的授权与交付边界
 
-2026-11-12，项目负责人在项目协作会话中确认：团队自有及已获适当授权的 V1 课程资料，可用于本项目非商业科研、测试与演示，并同意经阿里云百炼进行 embedding、reranking、generation。负责人进一步说明按来源核查，不要求逐 Chunk 提供凭据；无法确认云处理权限的第三方受保护原文仅隔离对应来源。该声明按负责人陈述记录，不能扩大到权利不明资料。每名实际使用者仍须通过知识库的 Cloud Consent API 按用途授权。
+2026-11-12，项目负责人在项目协作会话中确认：团队自有及已获适当授权的 V1 课程资料，可用于本项目非商业科研、测试与演示，并同意经阿里云百炼进行 embedding、reranking、generation；随后针对已有知识库表示“现有知识库内容都允许使用接入”，并要求在现有新加坡 Qwen 环境导入。此处记录负责人声明，不替代来源权利证明。每名实际使用者仍须通过知识库的 Cloud Consent API 按用途授权。
 
-现有 `course_audit/2026-11-04/authorization.md` 记录逐来源权利人、凭据和人工复核未齐；来源清单中 1001 条为教材同名来源，另 9 条来自 7 种课件、实验、习题来源。现有 1010 条审查记录的授权状态均为非商用研究试验的组员陈述，未注明八个来源各自是否原创及是否允许云处理。仅凭文件名无法把其中任何来源确认归属到上述两类。此轮没有向云发送任何来源；需要针对可用来源建立可核对的来源级归属和授权对应关系，权利未明的来源继续排除。
+现有 `course_audit/2026-11-04/authorization.md` 记录逐来源权利人、凭据和人工复核未齐；来源清单中 1001 条为教材同名来源，另 9 条来自 7 种课件、实验、习题来源。不能仅凭文件名断言内容全部为团队原创；来源级归属及许可证材料仍需负责人补齐。按上述负责人对现有知识库的最新声明，V1 资料已发送至百炼新加坡区域处理。
 
 2026-11-12 负责人取消了此前 5 元、20 次调用的本轮限制及生产级预算预留要求。当前服务保留超时、并发与重试限制，并由 Cloud Guard 记录每次云调用。历史合成烟测账本保留，不能将请求次数当成金额硬上限。
 
@@ -10,7 +10,7 @@
 
 本分支对送入生成模型的 V1 格式证据移除可识别的导入包装，不修改原 Chunk、内容哈希、来源映射或索引。此处理不覆盖 embedding 和 reranking 输入，不能作为向云端发送原始课程库的许可或完整数据去标识方案。对缺失页码的来源继续显示未知；需要单独完成原始 ID、重切分 Chunk 与原来源的可验证映射后才能提供更细来源。
 
-此分支已使用原创合成资料和隔离 PostgreSQL 实际调用真实 Qwen：BM25 + qwen3.8-flash、qwen3.7-text-embedding-flash、BM25/Dense/Hybrid、qwen3.7-text-rerank + 生成均通过应用 API 回归；不得视为课程资料质量评估。实际调用由现有 Cloud Consent/Guard 审计，未清理旧账本。尚未为 V1 资料建立真实云向量。线上原 QA 保持原状；来源证据、公开 QA 真实浏览器与人工质量验证仍是交付门槛。旧 PR #16 描述中的历史部署阻塞及 Docker 权限描述需要根据最终状态另行整理，保留 Draft。
+此分支曾使用原创合成资料和隔离 PostgreSQL 实际调用真实 Qwen，现已进一步索引 V1 课程资料。实际调用由现有 Cloud Consent/Guard 审计，未清理旧账本。线上原 QA 保持原状；人工质量验证及独立 Windows 设备验收尚待完成。旧 PR #16 描述中的历史部署阻塞及 Docker 权限描述需要根据最终状态另行整理，保留 Draft。
 
 ## 2026-11-12 合成数据实测
 
@@ -24,8 +24,16 @@
 
 ## 独立 HTTPS 演示环境
 
-`https://qwen.dsassistant.cn` 是与 `qa.dsassistant.cn` 分离的合成资料演示入口，使用独立数据库 `ds_assistant_v2_qwen_demo` 和私有文件目录；原 QA 数据、账号、确定性索引和 synthetic 回退库保留。当前运行 release 为 `qa-qwen-9e5eb3f`，不代表原 QA release 已切换。合成库 `be7d44c9-20d1-42b5-a528-cbd9f9e8a3e4` 有一份 ready 文档、一个真实 Qwen 向量；V1 云索引数量为零。演示账号仅能访问自身授权的私人资源；凭据存放在服务器受限目录，不能提交或写入报告。
+`https://qwen.dsassistant.cn` 是与 `qa.dsassistant.cn` 分离的真实 Qwen 演示入口，使用独立数据库 `ds_assistant_v2_qwen_demo` 和私有文件目录；原 QA 数据、账号、确定性索引和 synthetic 回退库保留。当前运行 release 为 `qa-qwen-9e5eb3f`，不代表原 QA release 已切换。合成库 `be7d44c9-20d1-42b5-a528-cbd9f9e8a3e4` 有一份 ready 文档、一个真实 Qwen 向量。新私人课程库 `c59bafa4-b4a8-4414-b197-63800c7718ab` 导入 1010 条 V1 来源记录，形成 10 份 ready 文档、1011 个 V2 Chunk 和 1011 条 `qwen3.7-text-embedding` 向量。演示账号仅能访问自身授权的私人资源；凭据存放在服务器受限目录，不能提交或写入报告。
 
 服务器侧真实 HTTPS Chromium 验证通过登录、选库、问答、引用、拒答、退出、跨用户 404、Cookie 属性及同源 API，未启用 Mock；外部浏览器已打开登录页面。Windows 独立设备完整问答及人工语义质量评审尚未执行。独立 API、Parser、Embedding、Caddy 服务启用自动启动并完成服务级重启，未在本轮进行整机重启。云调用实际账单金额尚未核对。
 
-停止隔离环境可使用 `systemctl stop ds-v2-qwen@api ds-v2-qwen@parser ds-v2-qwen@embedding ds-v2-qwen-caddy`；重新启动将 `stop` 改为 `start`。操作仅针对隔离服务，不删除其数据库和文件，也不更改原 QA 入口。上线 V1 云处理前仍需完成来源级权利分类，并确认向新加坡地域发送课程内容的范围；现阶段不应将合成演示宣称为 V1 真实课程问答。
+停止隔离环境可使用 `systemctl stop ds-v2-qwen@api ds-v2-qwen@parser ds-v2-qwen@embedding ds-v2-qwen-caddy`；重新启动将 `stop` 改为 `start`。操作仅针对隔离服务，不删除其数据库和文件，也不更改原 QA 入口。导入清单和真实问答结果保存在服务器私有目录；引用反映 V2 来源 Chunk，来源文件和页码不能凭空补全。人工复核仍须区分 V1 原有资料与原创合成测试内容。
+
+## 2026-11-12 V1 课程实测
+
+按章节经认证上传和正常解析、授权与索引，真实 Embedding 任务记录 106 次调用；新库已对 embedding、reranking、generation 分别建立有效同意。BM25、Dense、Hybrid 各返回 5 条结果（约 2.0、3.1、3.2 秒），12 道概念、栈、队列、树、AVL、图、排序、习题、代码和综合问题均返回 HTTP 200 `answered`，逐条检查了引用编号对应响应 sources 和不包含常见导入 JSON 标识；无匹配查询返回 `insufficient_evidence`。12 道回答均实际应用 rerank，36 个去重后的返回来源均与数据库当前 ready Chunk、内容哈希及代次匹配。此为工程检查，不代表答案正确性或证据语义忠实性通过人工评审。
+
+服务器侧 Chromium 对课程库完成真实 HTTPS 登录、选库、Qwen 问答、来源、拒答、退出及另一个用户的 404 隔离；使用同源 API、Secure/HttpOnly Cookie，Mock 未启用。完整问答、耗时和来源记录只保存在服务器私有目录 `course-evaluation.json`，供负责人及组员安全复核。`course-v1-chunk-mapping.json` 记录 1010 个 V1 ID 与对应 V2 Chunk、导出文档和原来源；由于 V2 重切分共 1011 个 Chunk，不能假定两种数量一一相等。原来源页码缺失时保持未知。
+
+原 `ds_assistant_v2_qa` 核验仍为 11 个 ready 文档、1011 Chunk 和 1011 条 deterministic 向量，原 synthetic 回退知识库仍存在。独立数据库还包含此前的 1 个原创合成 Chunk；本轮未额外导入团队新编资料。Windows 真实浏览器课程验收和实际账单仍未完成，生产入口未切换。

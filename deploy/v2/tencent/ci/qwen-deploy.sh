@@ -55,13 +55,23 @@ if versions(sys.argv[1])!=versions(sys.argv[2]):raise SystemExit('migration chan
 PY
 test -x "$node_bin/node"
 id qwen-build >/dev/null
-chown -R qwen-build:qwen-build "$release"
-runuser -u qwen-build -- env HOME=/var/lib/qwen-build PATH="$node_bin:/usr/bin:/bin" \
+test "$(id -u qwen-build)" -ne 0
+chmod 0755 "$release"
+chown -R qwen-build:qwen-build "$release/frontend-v2"
+# The transient service terminates all build children before root handles its output.
+build=(systemd-run --wait --collect --pipe --property=User=qwen-build --property=Group=qwen-build
+  --property=KillMode=control-group --property=RuntimeMaxSec=600 --property=NoNewPrivileges=yes
+  --property=PrivateTmp=yes --property=ProtectSystem=strict
+  --property="ReadWritePaths=$release/frontend-v2 /var/lib/qwen-build")
+"${build[@]}" /usr/bin/env -i HOME=/var/lib/qwen-build PATH="$node_bin:/usr/bin:/bin" \
   npm --prefix "$release/frontend-v2" ci --no-audit --no-fund
-runuser -u qwen-build -- env HOME=/var/lib/qwen-build PATH="$node_bin:/usr/bin:/bin" \
+"${build[@]}" /usr/bin/env -i HOME=/var/lib/qwen-build PATH="$node_bin:/usr/bin:/bin" \
   VITE_REGISTRATION_ENABLED=false VITE_USE_MOCK=false VITE_API_BASE= \
   npm --prefix "$release/frontend-v2" run build
+test -d "$release/frontend-v2/dist" && test ! -L "$release/frontend-v2/dist"
+test -z "$(find "$release/frontend-v2/dist" -type l -print -quit)"
 test ! -e "$release/frontend-v2/dist/mockServiceWorker.js"
+test ! -e "$release/frontend-v2/dist/deployment-sha.txt"
 printf '%s\n' "$commit" > "$release/frontend-v2/dist/deployment-sha.txt"
 chown -R root:root "$release"
 chmod -R go-w "$release"

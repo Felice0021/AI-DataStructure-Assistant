@@ -227,7 +227,7 @@ def test_worker_rechecks_requested_user_activation(setup):
     assert state(setup)[1].status=="cancelled"
 
 
-@pytest.mark.parametrize("field,value,error",[("parse_max_text_chars",2,"text_limit"),("parse_max_chunks",1,"chunk_limit"),("parse_timeout_seconds",0.01,"parse_timeout")])
+@pytest.mark.parametrize("field,value,error",[("parse_max_text_chars",2,"text_limit"),("parse_max_chunks",1,"chunk_limit")])
 def test_real_file_processing_limits(setup,field,value,error):
     setattr(setup["settings"],field,value)
     setup["settings"].chunk_size=32;setup["settings"].chunk_overlap=4

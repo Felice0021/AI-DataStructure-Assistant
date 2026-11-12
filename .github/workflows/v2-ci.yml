@@ -35,6 +35,7 @@ jobs:
       DS_V2_DB_NAME: ci_test
       DS_V2_DB_PASSWORD: ci-only-disposable-password
       DS_V2_RUN_DB_TESTS: '1'
+      DS_V2_RUN_DOCKER_TESTS: '1'
       DS_V2_EMBEDDING_CLOUD_ENABLED: 'false'
       DS_V2_RERANK_CLOUD_ENABLED: 'false'
       DS_V2_GENERATION_CLOUD_ENABLED: 'false'

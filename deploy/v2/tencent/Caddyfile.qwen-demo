@@ -1,5 +1,6 @@
 {
     auto_https off
+    admin off
 }
 http://qwen.dsassistant.cn:18080 {
     bind 127.0.0.1

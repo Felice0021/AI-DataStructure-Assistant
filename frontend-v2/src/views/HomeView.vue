@@ -198,4 +198,10 @@ async function onLogout(): Promise<void> {
     box-sizing: border-box;
   }
 }
+@media (max-width: 600px) {
+  .app-header { flex-wrap: wrap; padding: 14px 16px; }
+  .header-right { flex: 1 1 100%; min-width: 0; flex-wrap: wrap; }
+  .user { min-width: 0; overflow-wrap: anywhere; }
+  .app-main { padding: 16px 16px 32px; }
+}
 </style>

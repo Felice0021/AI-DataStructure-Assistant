@@ -29,6 +29,7 @@ def test_task_prompts_and_code_not_executed():
     assert resolve_mode('指针是什么','auto')=='qa'
     assert resolve_mode('模拟插入3,2,1','auto')=='exercise'
     assert resolve_mode('递归终止条件是否正确','auto')=='code'
+    assert resolve_mode('def factorial(n):\n    return n * factorial(n - 1)','auto')=='code'
 
 
 @pytest.mark.parametrize('answer',['我已编译并运行[S1]','程序已成功编译[S1]','该版本已通过编译[S1]','I have compiled the code[S1]','虚构依据[S9]'])

@@ -8,7 +8,7 @@ GENERIC=frozenset('什么 为什么 如何 请 解释 分析 计算 给定 资�
 
 def task_kind(query):
     """Internal pedagogy categories; public answer_mode remains qa/exercise/code."""
-    if re.search(r'#include|```|std::|->|\b(?:int|void|char|bool|Node|TreeNode)\s*\*?\s+\w+\s*\(|\b(?:if|while|for)\s*\(|代码纠错|修正代码|递归(?:终止条件|边界)|逻辑错误',query,re.I):
+    if re.search(r'#include|```|std::|->|\b(?:int|void|char|bool|Node|TreeNode)\s*\*?\s+\w+\s*\(|\b(?:if|while|for)\s*\(|(?:^|\n)\s*(?:async\s+)?def\s+\w+\s*\(|代码纠错|修正代码|递归(?:终止条件|边界)|逻辑错误',query,re.I):
         return 'code'
     if re.search(r'给定|依次|构造|求出|画出|模拟插入|遍历序列|最终结果|排序过程|计算.*(?:序列|结果)',query):
         return 'exercise'

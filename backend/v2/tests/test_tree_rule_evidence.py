@@ -41,6 +41,15 @@ def test_partial_course_rule_is_not_claimed_as_full_textbook_convention():
     assert '规则依据 [S1]' not in answer
 
 
+def test_red_black_comparand_rules_do_not_become_avl_conventions():
+    result,_=calculate('空AVL树，依次插入30,10,20，画出最终树。')
+    source='AVL每个结点左右高度差至多一。旋转保持中序有序及键集合。红黑树不要求左右高度差至多一。'
+    support=rule_supported(result,source)
+    assert support.kind=='principle_only'
+    assert set(support.principles)=={'AVL高度平衡','旋转与有序性规则'}
+    assert rule_supported(result,'红黑树不要求左右高度差至多一。').kind=='insufficient'
+
+
 def test_explicit_agreement_has_precise_attribution_and_conflicts_cannot_render():
     result,_=calculate(QUERY)
     support=rule_supported(result,EXPLICIT)

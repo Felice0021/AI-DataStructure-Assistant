@@ -16,7 +16,7 @@ from backend.v2.worker import run_once as parse_once
 from backend.v2.embedding_worker import run_once as index_once
 
 pytestmark=[pytest.mark.integration,pytest.mark.skipif(os.getenv('DS_V2_RUN_DB_TESTS')!='1',reason='Isolated PostgreSQL')]
-RULES='AVL是二叉搜索树，每个结点左右高度差至多一。普通二叉搜索树只要求左小右大，不必平衡；有序输入可能使其退化为链，查找最坏为O(n)。AVL高度为O(log n)，标准存储高度实现的查找、插入、删除最坏为O(log n)。AVL可用LL右旋、RR左旋、LR先左后右、RL先右后左恢复平衡，旋转保持中序有序及键集合。B树非叶孩子数比键数多一，子树键范围被父键严格分隔；溢出后按题定中位键提升，剩余键和孩子分别组成左右结点。B+树的记录键全部在叶，内部键用于导航；本测试约定分隔键取右子树最小键。叶溢出按题定左右键数分裂，复制右叶最小键到父，右叶保留此键；内部溢出按题定中位提升。所有叶子必须同层，分裂容量与时机须遵循题目约定。'
+RULES='AVL是二叉搜索树，每个结点左右高度差至多一。普通二叉搜索树只要求左小右大，不必平衡；有序输入可能使其退化为链，查找最坏为O(n)。AVL高度为O(log n)，标准存储高度实现的查找、插入、删除最坏为O(log n)。AVL可用LL右旋、RR左旋、LR先左后右、RL先右后左恢复平衡，旋转保持中序有序及键集合。B树非叶孩子数比键数多一，子树键范围被父键严格分隔；溢出后按题定中位键提升，剩余键和孩子分别组成左右结点。B+树的记录键全部在叶，内部键用于导航；本测试约定分隔键取右子树最小键。叶溢出按题定左右键数分裂，复制右叶最小键到父，右叶保留此键；内部溢出按题定中位提升。所有叶子必须同层，分裂容量与时机须遵循题目约定。红黑树也是自平衡二叉搜索树，用结点颜色和黑高约束限制高度；红结点不能有红孩子，从同一结点到空叶的路径黑色结点数相同。AVL严格限制左右高度差，红黑树不要求这个差至多一。两者查找最坏均为O(log n)，旋转保持二叉搜索树有序。'
 
 
 @pytest.fixture
@@ -46,6 +46,35 @@ def test_primary_subject_multi_turn_and_boundaries(tree_env):
     assert send(e,conversation(e),'它为什么需要旋转？')[0].json()['reason']=='conversation_context_required'
     kb=e['client'].post('/api/v2/knowledge-bases',json={'name':'other-tree-scope'},headers=csrf_headers(e['client'])).json()['knowledge_base']['id']
     assert send(e,url,'它为什么需要旋转？',knowledge_base_ids=[kb])[0].json()['reason']=='conversation_context_required'
+    assert len(e['calls'])==count
+
+
+def test_four_round_focus_and_replay_with_real_database(tree_env):
+    from backend.v2.tests.test_discourse_continuity import FOUR
+    e=tree_env;url=conversation(e)
+    for query in FOUR:
+        response,payload=send(e,url,query)
+        assert response.status_code==200,response.text
+        assert response.json()['status']=='answered',response.json()
+        assert response.json()['sources'][0]['knowledge_base_id']==e['kb']['id']
+    resolved=json.loads(e['calls'][-1][1]['content'])['resolved_question']
+    assert resolved.startswith('比较 AVL 树 与 红黑树：')
+    assert len(json.loads(e['calls'][-1][3]['content'])['turns'])==3
+    count=len(e['calls'])
+    assert e['client'].post(url+'/ask',json=payload,headers=csrf_headers(e['client'])).json()==response.json()
+    assert len(e['calls'])==count
+    messages=e['client'].get(url+'/messages').json()['items']
+    assert len(messages)==8 and messages[-1]['metadata_json']['context']['method']=='bounded-topic-rules-v4'
+    # No history, another user's conversation, a new scope, and a stale citation each fence the chain.
+    assert send(e,conversation(e),FOUR[3])[0].json()['reason']=='conversation_context_required'
+    with client_for(e['settings']) as other:
+        credentials,_=register(other);assert post(other,'login',credentials).status_code==200
+        assert other.post(url+'/ask',json=payload,headers=csrf_headers(other)).status_code==404
+    kb=e['client'].post('/api/v2/knowledge-bases',json={'name':'four-round-other'},headers=csrf_headers(e['client'])).json()['knowledge_base']['id']
+    assert send(e,url,FOUR[3],knowledge_base_ids=[kb])[0].json()['reason']=='conversation_context_required'
+    with e['engine'].begin() as db:
+        db.execute(text('UPDATE documents SET index_revision=index_revision+1 WHERE id=:id'),{'id':e['document']['id']})
+    assert e['client'].post(url+'/ask',json=payload,headers=csrf_headers(e['client'])).status_code==409
     assert len(e['calls'])==count
 
 

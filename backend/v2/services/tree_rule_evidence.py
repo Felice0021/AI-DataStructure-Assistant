@@ -15,11 +15,12 @@ LABELS={
 VALUES={'right_min':'复制右叶最小键','left_max':'复制左叶最大键',
     'after':'插入溢出后分裂','before':'插入前分裂满结点',
     'middle':'唯一中间键','lower':'较小中间键','upper':'较大中间键'}
-FAMILY=r'AVL(?:树)?|平衡二叉树|普通二叉搜索树|二叉搜索树|二叉排序树|BST|B\+(?:树)?|B树'
+FAMILY=r'AVL(?:树)?|平衡二叉树|红黑树|red-?blacktree|RBtree|普通二叉搜索树|二叉搜索树|二叉排序树|BST|B\+(?:树)?|B树'
 
 
 def _family(name):
     name=name.upper()
+    if name in {'红黑树','RED-BLACKTREE','REDBLACKTREE','RBTREE'}:return 'RB'  # Scope boundary only; no RB construction calculator.
     if name.startswith(('AVL','平衡')):return 'AVL'
     if name in {'B树','B+树','B+'}:return name.removesuffix('树')
     return 'BST'

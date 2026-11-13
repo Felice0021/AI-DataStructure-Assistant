@@ -26,6 +26,8 @@ from backend.v2.embedding_worker import run_once as index_once
 CASES=[
     ('focus',['AVL 树是什么？它与普通二叉搜索树有什么区别？','它为什么需要旋转？']),
     ('focus-reversed',['普通二叉搜索树是什么？它与AVL树有什么区别？','它为什么需要旋转？']),
+    ('four-round',['AVL树是什么？它与普通BST有什么区别？','它为什么需要旋转？',
+                   '举一个LR型失衡的例子，画出旋转前后的树形。','那它和红黑树有什么区别？']),
     *[(kind,['AVL 的'+kind+'旋转请举例。']) for kind in ('LL','RR','LR','RL')],
     ('BST',['从空二叉搜索树构造，依次插入30,10,20,40，画出结果。']),
     ('B',['构造3阶B树，最多3个孩子，依次插入10,20,30；溢出后提升中间键。']),
@@ -103,6 +105,13 @@ def main():
                         if result and valid and not refusal:valid=body['answer']==result.render(' '.join(s['citation_id'] for s in body['sources']),supports={s['citation_id']:rule_supported(result,source_rules) for s in body['sources']})
                         items=c.get('/api/v2/conversations/'+conv+'/messages').json()['items']
                         resolved=items[-1]['metadata_json']['context']['resolved_query'] if items else None
+                        if name=='four-round':
+                            if index==1:valid=valid and resolved=='AVL 树为什么需要旋转？'
+                            if index==2:
+                                result,_=calculate(resolved)
+                                valid=valid and result is not None and result.final=={'key':20,'left':{'key':10,'left':None,'right':None},'right':{'key':30,'left':None,'right':None}}
+                                valid=valid and body['answer']==result.render(' '.join(s['citation_id'] for s in body['sources']),supports={s['citation_id']:rule_supported(result,source_rules) for s in body['sources']})
+                            if index==3:valid=valid and resolved.startswith('比较 AVL 树 与 红黑树：')
                         if name=='focus' and index==1:valid=valid and resolved=='AVL 树为什么需要旋转？'
                         if name=='focus-reversed' and index==1:valid=valid and resolved=='二叉搜索树为什么需要旋转？'
                         if refusal:valid=valid and body.get('reason')==('tree_rule_conflict' if conflict else 'no_evidence' if name=='no-evidence' else 'conversation_context_ambiguous')

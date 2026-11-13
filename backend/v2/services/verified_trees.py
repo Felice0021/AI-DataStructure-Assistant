@@ -301,10 +301,11 @@ def rule_supported(family,content,*,single_key=False):
 
 def unverified_tree_prose(answer):
     """Conservative presentation boundary, not general natural-language fact verification."""
+    fenced=bool(re.search(r'(?m)^\s*(?:`{3,}|~{3,})',answer))
     key=r'(?:[-+]?\d+|[一二三四五六七八九十]+(?=$|[\s，,。；;、的]))'
     relation=r'(?:根(?:节点|结点)?|左(?:孩子|子节点|子结点)|右(?:孩子|子节点|子结点)|节点|结点)'
     answer=re.sub(r'[`*_]','',answer)  # Inspect formatting without changing the returned answer.
-    return bool('```' in answer or re.search(r'[├└┌┐┤┘│]',answer)
+    return bool(fenced or re.search(r'[├└┌┐┤┘│]',answer)
         or re.search(r'(?m)^[ \t]*[/\\]+(?:[ \t]+[/\\]+)*[ \t]*$',answer)
         or re.search(r'\d+\s*(?:->|→)\s*\d+',answer)
         or re.search(r'(?:前序|中序|后序|层序|插入序列)\s*(?:为|是|[:：])\s*\[?\s*\d',answer)

@@ -55,6 +55,10 @@ def test_reported_lr_counterexample_violates_global_bst_order():
     assert not unverified_tree_prose('可通过LL右旋、RR左旋、LR先左后右或RL先右后左四种旋转修复。')
     assert not unverified_tree_prose('根是一棵树的最上层节点。')
     assert unverified_tree_prose('根 **2**，左孩子 `1`，结点1的右孩子3。')
+    # Inspect fences before stripping inline Markdown; cover both fenced syntaxes.
+    assert unverified_tree_prose('```text\nalpha\n  beta\n```')
+    assert unverified_tree_prose('~~~text\nalpha\n  beta\n~~~')
+    assert not unverified_tree_prose('`AVL`的左右子树高度差不超过1。')
 
 
 def test_mislabeled_rotation_does_not_replace_user_input():

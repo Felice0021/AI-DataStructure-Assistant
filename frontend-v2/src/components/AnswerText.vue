@@ -64,12 +64,12 @@ export default defineComponent({
 .answer-text :deep(ul), .answer-text :deep(ol) { padding-left: 1.5em; margin: 0.5em 0 1em; }
 .answer-text :deep(blockquote) { margin: 1em 0; padding-left: 1em; border-left: 3px solid var(--line); color: var(--muted); }
 .answer-text :deep(pre), .answer-text :deep(table) { display: block; max-width: 100%; overflow-x: auto; }
-.answer-text :deep(pre) { padding: 12px; background: #f4f6f8; border-radius: 8px; line-height: 1.5; }
+.answer-text :deep(pre) { padding: 12px; background: #f5f5f5; border-radius: 8px; line-height: 1.5; }
 .answer-text :deep(code) { font-family: ui-monospace, monospace; }
 .answer-text :deep(table) { border-collapse: collapse; margin: 1em 0; }
 .answer-text :deep(th), .answer-text :deep(td) { border: 1px solid var(--line); padding: 6px 10px; }
 .answer-text :deep(.cite), .answer-text :deep(.cite-unknown) { display: inline; padding: 0 3px; margin: 0 1px; border: 0; border-radius: 4px; font-size: 12px; vertical-align: 1px; }
-.answer-text :deep(.cite) { background: #e8f0fb; color: var(--brand); cursor: pointer; }
-.answer-text :deep(.cite-unknown) { background: #f0f1f3; color: #68717e; }
+.answer-text :deep(.cite) { background: #f1f1f1; color: #404040; cursor: pointer; }
+.answer-text :deep(.cite-unknown) { background: #f1f1f1; color: #737373; }
 .answer-text :deep(.cite:focus-visible) { outline: 2px solid var(--brand); outline-offset: 1px; }
 </style>

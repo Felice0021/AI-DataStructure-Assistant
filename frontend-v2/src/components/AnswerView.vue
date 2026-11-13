@@ -73,18 +73,16 @@ async function onCite(citationId: string): Promise<void> {
     </div>
 
     <section v-else-if="phase === 'answered' && result" class="card card-success" data-testid="answer-success">
-      <header class="card-head">
-        <span class="badge badge-success">已回答</span>
-        <span class="head-meta">
-          {{ result.generation_model?.startsWith('deterministic-') ? '确定性工程演示' : result.generation_model ? `生成模型：${result.generation_model}` : '生成模型未知' }} ·
-          {{ RETRIEVAL_LABELS[result.retrieval_mode] ?? result.retrieval_mode }}
-          · {{ ANSWER_MODE_LABELS[result.answer_mode] ?? result.answer_mode }}
-          <span v-if="result.rerank_applied"> · 已重排</span>
-          · {{ Math.round(result.latency_ms) }} ms
-        </span>
-      </header>
       <AnswerText :text="result.answer ?? ''" :sources="result.sources" @cite="onCite" />
       <SourceList :id-prefix="sourcePrefix" :sources="result.sources" :highlight="highlight" :open="sourcesOpen" @toggle="sourcesOpen = $event" />
+      <details class="answer-details">
+        <summary>{{ result.generation_model?.startsWith('deterministic-') ? '确定性工程演示 · 回答信息' : '回答信息' }}</summary>
+        <p class="head-meta">
+          {{ result.generation_model ?? '生成模型未知' }} · {{ RETRIEVAL_LABELS[result.retrieval_mode] ?? result.retrieval_mode }}
+          · {{ ANSWER_MODE_LABELS[result.answer_mode] ?? result.answer_mode }}
+          <span v-if="result.rerank_applied"> · 已重排</span> · {{ Math.round(result.latency_ms) }} ms
+        </p>
+      </details>
     </section>
 
     <section v-else-if="phase === 'refused'" class="card card-warn" data-testid="answer-refused">
@@ -113,131 +111,21 @@ async function onCite(citationId: string): Promise<void> {
 </template>
 
 <style scoped>
-.answer-view {
-  min-height: 120px;
-}
-
-.placeholder {
-  margin: 0;
-  color: var(--muted);
-  font-size: 13px;
-}
-
-.loading {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: var(--muted);
-  font-size: 13px;
-}
-
-.spinner {
-  width: 14px;
-  height: 14px;
-  border: 2px solid var(--line);
-  border-top-color: var(--brand);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.card {
-  border: 0;
-  border-radius: 0;
-  padding: 0;
-  background: #fff;
-}
-
-.card-success {
-  border-left: 0;
-}
-
-.card-warn {
-  border-left: 3px solid #d9a13b;
-  background: #fffdf5;
-}
-
-.card-error {
-  border-left: 3px solid #cf4b45;
-  background: #fff8f8;
-}
-
-.card-head {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 12px;
-  flex-wrap: wrap;
-}
-
-.badge {
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.badge-success {
-  background: #e9f5ec;
-  color: #2f6f45;
-}
-
-.badge-warn {
-  background: #fdf1d8;
-  color: #8a6114;
-}
-
-.badge-error {
-  background: #fbe6e5;
-  color: #9c322d;
-}
-
-.head-meta {
-  font-size: 12px;
-  color: var(--muted);
-}
-@media (max-width: 600px) {
-  .card { padding: 12px; }
-  .head-meta { flex-basis: 100%; }
-}
-
-.refusal-reason {
-  margin: 0 0 8px;
-  font-size: 14px;
-  color: var(--ink);
-}
-
-.error-message {
-  margin: 0 0 8px;
-  font-size: 14px;
-  color: #8e2b26;
-}
-
-.hint {
-  margin: 0;
-  font-size: 12px;
-  line-height: 1.7;
-  color: var(--muted);
-}
-
-.retry {
-  margin-top: 12px;
-  padding: 6px 14px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: #fff;
-  color: var(--ink);
-  font-size: 13px;
-  cursor: pointer;
-}
-
-.retry:hover {
-  border-color: var(--brand);
-  color: var(--brand);
-}
+.answer-view { min-width: 0; }
+.placeholder, .loading { margin: 0; color: var(--muted); font-size: 13px; }
+.loading { display: flex; align-items: center; gap: 10px; }
+.spinner { width: 14px; height: 14px; border: 2px solid #e5e5e5; border-top-color: #737373; border-radius: 50%; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.card { border: 0; padding: 0; background: #FFFFFF; }
+.card-warn, .card-error { padding: 12px 14px; border-left: 2px solid #a3a3a3; background: #fafafa; }
+.card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+.badge { font-size: 13px; font-weight: 600; color: #262626; }
+.head-meta { font-size: 12px; color: #737373; }
+.answer-details { margin-top: 10px; font-size: 11px; color: #858585; }
+.answer-details summary { cursor: pointer; }
+.answer-details p { margin: 6px 0 0; }
+.refusal-reason, .error-message { margin: 0 0 8px; font-size: 14px; color: var(--ink); }
+.hint { margin: 0; font-size: 12px; line-height: 1.7; color: var(--muted); }
+.retry { margin-top: 12px; padding: 6px 14px; border: 1px solid #dedede; border-radius: 6px; background: #FFFFFF; font-size: 13px; cursor: pointer; }
+.retry:hover { background: #f5f5f5; }
 </style>

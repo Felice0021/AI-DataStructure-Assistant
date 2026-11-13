@@ -112,3 +112,13 @@ describe('AnswerView 状态分发', () => {
     expect(loading.find('[data-testid="answer-loading"]').exists()).toBe(true)
   })
 })
+
+it('keeps engineering metadata collapsed after the answer instead of a success badge', () => {
+  const w = mount(AnswerView, {props: {...baseProps, phase: 'answered', result: mockAnswered}})
+  expect(w.find('.badge-success').exists()).toBe(false)
+  expect(w.find('.answer-details').attributes('open')).toBeUndefined()
+  expect(w.find('.answer-details').text()).toContain(String(Math.round(mockAnswered.latency_ms)))
+  const answer = w.find('.answer-text').element
+  const info = w.find('.answer-details').element
+  expect(answer.compareDocumentPosition(info) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+})

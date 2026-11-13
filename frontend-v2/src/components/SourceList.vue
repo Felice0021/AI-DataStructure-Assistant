@@ -39,7 +39,7 @@ const emit = defineEmits<{ (event: 'toggle', open: boolean): void }>()
 .sources {
   margin-top: 18px;
   padding-top: 14px;
-  border-top: 1px dashed var(--line);
+  border-top: 1px solid var(--line);
 }
 
 .sources-title {
@@ -65,12 +65,12 @@ const emit = defineEmits<{ (event: 'toggle', open: boolean): void }>()
   padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #fbfcfd;
+  background: #FFFFFF;
 }
 
 .source-item.is-active {
-  border-color: var(--brand);
-  background: #f0f6fd;
+  border-color: #a3a3a3;
+  background: #f5f5f5;
 }
 
 .source-cite {
@@ -78,8 +78,8 @@ const emit = defineEmits<{ (event: 'toggle', open: boolean): void }>()
   height: fit-content;
   padding: 1px 5px;
   border-radius: 4px;
-  background: #e8f0fb;
-  color: var(--brand);
+  background: #f1f1f1;
+  color: #404040;
   font-size: 12px;
   font-weight: 500;
 }

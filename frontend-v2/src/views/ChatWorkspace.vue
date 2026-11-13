@@ -35,10 +35,12 @@ async function older() { const el = stream.value; const height = el?.scrollHeigh
   <div class="workspace">
     <button v-if="drawer" class="shade" aria-label="关闭导航" @click="drawer = false"></button>
     <aside class="sidebar" :class="{ visible: drawer }" aria-label="对话导航">
-      <a class="brand" href="/">知序 <span>数据结构 AI 助教</span></a>
+      <a class="brand" href="/">数据结构 AI 助教</a>
       <button class="new-chat" :disabled="chat.sending" @click="chat.newChat(); drawer = false">＋ 新建对话</button>
+      <section class="knowledge" aria-label="课程知识库"><KnowledgeBasePicker /></section>
       <div class="history">
         <p class="eyebrow">历史对话</p>
+        <div class="history-list">
         <p v-if="!chat.items.length" class="muted">从一个问题开始，记录会保存在这里。</p>
         <div v-for="item in chat.items" :key="item.id" class="history-row" :class="{active: item.id === chat.active}">
           <form v-if="renaming === item.id" @submit.prevent="rename(item.id)"><input v-model="title" aria-label="对话标题" maxlength="200" /><button>保存</button><button type="button" @click="renaming = null">取消</button></form>
@@ -48,22 +50,22 @@ async function older() { const el = stream.value; const height = el?.scrollHeigh
           </template>
         </div>
         <button v-if="chat.items.length < chat.total" @click="chat.list(true).catch(() => notice = '加载失败')">更多对话</button>
+        </div>
       </div>
-      <details class="knowledge" open><summary>课程知识库</summary><KnowledgeBasePicker /></details>
       <div class="account"><span class="avatar">{{ auth.email.slice(0, 1).toUpperCase() }}</span><span class="email">{{ auth.email }}</span><button :disabled="leaving" @click="logout">{{ leaving ? '退出中…' : '退出' }}</button></div>
     </aside>
     <main class="main">
       <header class="topbar"><button class="menu" aria-label="打开导航" @click="drawer = true">☰</button><span>{{ activeTitle }}</span><span class="single-turn">基于课程证据 · 单轮问答</span></header>
       <div ref="stream" class="stream" @scroll="onScroll">
         <div v-if="!chat.messages.length && !chat.pending && !chat.loading" class="welcome">
-          <div class="mark">知</div><h1>把知识连成思路</h1><p>从课程资料出发，一起理解数据结构。</p>
+          <h1>把知识连成思路</h1><p>从课程资料出发，一起理解数据结构。</p>
           <div class="examples"><button v-for="example in examples" :key="example" @click="query = example">{{ example }} <span>↗</span></button></div>
         </div>
         <div class="messages">
           <button v-if="chat.messages.length < chat.messageTotal" :disabled="chat.loading" @click="older">加载更早消息</button>
           <article v-for="message in chat.messages" :key="message.id" :class="['message', message.role]">
             <p v-if="message.role === 'user'" class="user-bubble">{{ message.content }}</p>
-            <template v-else><div class="assistant-name">知序 · AI 助教</div>
+            <template v-else><div class="assistant-name">AI 助教</div>
               <AnswerView v-if="message.metadata_json.result" :phase="message.metadata_json.result.status === 'answered' ? 'answered' : 'refused'" :result="message.metadata_json.result" :error-code="null" :error-status="0" error-message="" />
               <p v-else>{{ message.content }}</p>
               <button class="copy" @click="copy(message.content)">复制回答</button>
@@ -88,5 +90,102 @@ async function older() { const el = stream.value; const height = el?.scrollHeigh
 </template>
 
 <style scoped>
-.workspace{display:flex;height:100dvh;overflow:hidden;background:#fff;color:#23332f}.sidebar{width:272px;flex-shrink:0;background:#f3f5f2;border-right:1px solid #e8ece7;padding:26px 16px 14px;display:flex;flex-direction:column;gap:22px}.brand{text-decoration:none;color:#245748;font-size:25px;font-weight:750;letter-spacing:-1px;padding:0 10px}.brand span{display:block;font-size:11px;font-weight:500;letter-spacing:1px;color:#75837c;margin-top:2px}.new-chat{background:#fff;border:1px solid #dce4dc;border-radius:10px;padding:12px;text-align:left;color:#285a48;font-weight:600}.history{flex:1;min-height:100px;overflow:auto}.eyebrow{font-size:11px;color:#88958d;letter-spacing:2px;padding:0 10px}.muted{font-size:13px;color:#829087;padding:0 10px}.history-row{display:flex;align-items:center;border-radius:8px;position:relative}.history-row.active{background:#e2eae1}.history-title{flex:1;min-width:0;text-overflow:ellipsis;white-space:nowrap;overflow:hidden;text-align:left;padding:11px 10px}.history-row details{padding:8px}.history-row summary{cursor:pointer}.history-actions{position:absolute;right:0;background:#fff;box-shadow:0 4px 20px #1232;padding:8px;z-index:5;border-radius:8px}.history-row form{display:flex;flex-wrap:wrap;gap:4px;padding:6px;min-width:0}.history-row input{width:100%;min-width:0}.knowledge{max-height:36vh;overflow:auto;border-top:1px solid #dfe6dc;padding-top:14px}.knowledge>summary{font-size:13px;font-weight:600;cursor:pointer;margin-bottom:14px}.account{display:flex;align-items:center;gap:9px;font-size:12px;border-top:1px solid #dfe6dc;padding-top:14px}.avatar{background:#dce6d9;border-radius:50%;width:30px;height:30px;display:grid;place-items:center;color:#35634b}.email{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}.main{flex:1;min-width:0;display:flex;flex-direction:column}.topbar{height:66px;flex-shrink:0;display:flex;align-items:center;gap:14px;padding:0 30px;font-size:13px;color:#66766c;border-bottom:1px solid #f1f3ef}.topbar>span:first-of-type{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.single-turn{margin-left:auto;font-size:11px;color:#9aa59d;white-space:nowrap}.menu{display:none}.stream{flex:1;overflow:auto;overscroll-behavior:contain;padding:16px 28px 32px;scrollbar-gutter:stable}.welcome{max-width:710px;margin:clamp(30px,10vh,140px) auto 20px;text-align:center}.mark{width:48px;height:48px;background:#e5eee2;color:#386f50;border-radius:15px;display:grid;place-items:center;font-size:22px;margin:0 auto 20px}.welcome h1{font-size:32px;letter-spacing:-1px;font-weight:650;margin:0 0 10px}.welcome p{color:#87928a;font-size:14px}.examples{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:34px auto 0;max-width:610px}.examples button{border:1px solid #e6ebe3;border-radius:12px;text-align:left;padding:17px;font-size:13px;display:flex;justify-content:space-between;gap:10px;background:#fafbf8}.examples span{color:#8c9f86}.messages{max-width:760px;margin:0 auto}.message{margin:30px 0;min-width:0}.message.user{display:flex;justify-content:flex-end}.user-bubble{white-space:pre-wrap;overflow-wrap:anywhere;background:#edf2e9;padding:12px 18px;border-radius:18px 18px 4px 18px;max-width:85%;margin:0;font-size:15px}.assistant-name{font-size:12px;font-weight:650;color:#598065;margin-bottom:12px}.copy{font-size:11px;color:#909c93;padding:8px 0}.thinking{padding:14px 0;color:#7c8d7d;font-size:13px}.thinking span{display:inline-block;width:8px;height:8px;background:#72996b;border-radius:50%;animation:pulse 1.4s infinite}.error{background:#fff4eb;color:#92522d;padding:14px;border-radius:10px;font-size:13px}.error button{text-decoration:underline}.composer-wrap{padding:10px 28px 20px;background:linear-gradient(#fff9,#fff 20%);flex-shrink:0}.composer{max-width:760px;margin:0 auto;border:1px solid #dfe6dc;border-radius:22px;padding:14px 14px 14px 20px;display:flex;align-items:flex-end;gap:12px;box-shadow:0 4px 24px #23332f06;background:#fafbf9}.composer:focus-within{border-color:#9eb49a}.composer textarea{flex:1;min-width:0;resize:none;border:0;outline:0;background:transparent;line-height:1.7;max-height:180px;font-size:15px;padding:3px 0}.send{width:36px;height:36px;flex-shrink:0;border-radius:50%;background:#326448;color:white;font-size:22px}.send:disabled{background:#dfe6dc;color:#9baa98}.composer-note{max-width:760px;margin:9px auto 0;text-align:center;font-size:10px;color:#96a092}.composer-note span{margin-left:12px}.notice{text-align:center;font-size:12px;color:#637e5d}.shade{display:none}button{border:0;background:transparent;cursor:pointer}button:disabled{cursor:not-allowed;opacity:.55}@keyframes pulse{50%{opacity:.3}}@media(max-width:760px){.sidebar{position:fixed;inset:0 auto 0 0;z-index:30;transform:translateX(-100%);visibility:hidden;width:280px;max-width:85vw}.sidebar.visible{transform:translateX(0);visibility:visible}.shade{display:block;position:fixed;inset:0;background:#172b2355;z-index:25}.menu{display:block;font-size:20px}.topbar{height:56px;padding:0 16px}.single-turn{display:none}.stream{padding:12px 18px 24px}.welcome{margin-top:45px}.welcome h1{font-size:27px}.examples{grid-template-columns:1fr;gap:8px;margin-top:26px}.examples button{padding:14px}.composer-wrap{padding:8px 12px max(12px,env(safe-area-inset-bottom))}.composer-note span{display:none}.message{margin:24px 0}.user-bubble{max-width:92%}.composer{border-radius:20px;padding-left:16px}}
+.workspace {
+  --ink: #171717;
+  --muted: #737373;
+  --line: #ebebeb;
+  --brand: #262626;
+  display: flex;
+  height: 100dvh;
+  overflow: hidden;
+  background: #FFFFFF;
+  color: var(--ink);
+}
+.sidebar {
+  width: 272px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 26px 16px 14px;
+  background: #FFFFFF;
+  border-right: 1px solid var(--line);
+}
+.brand { padding: 0 10px; color: var(--ink); font-size: 17px; font-weight: 650; text-decoration: none; }
+.new-chat { padding: 11px 12px; border: 1px solid #e5e5e5; border-radius: 10px; text-align: left; font-weight: 550; }
+.new-chat:hover { background: #f5f5f5; }
+.knowledge { flex-shrink: 0; max-height: 30vh; overflow-y: auto; }
+.history { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.history-list { flex: 1; min-height: 0; overflow-y: auto; }
+.eyebrow { margin: 0 10px 8px; font-size: 12px; color: var(--muted); }
+.muted { padding: 0 10px; font-size: 13px; color: var(--muted); }
+.history-row { display: flex; align-items: center; border-radius: 8px; position: relative; }
+.history-row:hover { background: #fafafa; }
+.history-row.active { background: #f1f1f1; }
+.history-title { flex: 1; min-width: 0; padding: 11px 10px; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; text-align: left; }
+.history-row details { padding: 8px; }
+.history-row summary { cursor: pointer; list-style: none; }
+.history-row summary::-webkit-details-marker { display: none; }
+.history-actions { position: absolute; right: 0; z-index: 5; padding: 8px; border: 1px solid #e5e5e5; border-radius: 8px; background: #FFFFFF; }
+.history-actions button { display: block; padding: 6px 12px; white-space: nowrap; }
+.history-actions button:hover { background: #f5f5f5; }
+.history-row form { display: flex; flex-wrap: wrap; gap: 4px; min-width: 0; padding: 6px; }
+.history-row input { width: 100%; min-width: 0; }
+.account { display: flex; flex-shrink: 0; align-items: center; gap: 9px; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12px; }
+.avatar { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: #f1f1f1; color: #525252; }
+.email { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.topbar { display: flex; flex-shrink: 0; align-items: center; gap: 14px; height: 66px; padding: 0 30px; font-size: 13px; color: #737373; }
+.topbar>span:first-of-type { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.single-turn { margin-left: auto; font-size: 11px; color: #909090; white-space: nowrap; }
+.menu { display: none; }
+.stream { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 16px 28px 32px; scrollbar-gutter: stable; }
+.welcome { max-width: 710px; margin: clamp(30px, 15vh, 140px) auto 20px; text-align: center; }
+.welcome h1 { margin: 0 0 10px; font-size: 32px; letter-spacing: -1px; font-weight: 650; }
+.welcome p { color: #737373; font-size: 14px; }
+.examples { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; max-width: 610px; margin: 34px auto 0; }
+.examples button { display: flex; justify-content: space-between; gap: 10px; padding: 17px; border: 1px solid #ededed; border-radius: 12px; text-align: left; font-size: 13px; }
+.examples button:hover { background: #f7f7f7; }
+.examples span { color: #8a8a8a; }
+.messages { max-width: 760px; margin: 0 auto; }
+.message { margin: 30px 0; min-width: 0; }
+.message.user { display: flex; justify-content: flex-end; }
+.user-bubble { max-width: 85%; margin: 0; padding: 12px 18px; border-radius: 18px 18px 4px 18px; background: #f3f3f3; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 15px; }
+.assistant-name { margin-bottom: 12px; color: #525252; font-size: 12px; font-weight: 600; }
+.copy { padding: 8px 0; color: #737373; font-size: 11px; }
+.thinking { padding: 14px 0; color: #737373; font-size: 13px; }
+.thinking span { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #737373; animation: pulse 1.4s infinite; }
+.error { padding: 14px; border-radius: 10px; background: #f5f5f5; color: #404040; font-size: 13px; }
+.error button { text-decoration: underline; }
+.composer-wrap { flex-shrink: 0; padding: 10px 28px 20px; background: #FFFFFF; }
+.composer { display: flex; align-items: flex-end; gap: 12px; max-width: 760px; margin: 0 auto; padding: 14px 14px 14px 20px; border: 1px solid #dedede; border-radius: 22px; background: #FFFFFF; }
+.composer:focus-within { border-color: #a3a3a3; }
+.composer textarea { flex: 1; min-width: 0; max-height: 180px; padding: 3px 0; border: 0; outline: 0; resize: none; background: transparent; line-height: 1.7; font-size: 15px; }
+.send { width: 36px; height: 36px; flex-shrink: 0; border-radius: 50%; background: #2563EB; color: #FFFFFF; font-size: 22px; }
+.send:disabled { background: #e5e5e5; color: #a3a3a3; opacity: 1; }
+.composer-note { max-width: 760px; margin: 9px auto 0; text-align: center; font-size: 10px; color: #858585; }
+.composer-note span { margin-left: 12px; }
+.notice { text-align: center; font-size: 12px; color: #525252; }
+.shade { display: none; }
+button { border: 0; background: transparent; cursor: pointer; }
+button:disabled { cursor: not-allowed; opacity: .55; }
+@keyframes pulse { 50% { opacity: .3; } }
+@media (max-width: 760px) {
+  .sidebar { position: fixed; inset: 0 auto 0 0; z-index: 30; transform: translateX(-100%); visibility: hidden; width: 280px; max-width: 85vw; gap: 18px; }
+  .sidebar.visible { transform: translateX(0); visibility: visible; }
+  .shade { display: block; position: fixed; inset: 0; z-index: 25; background: #00000045; }
+  .menu { display: block; font-size: 20px; }
+  .topbar { height: 56px; padding: 0 16px; }
+  .single-turn { display: none; }
+  .stream { padding: 12px 18px 24px; }
+  .welcome { margin-top: 45px; }
+  .welcome h1 { font-size: 27px; }
+  .examples { grid-template-columns: 1fr; gap: 8px; margin-top: 26px; }
+  .examples button { padding: 14px; }
+  .composer-wrap { padding: 8px 12px max(12px, env(safe-area-inset-bottom)); }
+  .composer-note span { display: none; }
+  .message { margin: 24px 0; }
+  .user-bubble { max-width: 92%; }
+  .composer { border-radius: 20px; padding-left: 16px; }
+}
 </style>

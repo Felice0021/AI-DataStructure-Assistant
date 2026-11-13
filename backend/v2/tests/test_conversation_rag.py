@@ -115,3 +115,31 @@ def test_database_write_failure_rolls_back_pair(env):
     assert c.get(url+'/messages').json()['total'] == 0
     assert c.post(url+'/ask', json=data, headers=csrf_headers(c)).status_code == 200
     assert c.get(url+'/messages').json()['total'] == 2
+
+
+def test_final_commit_rechecks_idempotency_after_generation(env, monkeypatch):
+    import hashlib
+    import json
+    from uuid import UUID
+    from backend.v2.models import Message
+    from backend.v2.schemas.conversation import ConversationAskRequest
+    from backend.v2.schemas.rag import AskResponse
+    c, url, data = turn_env(env)
+    original = conversation_rag.ask
+    def competing_completion(*args, **kwargs):
+        result = AskResponse.model_validate(original(*args, **kwargs))
+        payload = ConversationAskRequest.model_validate(data)
+        fingerprint = hashlib.sha256(json.dumps(payload.model_dump(mode='json', exclude={'request_id'}), sort_keys=True).encode()).hexdigest()
+        # Simulate an already-committed competing worker after a lost lock connection.
+        with env['factory']() as session:
+            session.add_all([
+                Message(conversation_id=UUID(url.rsplit('/', 1)[-1]), seq=1, role='user', content=data['query'], metadata_json={}),
+                Message(conversation_id=UUID(url.rsplit('/', 1)[-1]), seq=2, role='assistant', content=result.answer,
+                        metadata_json={'request_id': data['request_id'], 'fingerprint': fingerprint,
+                                       'knowledge_base_ids': data['knowledge_base_ids'], 'result': result.model_dump(mode='json')}),
+            ])
+            session.commit()
+        return result
+    monkeypatch.setattr(conversation_rag, 'ask', competing_completion)
+    assert c.post(url+'/ask', json=data, headers=csrf_headers(c)).status_code == 200
+    assert c.get(url+'/messages').json()['total'] == 2

@@ -19,12 +19,14 @@
 ## 2026-11-13 本地执行
 
 - V2 完整 pytest：535 passed、4 skipped（显式 Docker Parser 镜像测试，Linux CI 执行）。
-- 前端完整 Vitest：76 passed；生产构建通过，产物无 mockServiceWorker.js。
+- 前端完整 Vitest：77 passed；生产构建通过，产物无 mockServiceWorker.js。
 - 本机 Edge + 随机隔离 PostgreSQL/临时文件：三次连续提问、分别保存引用、刷新并恢复、
   切换历史、重命名、创建新会话、证据不足、软删除、退出和重新登录恢复均通过。
 - 390×844：documentElement.scrollWidth=390，输入框完整位于视口内。
 - 使用原创短文本与 deterministic Provider；没有将这些结果计为真实模型质量。
 - 账号隔离、已删除来源隐藏、CSRF、并发、相同请求重放与冲突、失败回滚：真实隔离 DB 测试通过。
+
+补充：最终提交前另行验证了生成后的竞争幂等检查，以及服务端退出失败提示。
 
 ## 合并后 HTTPS 验收（尚未执行）
 

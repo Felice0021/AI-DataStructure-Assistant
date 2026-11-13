@@ -52,6 +52,16 @@ def run(factory, user_id, conversation_id, data, settings, verify_session):
                 if user is None or user.id != user_id:
                     raise unauthorized()
                 conv = conversations.get_owned(session, user, conversation_id, for_update=True)
+                # Defense in depth if the advisory-lock connection died during generation:
+                # the conversation row serializes the final idempotency check and insert.
+                existing = session.scalar(select(Message).where(
+                    Message.conversation_id == conversation_id, Message.role == 'assistant',
+                    Message.metadata_json['request_id'].astext == str(data.request_id)))
+                if existing is not None:
+                    if existing.metadata_json.get('fingerprint') != fingerprint:
+                        raise AuthError(409, 'request_id_conflict', 'Request id already used')
+                    return checked_result(session, user, existing.metadata_json['result'], settings,
+                                          verify_session, existing.metadata_json.get('knowledge_base_ids'))
                 checked_result(session, user, result, settings, verify_session, data.knowledge_base_ids)
                 if len(result.answer or '') > 20000:
                     raise AuthError(422, 'answer_too_long', 'Answer exceeds history limit')

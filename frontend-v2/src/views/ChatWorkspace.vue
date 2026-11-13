@@ -8,6 +8,7 @@ import KnowledgeBasePicker from '@/components/KnowledgeBasePicker.vue'
 import AnswerView from '@/components/AnswerView.vue'
 
 const chat = useChatStore(), kb = useKnowledgeBaseStore(), auth = useAuthStore()
+const leaving = ref(false)
 const query = ref(''), drawer = ref(false), stream = ref<HTMLElement>(), nearBottom = ref(true)
 const renaming = ref<string | null>(null), title = ref(''), notice = ref('')
 const examples = ['栈和队列有什么区别？', '用一个例子解释 AVL 树的旋转', '如何分析图遍历算法的时间复杂度？', '比较快速排序与归并排序']
@@ -26,6 +27,7 @@ async function open(id: string) { drawer.value = false; await chat.open(id); awa
 async function rename(id: string) { if (!title.value.trim()) return; try { await chat.rename(id, title.value.trim()); renaming.value = null } catch { notice.value = '重命名失败，请重试。' } }
 async function remove(id: string) { if (!window.confirm('删除此对话？此操作会隐藏其全部消息。')) return; try { await chat.remove(id) } catch { notice.value = '删除失败，请重试。' } }
 async function copy(text: string) { try { await navigator.clipboard.writeText(text); notice.value = '回答已复制' } catch { notice.value = '浏览器未允许复制，请手动选择文本。' } }
+async function logout() { if (leaving.value) return; leaving.value = true; try { if (await logoutAndReset() === 'failed') auth.logoutFailed = true } finally { leaving.value = false } }
 async function older() { const el = stream.value; const height = el?.scrollHeight ?? 0; await chat.moreMessages(); await nextTick(); if (el) el.scrollTop += el.scrollHeight - height }
 </script>
 
@@ -48,7 +50,7 @@ async function older() { const el = stream.value; const height = el?.scrollHeigh
         <button v-if="chat.items.length < chat.total" @click="chat.list(true).catch(() => notice = '加载失败')">更多对话</button>
       </div>
       <details class="knowledge" open><summary>课程知识库</summary><KnowledgeBasePicker /></details>
-      <div class="account"><span class="avatar">{{ auth.email.slice(0, 1).toUpperCase() }}</span><span class="email">{{ auth.email }}</span><button @click="logoutAndReset()">退出</button></div>
+      <div class="account"><span class="avatar">{{ auth.email.slice(0, 1).toUpperCase() }}</span><span class="email">{{ auth.email }}</span><button :disabled="leaving" @click="logout">{{ leaving ? '退出中…' : '退出' }}</button></div>
     </aside>
     <main class="main">
       <header class="topbar"><button class="menu" aria-label="打开导航" @click="drawer = true">☰</button><span>{{ activeTitle }}</span><span class="single-turn">基于课程证据 · 单轮问答</span></header>

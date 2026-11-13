@@ -5,7 +5,9 @@ import ChatWorkspace from './ChatWorkspace.vue'
 import { useChatStore } from '@/stores/chat'
 import { useKnowledgeBaseStore } from '@/stores/knowledgeBase'
 import { useAuthStore } from '@/stores/auth'
+import { logoutAndReset } from '@/stores/reset'
 import { mockAnswered, mockUser } from '@/mocks/fixtures'
+vi.mock('@/stores/reset', () => ({logoutAndReset: vi.fn()}))
 beforeEach(() => { HTMLElement.prototype.scrollTo = vi.fn(); setActivePinia(createPinia()); useAuthStore().user = mockUser; useAuthStore().status = 'authenticated'; vi.spyOn(useKnowledgeBaseStore(), 'load').mockResolvedValue(); vi.spyOn(useChatStore(), 'list').mockResolvedValue() })
 it('welcomes students without advanced controls; Enter sends and Shift+Enter preserves a newline', async () => {
   useKnowledgeBaseStore().selectedIds = ['kb']
@@ -23,4 +25,12 @@ it('keeps two S1 source lists independent', async () => {
   expect(answers[1]!.find('details').attributes('open')).toBeDefined()
   const ids = w.findAll('.source-item').map(x => x.attributes('id')); expect(new Set(ids).size).toBe(ids.length)
   w.unmount()
+})
+
+it('reports a failed server logout instead of claiming the session was revoked', async () => {
+  vi.mocked(logoutAndReset).mockResolvedValue('failed')
+  const w = mount(ChatWorkspace); await flushPromises()
+  const logout = w.findAll('button').find(b => b.text() === '退出')!
+  await logout.trigger('click'); await flushPromises()
+  expect(useAuthStore().logoutFailed).toBe(true)
 })

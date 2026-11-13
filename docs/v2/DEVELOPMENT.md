@@ -1115,3 +1115,17 @@ dry-run默认只读预览，已检查真实V1共1010条，导出UTF8共383572字
 ### 最终测试与保护
 
 最终结果见INTEGRATION_REPORT.md。开发库原业务表、V1未提交文件与0001–0006历史迁移做前后SHA256核对，根.env仅检查stat不读取内容，V2.env检查hash/0600/ignore，无覆盖。只新增0007并推进版本。Git只审查提交V2，不加入V1脏资产。
+
+### 聊天界面与持久化历史验收
+
+前端采用侧边历史、独立消息流、底部输入框；Enter 发送，Shift+Enter 换行。
+默认 auto/hybrid，逐用途权限仍来自有效授权，服务端 Guard 始终检查。
+每条回答的引用使用独立 DOM 前缀，点击只展开该回答的来源。390px 使用抽屉导航。
+会话保存在 PostgreSQL，浏览器只保留当前内存状态；退出后清空，重新登录可读取。
+并发期间禁止切换，超时重试复用 request_id，避免重复保存。
+没有上下文理解功能；多条历史仅用于阅读。旧版回滚可忽略新增元数据，无 schema 变更。
+
+测试：`DS_V2_RUN_DB_TESTS=1 python -m pytest backend/v2/tests/test_conversation_rag.py backend/v2/tests/test_conversations.py backend/v2/tests/test_rag.py backend/v2/tests/test_auth.py`
+及 `npm run test`、`npm run build`（frontend-v2）。全部 DB 测试创建随机隔离库。
+PR 合并并自动部署后，需在 HTTPS Qwen 课程库上完成三次提问、刷新、重新登录、
+历史切换/重命名/删除、引用、拒答和账号隔离验收；本地 deterministic 预览不算 Qwen 质量验证。

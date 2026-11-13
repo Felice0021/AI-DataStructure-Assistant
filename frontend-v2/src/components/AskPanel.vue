@@ -84,30 +84,6 @@ function onKeydown(event: KeyboardEvent): void {
       </div>
     </div>
 
-    <details class="advanced">
-      <summary>高级选项</summary>
-      <div class="row">
-      <div class="field field-inline">
-        <label class="field-label" for="ask-answer-mode">回答模式</label>
-        <select id="ask-answer-mode" v-model="answerMode" class="select">
-          <option value="auto">自动</option>
-          <option value="qa">概念问答</option>
-          <option value="exercise">习题讲解</option>
-          <option value="code">代码分析</option>
-        </select>
-      </div>
-
-      <div class="field field-inline">
-        <label class="field-label" for="ask-retrieval-mode">检索方式</label>
-        <select id="ask-retrieval-mode" v-model="retrievalMode" class="select">
-          <option value="hybrid">混合检索</option>
-          <option value="bm25">BM25 关键词</option>
-          <option value="dense">向量检索</option>
-        </select>
-      </div>
-
-      </div>
-    </details>
     <div class="submit-area"><button type="button" class="submit" :disabled="!canSubmit" @click="submit">{{ askStore.isLoading || checking ? '生成中…' : '提问' }}</button></div>
     <p v-if="consentError" role="alert" class="block-reason">{{ consentError }}</p>
     <p v-if="blockReason" class="block-reason">{{ blockReason }}</p>

@@ -3,7 +3,6 @@ import { onMounted } from 'vue'
 
 import { errorMessage } from '@/composables/useErrorMessage'
 import { useKnowledgeBaseStore } from '@/stores/knowledgeBase'
-import type { KnowledgeBase } from '@/types/api'
 
 const kbStore = useKnowledgeBaseStore()
 
@@ -13,15 +12,12 @@ onMounted(() => {
   }
 })
 
-function visibilityLabel(kb: KnowledgeBase): string {
-  return kb.visibility === 'private' ? '我的' : '公共'
-}
 </script>
 
 <template>
   <section class="picker">
     <header class="picker-head">
-      <h2 class="picker-title">知识库</h2>
+      <h2 class="picker-title">课程知识库</h2>
       <span class="picker-count">已选 {{ kbStore.selectedCount }} / {{ kbStore.total }}</span>
     </header>
 
@@ -37,37 +33,11 @@ function visibilityLabel(kb: KnowledgeBase): string {
     <div v-else-if="kbStore.isEmpty" class="state">还没有可用的知识库。<br />请联系管理员导入课程资料。</div>
 
     <template v-else>
-      <div v-if="kbStore.mine.length > 0" class="group">
-        <p class="group-title">我的私人资料</p>
-        <label v-for="kb in kbStore.mine" :key="kb.id" class="item">
-          <input
-            type="checkbox"
-            :checked="kbStore.isSelected(kb.id)"
-            :disabled="kbStore.selectionFull && !kbStore.isSelected(kb.id)"
-            @change="kbStore.toggle(kb.id)"
-          />
-          <span class="item-body">
-            <span class="item-name">{{ kb.name }}</span>
-            <span class="item-desc">{{ kb.description || '无说明' }}</span>
-          </span>
-          <span class="tag tag-private">{{ visibilityLabel(kb) }}</span>
-        </label>
-      </div>
-
-      <div v-if="kbStore.shared.length > 0" class="group">
-        <p class="group-title">公共课程资料</p>
-        <label v-for="kb in kbStore.shared" :key="kb.id" class="item">
-          <input
-            type="checkbox"
-            :checked="kbStore.isSelected(kb.id)"
-            :disabled="kbStore.selectionFull && !kbStore.isSelected(kb.id)"
-            @change="kbStore.toggle(kb.id)"
-          />
-          <span class="item-body">
-            <span class="item-name">{{ kb.name }}</span>
-            <span class="item-desc">{{ kb.description || '无说明' }}</span>
-          </span>
-          <span class="tag tag-public">{{ visibilityLabel(kb) }}</span>
+      <div class="group">
+        <label v-for="kb in kbStore.items" :key="kb.id" class="item" :title="kb.description || kb.name">
+          <input type="checkbox" :checked="kbStore.isSelected(kb.id)"
+            :disabled="kbStore.selectionFull && !kbStore.isSelected(kb.id)" @change="kbStore.toggle(kb.id)" />
+          <span class="item-name">{{ kb.name }}</span>
         </label>
       </div>
 
@@ -75,7 +45,7 @@ function visibilityLabel(kb: KnowledgeBase): string {
         仅显示前 {{ kbStore.items.length }} 个，共 {{ kbStore.total }} 个。
       </p>
 
-      <div class="actions">
+      <div v-if="kbStore.items.length > 1" class="actions">
         <button type="button" class="link" @click="kbStore.selectAll()">全选</button>
         <button type="button" class="link" @click="kbStore.clearSelection()">清空</button>
       </div>
@@ -84,140 +54,18 @@ function visibilityLabel(kb: KnowledgeBase): string {
 </template>
 
 <style scoped>
-.picker {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.picker-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-}
-
-.picker-title {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--ink);
-}
-
-.picker-count {
-  font-size: 12px;
-  color: var(--muted);
-}
-
-.notice {
-  margin: 0;
-  padding: 8px 10px;
-  border: 1px solid #e6c07a;
-  background: #fff8e8;
-  color: #8a6114;
-  border-radius: 8px;
-  font-size: 12px;
-  line-height: 1.6;
-}
-
-.state {
-  padding: 14px 0;
-  font-size: 13px;
-  line-height: 1.7;
-  color: var(--muted);
-}
-
-.state-error {
-  color: #8e2b26;
-}
-
-.group {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.group-title {
-  margin: 0 0 2px;
-  font-size: 12px;
-  font-weight: 500;
-  color: #9aa2ac;
-}
-
-.item {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 8px 10px;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-.item:hover {
-  border-color: var(--line);
-  background: #fafbfc;
-}
-
-.item input {
-  margin-top: 3px;
-  accent-color: var(--brand);
-}
-
-.item-body {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  flex: 1;
-}
-
-.item-name {
-  font-size: 13px;
-  color: var(--ink);
-  word-break: break-all;
-}
-
-.item-desc {
-  font-size: 12px;
-  color: var(--muted);
-  margin-top: 2px;
-  word-break: break-all;
-}
-
-.tag {
-  flex: 0 0 auto;
-  padding: 1px 6px;
-  border-radius: 4px;
-  font-size: 11px;
-  white-space: nowrap;
-}
-
-.tag-private {
-  background: #eef3fb;
-  color: #3a5f8f;
-}
-
-.tag-public {
-  background: #eef7ef;
-  color: #3c6b46;
-}
-
-.actions {
-  display: flex;
-  gap: 14px;
-  padding-top: 2px;
-}
-
-.link {
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--brand);
-  font-family: inherit;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.link:hover {
-  text-decoration: underline;
-}
+.picker { display: flex; flex-direction: column; gap: 8px; }
+.picker-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 0 10px; }
+.picker-title { margin: 0; font-size: 12px; font-weight: 550; color: #525252; }
+.picker-count { font-size: 11px; color: #737373; white-space: nowrap; }
+.notice, .state { margin: 0; padding: 8px 10px; font-size: 12px; line-height: 1.6; color: #525252; }
+.notice { background: #f5f5f5; border-radius: 8px; }
+.group { display: flex; flex-direction: column; gap: 2px; }
+.item { display: flex; align-items: flex-start; gap: 8px; padding: 8px 10px; border-radius: 8px; cursor: pointer; }
+.item:hover { background: #f5f5f5; }
+.item input { flex-shrink: 0; margin: 3px 0 0; accent-color: #404040; }
+.item-name { min-width: 0; font-size: 13px; color: #262626; overflow-wrap: anywhere; }
+.actions { display: flex; gap: 14px; padding: 0 10px; }
+.link { padding: 0; border: 0; background: none; color: #525252; font-size: 12px; cursor: pointer; }
+.link:hover { text-decoration: underline; }
 </style>

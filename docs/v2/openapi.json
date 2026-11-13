@@ -3323,6 +3323,129 @@
           }
         }
       }
+    },
+    "/api/v2/conversations/{conversation_id}/ask": {
+      "post": {
+        "tags": [
+          "conversations"
+        ],
+        "summary": "Ask In Conversation",
+        "operationId": "ask_in_conversation_api_v2_conversations__conversation_id__ask_post",
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Conversation Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConversationAskRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AskResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationAskError"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationAskError"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3947,6 +4070,196 @@
           "elapsed_ms"
         ],
         "title": "ContextResponse"
+      },
+      "ConversationAskError": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "answered",
+              "insufficient_evidence",
+              "out_of_scope",
+              "generation_unavailable",
+              "validation_failed"
+            ],
+            "title": "Status"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "answer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answer"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/AnswerSource"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "retrieval_mode": {
+            "type": "string",
+            "enum": [
+              "bm25",
+              "dense",
+              "hybrid"
+            ],
+            "title": "Retrieval Mode"
+          },
+          "answer_mode": {
+            "type": "string",
+            "enum": [
+              "qa",
+              "exercise",
+              "code"
+            ],
+            "title": "Answer Mode"
+          },
+          "rerank_applied": {
+            "type": "boolean",
+            "title": "Rerank Applied"
+          },
+          "generation_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Generation Model"
+          },
+          "execution_performed": {
+            "type": "boolean",
+            "const": false,
+            "title": "Execution Performed",
+            "default": false
+          },
+          "latency_ms": {
+            "type": "number",
+            "title": "Latency Ms"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ErrorDetail"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "reason",
+          "answer",
+          "sources",
+          "retrieval_mode",
+          "answer_mode",
+          "rerank_applied",
+          "generation_model",
+          "latency_ms",
+          "error"
+        ],
+        "title": "ConversationAskError"
+      },
+      "ConversationAskRequest": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Query"
+          },
+          "knowledge_base_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Knowledge Base Ids"
+          },
+          "retrieval_mode": {
+            "type": "string",
+            "enum": [
+              "bm25",
+              "dense",
+              "hybrid"
+            ],
+            "title": "Retrieval Mode",
+            "default": "hybrid"
+          },
+          "answer_mode": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "qa",
+              "exercise",
+              "code"
+            ],
+            "title": "Answer Mode",
+            "default": "auto"
+          },
+          "top_k": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Top K",
+            "default": 20
+          },
+          "rerank": {
+            "type": "string",
+            "enum": [
+              "off",
+              "optional",
+              "required"
+            ],
+            "title": "Rerank",
+            "default": "optional"
+          },
+          "allow_cloud": {
+            "type": "boolean",
+            "title": "Allow Cloud",
+            "default": false
+          },
+          "allow_cloud_rerank": {
+            "type": "boolean",
+            "title": "Allow Cloud Rerank",
+            "default": false
+          },
+          "allow_cloud_generation": {
+            "type": "boolean",
+            "title": "Allow Cloud Generation",
+            "default": false
+          },
+          "request_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Request Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "query",
+          "knowledge_base_ids",
+          "request_id"
+        ],
+        "title": "ConversationAskRequest"
       },
       "ConversationCreate": {
         "properties": {

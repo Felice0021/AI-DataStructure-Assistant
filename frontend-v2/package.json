@@ -9,14 +9,18 @@
     "preview": "vite preview",
     "pretest": "node -e \"require('node:fs').mkdirSync('node_modules/.vitest',{recursive:true})\"",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:browser": "playwright test",
+    "test:production": "node --test tests/production-build.test.mjs"
   },
   "dependencies": {
+    "katex": "^0.19.1",
     "markdown-it": "^15.0.3",
     "pinia": "^4.1.0",
     "vue": "^3.5.21"
   },
   "devDependencies": {
+    "@playwright/test": "^1.65.0",
     "@types/node": "^26.6.5",
     "@vitejs/plugin-vue": "^6.0.1",
     "@vue/test-utils": "^2.5.1",

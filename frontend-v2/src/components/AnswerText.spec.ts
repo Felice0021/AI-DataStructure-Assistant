@@ -102,3 +102,84 @@ describe('AnswerText 引用渲染', () => {
     expect(wrapper.text()).toBe('没有引用的回答。')
   })
 })
+
+describe('AnswerText 安全数学渲染', () => {
+  const render = (text: string) => mount(AnswerText, { props: { text, sources: [makeSource('[S1]')] } })
+
+  it.each([String.raw`$O(n \log n)$`, '$O(n^2)$', String.raw`$O(\log n)$`, '$a[i]$', String.raw`$\sum_{i=1}^{n} i$`, String.raw`\( a[i] \)`])('renders inline formula %s as accessible KaTeX', (text) => {
+    const wrapper = render(text)
+    expect(wrapper.findAll('.math-inline .katex')).toHaveLength(1)
+    expect(wrapper.find('math annotation').text()).toBe(text.startsWith('$') ? text.slice(1, -1) : text.slice(2, -2).trim())
+    expect(wrapper.find('.math-fallback').exists()).toBe(false)
+  })
+
+  it.each(['$$\n\\sum_{i=1}^{n} i = \\frac{n(n+1)}{2}\n$$', String.raw`\[ a[i] = n^2 \]`, String.raw`前文 $$n^2$$ 后文`, '> $$\n> n^2\n> $$', '- 条目\n\n  \\[\n  n^2\n  \\]'])('renders display formulas with Markdown block nesting: %s', (text) => {
+    const wrapper = render(text)
+    expect(wrapper.findAll('.math-display .katex-display')).toHaveLength(1)
+    expect(wrapper.find('.math-fallback').exists()).toBe(false)
+  })
+
+  it('preserves Markdown, table math and interactive citations', async () => {
+    const wrapper = render('# 复杂度\n\n**归并排序** $O(n \\log n)$ [S1]\n\n| low | high | 复杂度 |\n|---|---|---|\n| $a[i]$ | \\(n^2\\) | $O(\\log n)$ [S1] |')
+    expect(wrapper.find('h1').text()).toBe('复杂度')
+    expect(wrapper.find('strong').text()).toBe('归并排序')
+    expect(wrapper.findAll('td .katex')).toHaveLength(3)
+    expect(wrapper.find('.answer-table-scroll[tabindex="0"] table').exists()).toBe(true)
+    expect(wrapper.findAll('button.cite')).toHaveLength(2)
+    await wrapper.findAll('button.cite')[1]!.trigger('click')
+    expect(wrapper.emitted('cite')).toEqual([['[S1]']])
+  })
+
+  it('keeps all delimiters and citations in code literal', () => {
+    const code = String.raw`$n^2$ $$n$$ \(n\) \[n\] [S1]`
+    const wrapper = render('`' + code + '`\n\n```latex\n' + code + '\n```\n\n    $n^2$')
+    expect(wrapper.findAll('code').map((node) => node.text())).toEqual([code, code, '$n^2$'])
+    expect(wrapper.find('.katex').exists()).toBe(false)
+    expect(wrapper.find('button.cite').exists()).toBe(false)
+  })
+
+  it('respects escaped dollars, escaped backslashes and currency', () => {
+    const wrapper = render(String.raw`价格 \$5，\$10；\$n^2\$；\\(n\\)；$20 and $30；公式 $a\$b$`)
+    expect(wrapper.findAll('.katex')).toHaveLength(1)
+    expect(wrapper.text()).toContain('价格 $5，$10；$n^2$；\\(n\\)；$20 and $30')
+  })
+
+  it.each([String.raw`$\frac{1}{$`, '$n^2', String.raw`\(n`, String.raw`\[n`, '$$\n\\frac{1}{\n$$'])('degrades incomplete LaTeX safely: %s', (text) => {
+    const wrapper = render(text)
+    expect(wrapper.find('.katex').exists()).toBe(false)
+    expect(wrapper.text()).toContain(text)
+  })
+
+  it.each([
+    String.raw`\href{javascript:alert(1)}{click}`, String.raw`\url{https://evil.example/x}`,
+    String.raw`\includegraphics{https://evil.example/track.png}`, String.raw`\htmlClass{injected}{x}`,
+    String.raw`\htmlId{injected}{x}`, String.raw`\htmlStyle{background:url(https://evil.example/x)}{x}`,
+    String.raw`\htmlData{onclick=alert(1)}{x}`, String.raw`\def\loop{\loop}\loop`,
+    String.raw`\frac{<img src=x onerror=alert(1)>}{`,
+  ])('blocks dangerous formula without executable nodes: %s', (formula) => {
+    const wrapper = render(`$${formula}$`)
+    expect(wrapper.find('a, img, script, iframe, [onclick], [onerror], .injected, #injected, [src], [href]').exists()).toBe(false)
+    expect(wrapper.html()).not.toMatch(/style="[^"]*(?:url\(|expression\()/i)
+  })
+
+  it('bounds length, depth, dimensions and isolates macros between formulas', () => {
+    const wrapper = render(`$${'x'.repeat(4097)}$ $${'{'.repeat(101)}x${'}'.repeat(101)}$ $\\gdef\\secret{n}\\secret$ $\\secret$ $\\rule{99999em}{99999em}$`)
+    expect(wrapper.findAll('.math-fallback')).toHaveLength(3)
+    expect(wrapper.findAll('[style]').every((node) => !node.attributes('style')?.includes('99999em'))).toBe(true)
+    expect(wrapper.findAll('.katex')).toHaveLength(2)
+  })
+
+  it('keeps model HTML inert alongside valid math and citations', () => {
+    const wrapper = render('<script>alert(1)</script><img src=x onerror=alert(1)> $n^2$ [S1]')
+    expect(wrapper.find('script, img, [onerror]').exists()).toBe(false)
+    expect(wrapper.findAll('.katex')).toHaveLength(1)
+    expect(wrapper.findAll('button.cite')).toHaveLength(1)
+  })
+
+  it('retains fractions, roots, stretchy SVG and MathML', () => {
+    const wrapper = render(String.raw`$$\sqrt{x^2} + \frac{1}{n} + \overbrace{a+b}^{n}$$`)
+    expect(wrapper.find('svg path').exists()).toBe(true)
+    expect(wrapper.find('math mfrac').exists()).toBe(true)
+    expect(wrapper.find('[style*="height"]').exists()).toBe(true)
+  })
+})

@@ -72,6 +72,8 @@ const REASON_MESSAGES: Record<string, string> = {
   scope_not_verified: '问题超出所选资料的范围',
   missing_tree_order: '请补充 B/B+ 树的阶数、操作序列及采用的分裂规则。',
   missing_operation_sequence: '请补充插入/删除序列，或用于构造的遍历序列。',
+  ambiguous_tree_rules: '请明确初始树、阶数定义、容量及重复键处理规则。',
+  ambiguous_tree_split: '请补充分裂时机、左右分配和父节点规则；也可以明确要求自拟示例。',
 }
 
 export function errorMessage(code: string, status = 0): string {

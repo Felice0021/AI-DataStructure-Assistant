@@ -10,6 +10,7 @@ from backend.v2.core.errors import AuthError
 from backend.v2.models import Message
 from backend.v2.services.context_builder import safe_text
 from backend.v2.services import conversation_service
+from backend.v2.services.tree_inputs import operation_sequence, first_insert_count
 
 # Reviewed lexical resolver, deliberately limited. Unknown/ambiguous anaphora asks for clarification.
 TOPICS = (
@@ -33,6 +34,10 @@ TOPICS = (
 REFERENCE = re.compile(r'它|该(?:算法|结构|方法|树)|这(?:个|种)(?:算法|结构|方法|树)?|上述|前面|刚才|^(?:那|那么)|^(?:最坏|最好|平均)(?:情况|情况下)|^(?:时间|空间)复杂度(?:呢|怎么样|如何|[？?])')
 COMPARISON = re.compile(r'不同|区别|相比|比较')
 CITATION = re.compile(r'\[S\d+\]')
+MODIFICATION = re.compile(r'^(?:那|那么)?(?:应该|应当|要)?怎么(?:修改|修正)|^(?:那|那么)?(?:应该|应当|要)?如何(?:修改|修正)')
+NEXT_INSERT = re.compile(r'^(?:请)?继续(?:展示|演示)?下(?:一)?次插入[。？！?！\s]*$')
+STEP = re.compile(r'第([0-9]+|[一二三四五六七八九十])步')
+FUNCTION = re.compile(r'\b(?:int|void|bool|char|float|double|Node|TreeNode|ListNode)\b\s*[*&]?\s*(\w+)\s*\([^)]*\)\s*\{|\bdef\s+(\w+)\s*\(')
 
 
 def topics(text):
@@ -74,7 +79,7 @@ class Plan:
         return [turn.prompt() for turn in self.turns]
 
     def audit(self):
-        return {'method': 'bounded-topic-rules-v1', 'resolved_query': self.query,
+        return {'method': 'bounded-topic-rules-v2', 'resolved_query': self.query,
                 'history_request_ids': [t.request_id for t in self.turns]}
 
 
@@ -110,6 +115,9 @@ def load_recent(session, user, conversation_id, kb_ids, settings, verify_session
 
 
 def plan(query, turns, max_query_chars):
+    focused = focused_plan(query, turns, max_query_chars)
+    if focused is not None:
+        return focused
     explicit = topics(query)
     needs_context = bool(REFERENCE.search(query))
     # A complete named question may contain a later pronoun referring to its own subject.
@@ -138,6 +146,88 @@ def plan(query, turns, max_query_chars):
     if len(rewritten) > max_query_chars:
         raise AuthError(422, 'conversation_query_limit', 'Resolved question exceeds retrieval limit')
     return Plan(rewritten, turns)
+
+
+def focused_plan(query, turns, limit):
+    """Resolve concrete user inputs/numbered steps, never treat a prior solution as evidence."""
+    is_code = bool(re.search(r'这个函数|该函数|这段代码', query) or MODIFICATION.search(query))
+    step = STEP.search(query)
+    continuation = NEXT_INSERT.fullmatch(query)
+    if not (is_code or step or continuation):
+        return None
+    if is_code and FUNCTION.search(query):
+        return Plan(query)  # A newly pasted function is explicit input, not a historical referent.
+    if not turns:
+        return Plan(query, reason='conversation_context_required')
+
+    def finish(anchor, data):
+        rewritten = anchor + '：' + json.dumps({**data, 'followup': query}, ensure_ascii=False)
+        if len(rewritten) > limit:
+            return Plan(query, reason='conversation_context_ambiguous')
+        return Plan(rewritten, turns)
+
+    if continuation:
+        # Advance only a user-defined, explicitly staged sequence; no cursor inferred from model prose.
+        for i in range(len(turns)-1, -1, -1):
+            task = turns[i].question
+            count = first_insert_count(task)
+            if count is None:
+                if not NEXT_INSERT.fullmatch(task):
+                    break
+                continue
+            keys = operation_sequence(task)
+            names = topics(task)
+            if (len(names) != 1 or not re.search(r'初始为空|空(?:AVL|B\s*\+?|二叉(?:搜索|排序)?)?树|从空树', task, re.I)
+                    or not keys or not 0 < count < len(keys)):
+                break
+            done = count + len(turns)-i-1
+            if done >= len(keys) or any(not NEXT_INSERT.fullmatch(t.question) for t in turns[i+1:]):
+                break
+            return finish(names[0]+'插入', {'untrusted_user_task': task,
+                'requested_prefix_count': done+1, 'next_key': keys[done],
+                'instruction': '从原题初始状态重新核算此前缀，不把历史树图当作正确状态。'})
+        return Plan(query, reason='conversation_context_ambiguous')
+
+    if is_code:
+        # Only complete, bounded user-supplied functions. A model-invented function is not an anchor.
+        for turn in reversed(turns):
+            task = turn.question
+            functions = list(FUNCTION.finditer(task))
+            if not functions:
+                if turn is turns[-1] and not (MODIFICATION.search(task) or re.search(r'这个函数|该函数|这段代码', task)):
+                    break
+                continue
+            if len(functions) != 1 or len(task.encode()) > 768:
+                break
+            name = functions[0][1] or functions[0][2]
+            body = task[functions[0].end():]
+            features = '递归终止条件' if re.search(r'\b'+re.escape(name)+r'\s*\(', body) or '递归' in task else '循环终止条件' if re.search(r'while|for', body) else '函数边界条件'
+            return finish(features, {'untrusted_user_code': task, 'function': name,
+                'instruction': '仅静态分析用户代码，用本轮教材证据核查；历史修正代码不保证正确。'})
+        return Plan(query, reason='conversation_context_ambiguous')
+
+    # Numbered model steps identify a claim to check, never establish that it actually happened.
+    previous = turns[-1]
+    names = topics(previous.resolved_query)
+    if len(names) != 1:
+        return Plan(query, reason='conversation_context_ambiguous')
+    number = int(step[1]) if step[1].isdigit() else '一二三四五六七八九十'.index(step[1])+1
+    candidates = []
+    in_code = False
+    for line in previous.answer.splitlines():
+        if line.strip().startswith('```'):
+            in_code = not in_code
+            continue
+        if in_code:
+            continue
+        match = re.match(r'\s*(?:\*\*)?(?:'+str(number)+r'[.)、]\s+|第'+step[1]+r'步\s*[:：])(.+)', line)
+        if match:
+            candidates.append(CITATION.sub('', match[1]).strip())
+    if len(candidates) != 1 or len(candidates[0].encode()) > 384:
+        return Plan(query, reason='conversation_context_ambiguous')
+    return finish(names[0], {'untrusted_user_task': previous.question,
+        'untrusted_previous_step': candidates[0], 'step_number': number,
+        'instruction': '先核查历史步骤是否正确，不假定其交换或结论成立；只引用本轮证据。'})
 
 
 def revalidate(session, user, conversation_id, turns, settings, verify_session, check_result):

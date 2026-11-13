@@ -1148,3 +1148,20 @@ BM25 检索；隔离库中的 deterministic 向量仅用于满足现有 ready �
 每题单次生成、无模型重试、10 秒超时，失败停止；输入、回答、来源和耗时保存为 0600 JSON。
 正常退出清理测试库/临时文件，保留仓库外记录。不会修改线上库、已有索引或云模型配置。
 引用结构检查不等同于语义忠实性或人工正确率。
+
+### 专项题型回归（阶段 B）
+
+```sh
+DS_V2_RUN_DB_TESTS=1 python -m pytest backend/v2/tests/test_problem_solving.py backend/v2/tests/test_problem_http.py -q
+# 仅经授权、使用现有 V2 私有配置中的 Generation Key，显式触发真实模型：
+python -m backend.v2.tools.problem_smoke --v2-env-file deploy/v2/.env --output-dir /absolute/private/output
+# 定向复测可重复指定 --case，例如 --case recursive-code --case array-code
+```
+
+普通 pytest 不调用付费模型。固定 17 题含参考答案；HTTP 集成测试使用受控参考生成器，
+精确检查答案、拒答、真实 Chunk/来源对应关系，不计为模型正确率。
+显式 smoke 用随机隔离数据库、临时文件和 API generation 授权，真实 Qwen 只收到原创算法
+规则，不收到计算题的预置答案。输出完整输入/回答/证据/参考答案/耗时，0600，目录须在仓库外；
+人工质量字段留空，待组员审核。每题最多一次生成、无自动重试，认证/限流/服务故障停止。
+所有测试资源退出时清理，原课程库、QA 与向量均不变。结果和已发现问题见
+[PROBLEM_SOLVING_ACCEPTANCE.md](PROBLEM_SOLVING_ACCEPTANCE.md)。

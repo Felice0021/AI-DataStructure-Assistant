@@ -525,3 +525,16 @@ reason 为 conversation_context_required / conversation_context_ambiguous，sour
 
 保存的 assistant.metadata_json.context 记录规则版本、resolved_query 和历史 request ID，
 用于当前用户的审计与调试；不包含密钥或完整模型 Prompt。不新增数据库迁移。
+
+### 专项解题提示（阶段 B）
+
+请求与响应结构不变，`answer_mode=auto` 增强题型识别，内部算法类别仍返回 exercise。
+检索到相关资料但树题缺条件时，HTTP 200、status=insufficient_evidence、sources=[]，
+reason 分别为 `missing_tree_order` 或 `missing_operation_sequence`；前端提示补充阶数、
+序列和采用规则，不把它作为模型故障。无证据仍为 no_evidence。
+`execution_performed` 始终为 false；回答中的代码是静态建议，不是执行结果。
+没有新增字段、枚举、端点或数据库迁移，冻结 OpenAPI 不变。
+
+构造条件相关澄清补充 reason：`ambiguous_tree_rules`（初始状态、阶数/容量或重复键规则）
+和 `ambiguous_tree_split`（相关分裂约定不足）。仍为 HTTP 200 insufficient_evidence、sources=[]，
+生成器不被调用。单键和无需分裂的原理/示例场景不要求无关条件；自拟示例需明确假设。

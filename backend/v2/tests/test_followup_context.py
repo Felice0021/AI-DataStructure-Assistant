@@ -16,6 +16,8 @@ from backend.v2.tests.test_rag import settings
     ('插入[10,20,30]', ('10','20','30')), ('插入-10、0、20', ('-10','0','20')),
     ('插入Ａ', ('A',)), ('解释插入原理', ()), ('插入10个元素', ()),
     ('3阶B树的构造原理', ()), ('AVL插入规则', ()),
+    ('插入10.5', ()), ('插入10-20', ()), ('插入+10、010', ('10','10')),
+    ('插入10.5，再插入20', ()),
 ])
 def test_explicit_operation_inputs(text,keys):
     assert operation_sequence(text)==keys

@@ -16,8 +16,10 @@ def operation_sequence(text):
         sequences = []
         for anchor in re.finditer(prefix, text):
             match = run.match(text, anchor.end())
-            if match and not re.match(r'\s*(?:个|次|步|阶)', text[match.end():]):
-                sequences.extend(re.findall(key, match[1]))
+            if match and re.match(r'\s*(?:个|次|步|阶)|[./-]\d', text[match.end():]):
+                return ()  # Do not silently keep only the supported suffix of a malformed task.
+            if match:
+                sequences.extend(str(int(k)) if re.fullmatch(r'[+-]?\d+',k) else k for k in re.findall(key, match[1]))
         if sequences:
             return tuple(sequences)
     return ()

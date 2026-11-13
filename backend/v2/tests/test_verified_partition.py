@@ -65,6 +65,8 @@ def test_corrupt_final_state_cannot_be_published():
     (QUERY.replace('[3,1,2]','[3,1.5,2]'),'partition_input_required'),
     (QUERY.replace('[3,1,2]','[]'),'partition_input_required'),
     (QUERY+'严格小于基准才交换。','partition_convention_not_supported'),
+    (QUERY+'只小于基准才交换。','partition_convention_not_supported'),
+    (QUERY+'规定i初始为-1。','partition_convention_not_supported'),
 ])
 def test_input_and_conventions_are_not_silently_replaced(query,reason):
     assert prepare(query,evidence())==(None,reason)

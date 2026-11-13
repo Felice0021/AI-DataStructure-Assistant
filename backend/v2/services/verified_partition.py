@@ -194,7 +194,9 @@ def prepare(query,evidence,*,user_query=None):
     if (not pivot or not re.search(r'(?:下标|索引)\s*\(?从0开始',task)):
         return None,'partition_conditions_required'
     if pivot[1] is not None and int(pivot[1])!=values[-1]:return None,'partition_pivot_mismatch'
-    if re.search(r'首元素|第一个元素|随机|中间元素|降序|子区间|Hoare|仅小于|严格小于|下标从[1-9]',task,re.I):
+    boundary=re.search(r'(?:边界i|i)\s*(?:初始|初值)(?:为|是|=)?\s*([+-]?\d+)',task,re.I)
+    if ((boundary and int(boundary[1])!=0)
+            or re.search(r'首元素|第一个元素|随机|中间元素|降序|子区间|Hoare|(?:仅|只|严格)小于|下标从[1-9]',task,re.I)):
         return None,'partition_convention_not_supported'
     support={e['citation_id']:source_support(e['content']) for e in evidence}
     if 'conflict' in support.values():return None,'partition_rule_conflict'

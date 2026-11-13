@@ -55,7 +55,7 @@ async function older() { const el = stream.value; const height = el?.scrollHeigh
       <div class="account"><span class="avatar">{{ auth.email.slice(0, 1).toUpperCase() }}</span><span class="email">{{ auth.email }}</span><button :disabled="leaving" @click="logout">{{ leaving ? '退出中…' : '退出' }}</button></div>
     </aside>
     <main class="main">
-      <header class="topbar"><button class="menu" aria-label="打开导航" @click="drawer = true">☰</button><span>{{ activeTitle }}</span><span class="single-turn">基于课程证据 · 单轮问答</span></header>
+      <header class="topbar"><button class="menu" aria-label="打开导航" @click="drawer = true">☰</button><span>{{ activeTitle }}</span><span class="single-turn">基于课程证据 · 近期对话上下文</span></header>
       <div ref="stream" class="stream" @scroll="onScroll">
         <div v-if="!chat.messages.length && !chat.pending && !chat.loading" class="welcome">
           <h1>把知识连成思路</h1><p>从课程资料出发，一起理解数据结构。</p>

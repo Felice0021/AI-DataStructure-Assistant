@@ -15,9 +15,10 @@ from backend.v2.services.course_source_labels import read_mapping,source_label
 REFUSAL='根据当前授权资料无法确定。'
 
 
-def ask(factory,user,data,settings,*,verify_session,provider=None,before_cloud_call=None):
+def ask(factory,user,data,settings,*,verify_session,provider=None,before_cloud_call=None,retrieval_query=None,conversation_history=()):
     started=time.monotonic();mode=resolve_mode(data.query,data.answer_mode)
-    request=PrepareRequest(query=data.query,knowledge_base_ids=data.knowledge_base_ids,mode=data.retrieval_mode,
+    effective_query=retrieval_query or data.query
+    request=PrepareRequest(query=effective_query,knowledge_base_ids=data.knowledge_base_ids,mode=data.retrieval_mode,
         top_k=data.top_k,rerank=data.rerank,allow_cloud=data.allow_cloud,allow_cloud_rerank=data.allow_cloud_rerank)
     with capacity(factory.kw['bind'],settings.generation_concurrency,namespace=174928):
         context=prepare_context(factory,user,request,settings,verify_session=verify_session,before_cloud_call=before_cloud_call)
@@ -43,9 +44,9 @@ def ask(factory,user,data,settings,*,verify_session,provider=None,before_cloud_c
                 return {'status':status,'reason':reason,'answer':answer,'sources':sources,
                     'retrieval_mode':context['actual_mode'],'answer_mode':mode,'rerank_applied':context['rerank_applied'],
                     'generation_model':model,'execution_performed':False,'latency_ms':round((time.monotonic()-started)*1000,3)}
-        reason=preflight(data.query,evidence)
+        reason=preflight(effective_query,evidence)
         if reason:return publish('insufficient_evidence',reason,REFUSAL)
-        messages=build_prompt(data.query,mode,context,settings)
+        messages=build_prompt(data.query,mode,context,settings,history=conversation_history,resolved_query=effective_query)
         # Recheck again immediately before any generator could receive evidence, then release locks.
         with factory() as session:validate_evidence(session,user,data.knowledge_base_ids,evidence,settings,verify_session=verify_session)
         budget=RequestBudget(settings.generation_max_calls)
@@ -69,6 +70,6 @@ def ask(factory,user,data,settings,*,verify_session,provider=None,before_cloud_c
                     if attempt==settings.generation_validation_retries:
                         return publish('validation_failed',str(error),model=chosen.model)
                     # Do not feed unvalidated output back as control text, and do not strip bad citations.
-                    messages=build_prompt(data.query,mode,context,settings,feedback=str(error))
+                    messages=build_prompt(data.query,mode,context,settings,feedback=str(error),history=conversation_history,resolved_query=effective_query)
         except GenerationError as error:
             return publish('generation_unavailable',error.code)

@@ -1,4 +1,4 @@
-"""Persist only validated server RAG turns. No conversation content enters the prompt."""
+"""Persist only validated server RAG turns. History is bounded and independently revalidated."""
 import hashlib
 import json
 from types import SimpleNamespace
@@ -12,6 +12,7 @@ from backend.v2.schemas.rag import AskRequest, AskResponse
 from backend.v2.services import conversation_service as conversations
 from backend.v2.services.context_service import validate_evidence
 from backend.v2.services.rag_service import ask
+from backend.v2.services import conversation_context as history
 
 
 def checked_result(session, user, result, settings, verify_session, kb_ids=None):
@@ -43,8 +44,25 @@ def run(factory, user_id, conversation_id, data, settings, verify_session):
                     if old.metadata_json.get('fingerprint') != fingerprint:
                         raise AuthError(409, 'request_id_conflict', 'Request id already used')
                     return checked_result(session, user, old.metadata_json['result'], settings, verify_session, old.metadata_json.get('knowledge_base_ids'))
+                recent = history.load_recent(session, user, conversation_id, data.knowledge_base_ids,
+                                             settings, verify_session, checked_result)
+            plan = history.plan(data.query, recent, min(2000, settings.retrieval_max_query_chars))
+            def verified_with_history(session):
+                current = verify_session(session)
+                if current is None or current.id != user_id:
+                    raise unauthorized()
+                history.revalidate(session, current, conversation_id, plan.turns, settings, verify_session, checked_result)
+                return current
             payload = AskRequest.model_validate(data.model_dump(exclude={'request_id'}))
-            result = AskResponse.model_validate(ask(factory, SimpleNamespace(id=user_id), payload, settings, verify_session=verify_session))
+            if plan.reason:
+                # A normal, persisted clarification/refusal, with no model or embedding calls.
+                result = AskResponse(status='insufficient_evidence', reason=plan.reason,
+                    answer='请明确本次问题所指的数据结构或算法。', sources=[], retrieval_mode=data.retrieval_mode,
+                    answer_mode='qa', rerank_applied=False, generation_model=None, latency_ms=0)
+            else:
+                result = AskResponse.model_validate(ask(factory, SimpleNamespace(id=user_id), payload, settings,
+                    verify_session=verified_with_history, retrieval_query=plan.query,
+                    conversation_history=plan.prompt_history()))
             if result.status not in {'answered', 'insufficient_evidence', 'out_of_scope'}:
                 return result  # Never save unvalidated drafts or invent assistant output on failure.
             with factory() as session:
@@ -62,6 +80,7 @@ def run(factory, user_id, conversation_id, data, settings, verify_session):
                         raise AuthError(409, 'request_id_conflict', 'Request id already used')
                     return checked_result(session, user, existing.metadata_json['result'], settings,
                                           verify_session, existing.metadata_json.get('knowledge_base_ids'))
+                history.revalidate(session, user, conversation_id, plan.turns, settings, verify_session, checked_result)
                 checked_result(session, user, result, settings, verify_session, data.knowledge_base_ids)
                 if len(result.answer or '') > 20000:
                     raise AuthError(422, 'answer_too_long', 'Answer exceeds history limit')
@@ -71,7 +90,7 @@ def run(factory, user_id, conversation_id, data, settings, verify_session):
                             metadata_json={'request_id': str(data.request_id)}),
                     Message(conversation_id=conversation_id, seq=seq+1, role='assistant', content=result.answer or '根据当前授权资料无法确定。',
                             metadata_json={'request_id': str(data.request_id), 'fingerprint': fingerprint, 'knowledge_base_ids': [str(k) for k in data.knowledge_base_ids],
-                                           'result': result.model_dump(mode='json')}),
+                                           'context': plan.audit(), 'result': result.model_dump(mode='json')}),
                 ])
                 conv.updated_at = session.scalar(select(func.clock_timestamp()))
                 session.commit()

@@ -110,6 +110,8 @@ class Settings(BaseSettings):
     context_max_chars: int = Field(default=16000, ge=1, le=64000)
     context_token_budget: int = Field(default=6000, ge=1, le=24000)
     course_source_mapping_path: Path | None = None
+    conversation_max_turns: int = Field(default=3, ge=0, le=3)
+    conversation_history_max_bytes: int = Field(default=4096, ge=0, le=8192)
 
     generation_provider: Literal["disabled", "deterministic", "qwen"] = "disabled"
     generation_cloud_enabled: bool = False

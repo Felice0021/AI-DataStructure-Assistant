@@ -245,3 +245,33 @@ rm -rf frontend-v2
 本次 macOS / Node 24.22.0 实际复验：`npm ci --no-audit --no-fund` 退出 0，未生成 public Worker；Vitest 9 个文件 56 项通过；`npm run build` 退出 0，dist 无 Worker、生产 JS 无 MSW 注册逻辑。生产预览 `/mockServiceWorker.js` 返回 SPA HTML 回退（200 text/html），不是 Worker；开发服务器同路径返回正确 Worker（200 JavaScript）。
 
 Safari 真实验证 MSW answered、refuse、unavailable 三个场景；原有 handler 测试确认未覆盖的 `/api/v2/*` GET/POST 仍返回 501。该兜底仅覆盖 `/api/v2/*`，不保证拦截任意其他网络请求。真实后端模式在独立来源 127.0.0.1:5174 设置 `VITE_USE_MOCK=false`，页面未出现 Mock 用户或知识库，实际尝试后端连接并显示后端未启动提示；配合实际提供的环境开关及启动条件核对，确认未启动 MSW。本轮未启动或操作后端及测试数据库，也未重跑完整后端联调。
+
+### 数学公式与表格验收
+
+`AnswerText` 支持 `$…$`、`$$…$$`、`\(…\)` 和 `\[…\]`。代码中的分隔符保持原样。
+Markdown 继续使用 Vue VNode 渲染；KaTeX 输出经过标签、属性及样式白名单转换为 VNode，不使用 `v-html`。
+KaTeX 设置 `trust: false`、`strict: 'error'`、`maxExpand: 200`、`maxSize: 20`，每条公式使用独立宏对象。
+单条公式最多 4096 字符、100 层花括号嵌套；解析失败或超限时以文本显示。被 KaTeX 拒绝的资源/HTML命令不会产生链接或外部请求。
+配置依据：[KaTeX options](https://katex.org/docs/options)、[security](https://katex.org/docs/security)。
+
+表格保留原生自动列宽，短表头不换行，公式保持完整；超宽内容由可聚焦的表格区域横向滚动。
+`[S1]` 仍可展开并定位来源，未知来源及代码内的引用保持原有行为。
+
+在支持项目依赖的 Node 版本下执行（本次使用 Node 24.22.0）：
+
+```bash
+npm ci
+npm test
+npm run build
+npm run test:production
+npm run test:browser
+```
+
+浏览器测试使用本机 Google Chrome，自动构建并启动 `127.0.0.1:4178` 的生产预览。
+接口通过 Playwright 返回合成课程/会话数据，不使用 MSW，不连接模型或部署服务器。
+覆盖 1440px 桌面和 390px 手机视口：公式与字体、表格滚动、页面无横向溢出、代码原样、非法公式降级、恶意输入无外部请求、引用点击和无 Service Worker 注册。
+`test:production` 检查生产产物不含 MSW Worker、MSW 注册代码或浏览器测试数据，并检查本地 KaTeX 字体。
+每次浏览器测试的截图位于 `test-results/`；本次已目视核对的截图：
+
+- [桌面 1440px](docs/screenshots/math-rendering/desktop.png)
+- [手机 390px](docs/screenshots/math-rendering/mobile-390.png)

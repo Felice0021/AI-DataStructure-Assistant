@@ -40,7 +40,14 @@ def test_problem_http_reference_and_refusal(setup,case,monkeypatch):
     else:
         assert body['status']=='answered'
         source=body['sources'][0]
-        assert body['answer']==case['reference_answer']+' '+source['citation_id']
+        if case['id']=='quicksort':
+            # The response intentionally adds provenance and checked steps, not unchecked model numerics.
+            from backend.v2.services.verified_partition import prepare
+            verified,reason=prepare(case['query'],[{'citation_id':source['citation_id'],'content':case['lesson']}])
+            assert reason is None and verified.calculation.final==(1,2,3) and verified.calculation.pivot_index==1
+            assert body['answer']==verified.finish(case['reference_answer']+' '+source['citation_id'],[source['citation_id']])
+        else:
+            assert body['answer']==case['reference_answer']+' '+source['citation_id']
         assert source['document_id']==record['id'] and source['knowledge_base_id']==e['kb']['id']
         with e['factory']() as db:
             assert case['lesson'] in db.get(DocumentChunk,UUID(source['chunk_id'])).content

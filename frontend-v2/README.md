@@ -271,7 +271,7 @@ npm run test:browser
 接口通过 Playwright 返回合成课程/会话数据，不使用 MSW，不连接模型或部署服务器。
 覆盖 1440px 桌面和 390px 手机视口：公式与字体、表格滚动、页面无横向溢出、代码原样、非法公式降级、恶意输入无外部请求、引用点击和无 Service Worker 注册。
 `test:production` 检查生产产物不含 MSW Worker、MSW 注册代码或浏览器测试数据，并检查本地 KaTeX 字体。
-每次浏览器测试的截图位于 `test-results/`；本次经人工目视核对的截图：
+每次浏览器测试的截图位于 `test-results/`；本次已目视核对的截图：
 
 - [桌面 1440px](docs/screenshots/math-rendering/desktop.png)
 - [手机 390px](docs/screenshots/math-rendering/mobile-390.png)

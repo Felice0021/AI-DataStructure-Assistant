@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
 import { mockAnswered, mockKnowledgeBases, mockUser } from '../../src/mocks/fixtures'
 
 const answer = String.raw`## 二分查找与复杂度
@@ -36,19 +36,7 @@ test('production answer renders formulas, contains tables and keeps citations us
   page.on('request', request => {
     if (!request.url().startsWith(baseURL!) && !request.url().includes('/api/v2/')) externalRequests.push(request.url())
   })
-  const result = { ...mockAnswered, answer, sources: mockAnswered.sources.slice(0, 1) }
-  const conversation = { id: 'math-review', title: '二分查找与复杂度', updated_at: '2026-11-13T10:00:00Z' }
-  await page.route('**/api/v2/**', async route => {
-    const path = new URL(route.request().url()).pathname
-    let body: unknown
-    if (path.endsWith('/auth/me')) body = { user: mockUser }
-    else if (path.endsWith('/knowledge-bases')) body = { items: mockKnowledgeBases, total: mockKnowledgeBases.length }
-    else if (path.endsWith('/conversations')) body = { items: [conversation], total: 1 }
-    else if (path.endsWith('/messages')) body = { items: [{ id: 'answer-1', seq: 1, role: 'assistant', content: answer, metadata_json: { result } }], total: 1 }
-    else throw new Error(`Unexpected test API request: ${path}`)
-    await route.fulfill({ json: body })
-  })
-  await page.goto('/?conversation=math-review')
+  await openAnswer(page, answer)
   const rendered = page.locator('.answer-text')
   await expect(rendered.locator('.katex')).toHaveCount(21)
   await expect(rendered.locator('.math-display .katex-display')).toHaveCount(2)
@@ -89,4 +77,43 @@ test('production answer renders formulas, contains tables and keeps citations us
   expect(externalRequests).toEqual([])
   expect(pageErrors).toEqual([])
   expect(await page.evaluate(() => navigator.serviceWorker.getRegistrations().then(items => items.length))).toBe(0)
+})
+
+async function openAnswer(page: Page, answer: string): Promise<void> {
+  const result = { ...mockAnswered, answer, sources: mockAnswered.sources.slice(0, 1) }
+  const conversation = { id: 'math-review', title: '二分查找与复杂度', updated_at: '2026-11-13T10:00:00Z' }
+  await page.route('**/api/v2/**', async route => {
+    const path = new URL(route.request().url()).pathname
+    let body: unknown
+    if (path.endsWith('/auth/me')) body = { user: mockUser }
+    else if (path.endsWith('/knowledge-bases')) body = { items: mockKnowledgeBases, total: mockKnowledgeBases.length }
+    else if (path.endsWith('/conversations')) body = { items: [conversation], total: 1 }
+    else if (path.endsWith('/messages')) body = { items: [{ id: 'answer-1', seq: 1, role: 'assistant', content: answer, metadata_json: { result } }], total: 1 }
+    else throw new Error(`Unexpected test API request: ${path}`)
+    await route.fulfill({ json: body })
+  })
+  await page.goto('/?conversation=math-review')
+}
+
+test('long inline and display formulas remain fully reachable inside their own scroll areas', async ({ page }) => {
+  const formula = Array.from({ length: 60 }, (_, i) => `a_{${i + 1}}`).join(' + ')
+  await openAnswer(page, `$${formula}$\n\n$$${formula}$$`)
+  await expect(page.locator('.answer-math')).toHaveCount(2)
+  await page.evaluate(() => document.fonts.ready)
+  const geometry = await page.locator('.answer-math').evaluateAll(nodes => nodes.map(node => {
+    const element = node as HTMLElement
+    element.scrollLeft = 0
+    const start = element.querySelector('.katex-base')!.getBoundingClientRect().left
+    const left = element.getBoundingClientRect().left
+    element.scrollLeft = element.scrollWidth
+    const bases = element.querySelectorAll('.katex-base')
+    const end = bases[bases.length - 1]!.getBoundingClientRect().right
+    return { width: element.clientWidth, content: element.scrollWidth, start, left, end, right: element.getBoundingClientRect().right }
+  }))
+  for (const formula of geometry) {
+    expect(formula.content).toBeGreaterThan(formula.width)
+    expect(formula.start).toBeGreaterThanOrEqual(formula.left - 1)
+    expect(formula.end).toBeLessThanOrEqual(formula.right + 1)
+  }
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 })

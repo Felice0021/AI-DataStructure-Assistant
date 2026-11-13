@@ -68,6 +68,8 @@ const REASON_MESSAGES: Record<string, string> = {
   model_refusal: '模型认为现有资料不足以回答此问题',
   model_reported_conflict: '模型判断资料互相矛盾，无法给出确定结论',
   scope_not_verified: '问题超出所选资料的范围',
+  missing_tree_order: '请补充 B/B+ 树的阶数、操作序列及采用的分裂规则。',
+  missing_operation_sequence: '请补充插入/删除序列，或用于构造的遍历序列。',
 }
 
 export function errorMessage(code: string, status = 0): string {

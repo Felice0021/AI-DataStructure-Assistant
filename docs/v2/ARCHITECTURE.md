@@ -389,3 +389,16 @@ Generator现为qwen3.8-flash，OpenAI兼容Chat Completions，enable_thinking=fa
 高价值修复：脱敏500对精确允许Origin补CORS头；PATCH显式null继续422且OpenAPI不再宣称可null；HTTP测试由OS分配并继承监听FD，避免占用8001。启动、离线验收、显式付费测试、管理员课程导入和评测工具均独立于V1。冻结契约见openapi.json，当前运行指南见TEAM_ONBOARDING.md。
 
 仍需生产强化：用户级/每日成本硬限额、边缘限流、DB角色拆分、TLS代理配置、备份恢复、审计保留清理与服务商隐私政策确认；精确余弦和有界内存BM25仍是小规模基线。合法引用不等同于事实蕴含证明，36题需人工标注后才能报告质量。
+
+## 专项解题与静态代码分析
+
+`evidence_policy.task_kind` 在内部区分概念、算法、习题和代码；公开 answer_mode
+仍为 qa/exercise/code，算法使用 exercise，原单轮及会话入口共用这一策略。
+概念表述优先于普通“指针/排序”等词项；代码片段、纠错和递归边界采用静态代码分析规则。
+构造 B/B+ 树缺阶数、树操作缺序列时，检索后由 preflight 返回明确的补充条件提示，
+不调用生成器、不自行假设题目。规则是保守词法检查，不能识别所有自然语言缺项。
+
+Prompt 要求步骤、中间状态、复杂度、明确树分裂约定，以及 C/C++ 的空指针、上下界、
+递归终止和运算前溢出检查。模型不执行、编译用户代码；校验器拒绝常见虚假编译/运行声明。
+这些要求不能保证模型生成的每段代码均无缺陷。专项参考题与真实模型记录的边界见
+[PROBLEM_SOLVING_ACCEPTANCE.md](PROBLEM_SOLVING_ACCEPTANCE.md)。无新模型空间、迁移或索引操作。

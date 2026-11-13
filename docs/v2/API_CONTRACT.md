@@ -515,3 +515,12 @@ PATCH知识库的name/description可省略但显式null为422，OpenAPI已移除
 历史消息分页，按 seq 升序。没有新增数据库迁移，继续使用 0008_conversations。
 
 这提供持久化单轮问答历史，不会把历史问答发给模型，也不代表上下文追问能力。
+
+### 专项解题提示（阶段 B）
+
+请求与响应结构不变，`answer_mode=auto` 增强题型识别，内部算法类别仍返回 exercise。
+检索到相关资料但树题缺条件时，HTTP 200、status=insufficient_evidence、sources=[]，
+reason 分别为 `missing_tree_order` 或 `missing_operation_sequence`；前端提示补充阶数、
+序列和采用规则，不把它作为模型故障。无证据仍为 no_evidence。
+`execution_performed` 始终为 false；回答中的代码是静态建议，不是执行结果。
+没有新增字段、枚举、端点或数据库迁移，冻结 OpenAPI 不变。

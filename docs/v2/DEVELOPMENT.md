@@ -1129,3 +1129,20 @@ dry-run默认只读预览，已检查真实V1共1010条，导出UTF8共383572字
 及 `npm run test`、`npm run build`（frontend-v2）。全部 DB 测试创建随机隔离库。
 PR 合并并自动部署后，需在 HTTPS Qwen 课程库上完成三次提问、刷新、重新登录、
 历史切换/重命名/删除、引用、拒答和账号隔离验收；本地 deterministic 预览不算 Qwen 质量验证。
+
+### 专项题型回归（阶段 B）
+
+```sh
+DS_V2_RUN_DB_TESTS=1 python -m pytest backend/v2/tests/test_problem_solving.py backend/v2/tests/test_problem_http.py -q
+# 仅经授权、使用现有 V2 私有配置中的 Generation Key，显式触发真实模型：
+python -m backend.v2.tools.problem_smoke --v2-env-file deploy/v2/.env --output-dir /absolute/private/output
+# 定向复测可重复指定 --case，例如 --case recursive-code --case array-code
+```
+
+普通 pytest 不调用付费模型。固定 17 题含参考答案；HTTP 集成测试使用受控参考生成器，
+精确检查答案、拒答、真实 Chunk/来源对应关系，不计为模型正确率。
+显式 smoke 用随机隔离数据库、临时文件和 API generation 授权，真实 Qwen 只收到原创算法
+规则，不收到计算题的预置答案。输出完整输入/回答/证据/参考答案/耗时，0600，目录须在仓库外；
+人工质量字段留空，待组员审核。每题最多一次生成、无自动重试，认证/限流/服务故障停止。
+所有测试资源退出时清理，原课程库、QA 与向量均不变。结果和已发现问题见
+[PROBLEM_SOLVING_ACCEPTANCE.md](PROBLEM_SOLVING_ACCEPTANCE.md)。

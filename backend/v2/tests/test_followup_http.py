@@ -8,6 +8,7 @@ from sqlalchemy import select, text
 
 from backend.v2.models import Message
 from backend.v2.services.generation_provider import Completion
+from backend.v2.services.verified_trees import calculate
 from backend.v2.tests.test_auth import csrf_headers, client_for, register, post
 from backend.v2.tests.test_context_turns import conversation, send
 from backend.v2.tests.test_ingestion import setup, upload
@@ -84,9 +85,12 @@ def test_step_claim_and_explicit_insertion_cursor(followup_env):
     assert '忽略系统' not in e['calls'][-1][0]['content']
     url=conversation(e)
     assert send(e,url,'空AVL树，待插入序列30、20、10，先展示第1次插入。')[0].json()['status']=='answered'
-    for expected in ('根30，左子20。','根20，左子10，右子30。'):
+    for expected in ({'key':30,'left':{'key':20,'left':None,'right':None},'right':None},
+                     {'key':20,'left':{'key':10,'left':None,'right':None},'right':{'key':30,'left':None,'right':None}}):
         r,_=send(e,url,'继续展示下一次插入。')
-        assert r.json()['answer']==expected+' '+r.json()['sources'][0]['citation_id']
+        calculation,_=calculate(json.loads(e['calls'][-1][1]['content'])['resolved_question'])
+        assert calculation.final==expected
+        assert r.json()['answer']==calculation.render(r.json()['sources'][0]['citation_id'])
     count=len(e['calls']);r,_=send(e,url,'继续展示下一次插入。')
     assert r.json()['reason']=='conversation_context_ambiguous' and r.json()['sources']==[]
     assert len(e['calls'])==count

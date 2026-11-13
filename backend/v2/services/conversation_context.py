@@ -50,6 +50,28 @@ def topics(text):
     return list(dict.fromkeys(name for _, _, name in sorted(chosen)))
 
 
+def discourse_focus(question):
+    """An explicit focus or a unique independent subject, never the first item in a comparison."""
+    clauses=re.split(r'[？?。；;\n]',question)
+    emphasized=[];subjects=[]
+    for clause in clauses:
+        focus=re.search(r'(?:重点|主要|着重|只)(?:讨论|介绍|解释|分析|关注)\s*(.+)',clause)
+        if focus:
+            names=topics(focus[1])
+            if len(names)==1:emphasized.extend(names)
+        # "It differs from BST" is subordinate; BST is not an independent discussion subject.
+        if COMPARISON.search(clause) or re.search(r'与|相比|对比|对照|比较',clause):
+            continue
+        names=topics(clause)
+        if len(names)==1 and re.search(r'是什么|什么是|如何|为什么|呢|解释|介绍|定义|特点|原理',clause):
+            subjects.extend(names)
+    chosen=set(emphasized or subjects)
+    if len(chosen)==1:return next(iter(chosen))
+    if chosen:return None
+    names=topics(question)
+    return names[0] if len(names)==1 else None
+
+
 def bounded(text, max_bytes):
     return safe_text(CITATION.sub('', text)).encode('utf8')[:max_bytes].decode('utf8', errors='ignore')
 
@@ -79,7 +101,7 @@ class Plan:
         return [turn.prompt() for turn in self.turns]
 
     def audit(self):
-        return {'method': 'bounded-topic-rules-v2', 'resolved_query': self.query,
+        return {'method': 'bounded-topic-rules-v3', 'resolved_query': self.query,
                 'history_request_ids': [t.request_id for t in self.turns]}
 
 
@@ -129,10 +151,9 @@ def plan(query, turns, max_query_chars):
         return Plan(query, relevant)
     if not turns:
         return Plan(query, reason='conversation_context_required')
-    anchors = topics(turns[-1].resolved_query)
-    if len(anchors) != 1:
+    anchor = discourse_focus(turns[-1].resolved_query)
+    if anchor is None:
         return Plan(query, reason='conversation_context_ambiguous')
-    anchor = anchors[0]
     if explicit and anchor not in explicit:
         if len(explicit) != 1 or not COMPARISON.search(query):
             return Plan(query, reason='conversation_context_ambiguous')

@@ -538,3 +538,14 @@ reason 分别为 `missing_tree_order` 或 `missing_operation_sequence`；前端�
 构造条件相关澄清补充 reason：`ambiguous_tree_rules`（初始状态、阶数/容量或重复键规则）
 和 `ambiguous_tree_split`（相关分裂约定不足）。仍为 HTTP 200 insufficient_evidence、sources=[]，
 生成器不被调用。单键和无需分裂的原理/示例场景不要求无关条件；自拟示例需明确假设。
+
+### 已校验树构造结果
+
+请求与 AskResponse 结构不变。受支持的具体 BST/AVL/B/B+ 插入题，其 answer 由服务端
+参考算法校验并渲染，明确标注计算来源；generation_model 表示调用过的 Provider，不表示
+数值结构由模型独立算出。规则来源仍须通过原引用、权限及代次校验。
+
+200 insufficient_evidence 的新增 reason：tree_calculation_not_supported（当前输入/约定
+超出已验证范围）、tree_rule_evidence_required（本轮缺少支持规则）。502 validation_failed
+可能为 tree_invariant_failed、tree_rule_citation_required、tree_output_limit 或
+unverified_tree_prose；无有效答案/来源，不保存未通过结果。详见 VERIFIED_TREE_CONTEXT.md。

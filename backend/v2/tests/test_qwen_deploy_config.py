@@ -131,6 +131,7 @@ def test_https_transport_pins_origin_and_refuses_redirects():
         def open(self, request, timeout):
             assert request.full_url == 'https://qwen.dsassistant.cn/api/v2/auth/login'
             assert request.get_header('Origin') == config.ORIGIN
+            assert request.get_header('User-agent') == 'ds-v2-qwen-course-preflight/1.0'
             assert request.get_header('X-csrf-token') == 'mock-only'
             assert timeout == 15
             raise RuntimeError('inspection complete, no network call')

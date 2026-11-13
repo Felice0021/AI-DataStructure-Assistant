@@ -57,7 +57,8 @@ class HttpsApi:
             urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
 
     def request(self, method, path, data=None, csrf=None):
-        headers = {'Origin': ORIGIN, 'Accept': 'application/json'}
+        headers = {'Origin': ORIGIN, 'Accept': 'application/json',
+                   'User-Agent': 'ds-v2-qwen-course-preflight/1.0'}
         if csrf is not None:
             headers['X-CSRF-Token'] = csrf
         if data is not None:

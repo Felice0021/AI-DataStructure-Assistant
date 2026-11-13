@@ -516,6 +516,16 @@ PATCH知识库的name/description可省略但显式null为422，OpenAPI已移除
 
 这提供持久化单轮问答历史，不会把历史问答发给模型，也不代表上下文追问能力。
 
+### 会话上下文追问（阶段 A）
+
+/conversations/{id}/ask 请求/响应字段不变。服务器读取最多 3 轮、相同知识库范围的有效问答，
+不接受客户端提交历史、assistant 内容或改写问题。无上文/歧义返回 HTTP 200 正常拒答，
+reason 为 conversation_context_required / conversation_context_ambiguous，sources 为空。
+历史在处理中失效则失败关闭，不返回旧内容。原 /rag/ask 保持单轮兼容。
+
+保存的 assistant.metadata_json.context 记录规则版本、resolved_query 和历史 request ID，
+用于当前用户的审计与调试；不包含密钥或完整模型 Prompt。不新增数据库迁移。
+
 ### 专项解题提示（阶段 B）
 
 请求与响应结构不变，`answer_mode=auto` 增强题型识别，内部算法类别仍返回 exercise。

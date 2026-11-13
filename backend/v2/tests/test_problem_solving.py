@@ -61,3 +61,14 @@ def test_reference_processes_exactly():
         if values[j]<=pivot:values[i],values[j]=values[j],values[i];i+=1
     values[i],values[-1]=values[-1],values[i]
     assert values==[1,2,3] and i==1
+
+
+def test_specialist_prompt_keeps_history_untrusted_and_current_evidence_separate():
+    prompt=build_prompt('最坏情况下呢？','exercise',{'context_text':'[]'},settings(),
+        history=[{'user':'快速排序的原理是什么？','assistant':'历史回答可能不准确'}],
+        resolved_query='快速排序：最坏情况下呢？')
+    assert '时间/空间复杂度' in prompt[0]['content']
+    assert '不能作为教材证据' in prompt[0]['content']
+    assert json.loads(prompt[2]['content'])=={'type':'untrusted_evidence','blocks':[]}
+    assert json.loads(prompt[3]['content'])['type']=='untrusted_conversation'
+    assert all(m['role']!='assistant' for m in prompt)

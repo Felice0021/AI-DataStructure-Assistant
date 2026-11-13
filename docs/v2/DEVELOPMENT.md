@@ -1130,6 +1130,25 @@ dry-run默认只读预览，已检查真实V1共1010条，导出UTF8共383572字
 PR 合并并自动部署后，需在 HTTPS Qwen 课程库上完成三次提问、刷新、重新登录、
 历史切换/重命名/删除、引用、拒答和账号隔离验收；本地 deterministic 预览不算 Qwen 质量验证。
 
+### 阶段 A：多轮上下文测试
+
+- `DS_V2_CONVERSATION_MAX_TURNS` 默认 3，范围 0–3。
+- `DS_V2_CONVERSATION_HISTORY_MAX_BYTES` 默认 4096，上限 8192；单轮问题/回答分别最多 512/768 UTF-8 bytes。
+- 问题改写不能超过现有 retrieval_max_query_chars；不增加云模型请求。
+- 最近最多 3 轮是有界上下文，不保证理解任意话题或缺失条件的追问。
+
+隔离回归：
+`DS_V2_RUN_DB_TESTS=1 python -m pytest backend/v2/tests/test_context_turns.py backend/v2/tests/test_conversation_context.py`
+
+真实 Qwen（显式授权，使用既有 V2 私有配置，输出目录须在仓库外）：
+`python -m backend.v2.tools.context_smoke --v2-env-file <private-v2-env> --output-dir <private-output-directory>`
+
+该工具只创建随机测试库和原创短资料，通过 API 建立 generation 同意，执行 4 组/8 次问答。
+BM25 检索；隔离库中的 deterministic 向量仅用于满足现有 ready 基础，不宣称真实语义向量。
+每题单次生成、无模型重试、10 秒超时，失败停止；输入、回答、来源和耗时保存为 0600 JSON。
+正常退出清理测试库/临时文件，保留仓库外记录。不会修改线上库、已有索引或云模型配置。
+引用结构检查不等同于语义忠实性或人工正确率。
+
 ### 专项题型回归（阶段 B）
 
 ```sh

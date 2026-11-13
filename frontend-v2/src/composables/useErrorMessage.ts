@@ -62,6 +62,8 @@ const STATUS_FALLBACK: Record<number, string> = {
 
 /** 拒答原因（AskResponse.reason）→ 中文 */
 const REASON_MESSAGES: Record<string, string> = {
+  conversation_context_required: '缺少可用的上文，请明确所指的数据结构或算法。',
+  conversation_context_ambiguous: '上文可能涉及多个对象，请说明本次要问哪一个。',
   no_evidence: '检索没有命中可依据的资料',
   no_lexical_support: '资料中缺少与问题关键词直接对应的内容',
   conflicting_assertions: '检索到的资料之间存在冲突表述',

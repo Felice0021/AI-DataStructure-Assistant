@@ -1,7 +1,8 @@
 # 阶段 B：专项解题与静态代码分析验收
 
 2026-11-13，基线 ecf2d5124b2489a4b27fab633467954c39833b80。
-分支 feat/v2-problem-solving，独立于阶段 A；不部署、不合并、不修改课程索引。
+分支 feat/v2-problem-solving，依赖阶段 A（PR #23）；保留独立专项提交，目标仍为部署分支。
+已在开发分支整合 A 并解决提示构建器及文档冲突，先审 A 再审 B；不合并 PR、不部署、不修改课程索引。
 
 ## 实现与自动化边界
 
@@ -10,13 +11,15 @@
 代码只作静态分析。补充缺条件拒答和常见虚假编译声明的拒绝测试。
 
 固定题集 `backend/v2/tests/fixtures/problem_reference_cases.json` 含 17 道团队新编题、
-明确参考答案、独立算法规则与期望拒答。24 项单元测试、17 项真实 PostgreSQL HTTP
+明确参考答案、独立算法规则与期望拒答。25 项单元测试、17 项真实 PostgreSQL HTTP
 集成测试。集成测试的参考生成器返回可精确比较的答案并检查真实 Chunk/哈希/来源关系，
 它验证服务契约与证据关联，**不能证明真实模型正确率**。小型参考程序另核对栈操作、
 BFS/DFS 顺序和 Lomuto 分区；没有编译或执行用户提交代码。
 
-本地完整后端：577 passed、4 skipped（显式 Docker 测试由 Linux CI 执行）。
-前端：80 passed，生产构建通过。最终 Prompt 调整另执行专项、RAG、Cloud Guard 和会话回归。
+阶段 B 整合前本地完整后端：577 passed、4 skipped（显式 Docker 测试由 Linux CI 执行）。
+前端：80 passed，生产构建通过。最终 Prompt 调整另执行专项、RAG、Cloud Guard 和会话回归 119 passed。
+A+B 联合代码完整隔离回归 591 passed、4 skipped。4 组/8 次真实 Qwen 上下文问答也再次通过，全部 HTTP 200 answered 与本轮来源有效；
+原 /rag/ask 仍保持单轮。
 没有新增迁移、请求字段、模型配置或向量空间。
 
 ## 真实 Qwen 记录与发现

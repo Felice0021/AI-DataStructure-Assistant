@@ -2,9 +2,10 @@
 import MarkdownIt from 'markdown-it'
 import { defineComponent, h, type PropType, type VNodeChild } from 'vue'
 import type { AnswerSource } from '@/types/api'
+import { answerMath, renderMath } from '@/utils/answerMath'
 
 // Model output is untrusted. Markdown tokens are rendered as Vue nodes, never HTML.
-const markdown = new MarkdownIt({ html: false, linkify: false, breaks: false })
+const markdown = new MarkdownIt({ html: false, linkify: false, breaks: false }).use(answerMath)
 type Token = ReturnType<typeof markdown.parse>[number]
 const tags = new Set(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'ul', 'ol', 'li', 'strong', 'em', 's', 'a', 'table', 'thead', 'tbody', 'tr', 'th', 'td'])
 
@@ -26,7 +27,9 @@ export default defineComponent({
             if (/^(https?:|mailto:)/i.test(String(href)) && markdown.validateLink(String(href))) { attrs.href = String(href); attrs.rel = 'noopener noreferrer nofollow' }
           }
           if (token.tag === 'ol' && token.attrGet('start')) attrs.start = String(token.attrGet('start'))
-          append(h(token.tag, attrs, children)); stack.push({ children, tag: token.tag }); continue
+          const node = h(token.tag, attrs, children)
+          append(token.tag === 'table' ? h('div', { class: 'answer-table-scroll', tabindex: 0, role: 'region', 'aria-label': '回答表格，可横向滚动' }, [node]) : node)
+          stack.push({ children, tag: token.tag }); continue
         }
         if (token.nesting === -1 && tags.has(token.tag)) { if (stack.length > 1) stack.pop(); continue }
         if (token.type === 'text') {
@@ -41,6 +44,8 @@ export default defineComponent({
                 : h('span', { class: 'cite-unknown', title: '本次回答未返回该来源' }, part))
             } else append(part)
           }
+        } else if (token.type === 'math_inline' || token.type === 'math_display' || token.type === 'math_block') {
+          append(renderMath(token.content, token.type !== 'math_inline', token.markup, token.type === 'math_block'))
         } else if (token.type === 'code_inline') append(h('code', token.content))
         else if (token.type === 'fence' || token.type === 'code_block') {
           const language = token.info.trim().split(/\s+/)[0] ?? ''
@@ -58,16 +63,26 @@ export default defineComponent({
 </script>
 
 <style scoped>
-.answer-text { font-size: 15px; line-height: 1.8; color: var(--ink); overflow-wrap: anywhere; }
+.answer-text { min-width: 0; max-width: 100%; font-size: 15px; line-height: 1.8; color: var(--ink); overflow-wrap: anywhere; }
 .answer-text :deep(p) { margin: 0 0 0.9em; white-space: pre-wrap; }
 .answer-text :deep(h1), .answer-text :deep(h2), .answer-text :deep(h3), .answer-text :deep(h4) { margin: 1em 0 0.45em; line-height: 1.35; }
 .answer-text :deep(ul), .answer-text :deep(ol) { padding-left: 1.5em; margin: 0.5em 0 1em; }
 .answer-text :deep(blockquote) { margin: 1em 0; padding-left: 1em; border-left: 3px solid var(--line); color: var(--muted); }
-.answer-text :deep(pre), .answer-text :deep(table) { display: block; max-width: 100%; overflow-x: auto; }
+.answer-text :deep(pre), .answer-text :deep(.answer-table-scroll) { max-width: 100%; overflow-x: auto; }
+.answer-text :deep(.answer-table-scroll) { margin: 1em 0; }
+.answer-text :deep(.answer-table-scroll:focus-visible) { outline: 2px solid var(--brand); outline-offset: 1px; }
 .answer-text :deep(pre) { padding: 12px; background: #f5f5f5; border-radius: 8px; line-height: 1.5; }
 .answer-text :deep(code) { font-family: ui-monospace, monospace; }
-.answer-text :deep(table) { border-collapse: collapse; margin: 1em 0; }
-.answer-text :deep(th), .answer-text :deep(td) { border: 1px solid var(--line); padding: 6px 10px; }
+.answer-text :deep(table) { border-collapse: collapse; width: max-content; min-width: 100%; table-layout: auto; }
+.answer-text :deep(th), .answer-text :deep(td) { border: 1px solid var(--line); padding: 6px 10px; overflow-wrap: normal; word-break: normal; }
+.answer-text :deep(th) { white-space: nowrap; }
+.answer-text :deep(td) { min-width: 4em; max-width: 28em; }
+.answer-text :deep(.answer-math) { max-width: 100%; overflow-x: auto; overflow-y: hidden; overflow-wrap: normal; white-space: nowrap; }
+.answer-text :deep(.math-inline) { display: inline-block; vertical-align: middle; }
+.answer-text :deep(.math-display) { display: block; margin: 1em 0; }
+.answer-text :deep(.katex-display) { margin: 0; }
+.answer-text :deep(td .answer-math), .answer-text :deep(th .answer-math) { max-width: none; }
+.answer-text :deep(.math-fallback) { white-space: pre-wrap; overflow-wrap: anywhere; }
 .answer-text :deep(.cite), .answer-text :deep(.cite-unknown) { display: inline; padding: 0 3px; margin: 0 1px; border: 0; border-radius: 4px; font-size: 12px; vertical-align: 1px; }
 .answer-text :deep(.cite) { background: #f1f1f1; color: #404040; cursor: pointer; }
 .answer-text :deep(.cite-unknown) { background: #f1f1f1; color: #737373; }

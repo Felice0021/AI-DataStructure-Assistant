@@ -59,7 +59,7 @@ class ReviewChecks(unittest.TestCase):
 
     def test_public_artifacts_have_no_full_source_body_or_workbook(self):
         # Scan every current public textual deliverable, including notes and scripts.
-        paths = [p for p in HERE.iterdir()
+        paths = [p for folder in (review.OUT, HERE) for p in folder.iterdir()
                  if p.suffix in {'.csv','.json','.md','.py'} and p.is_file()]
         bodies = {''.join(row['text'].split()) for row in self.source.values()}
         for path in paths:

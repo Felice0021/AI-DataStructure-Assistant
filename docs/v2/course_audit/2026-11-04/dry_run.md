@@ -14,7 +14,7 @@
 
 再次使用全新的临时 `--mapping-output` 文件运行，退出码0，stdout完全一致；1010条实际CLI映射与先前离线prepare()映射逐项相同。临时映射文件验证后删除。`pip check` 为 `No broken requirements found.`。
 
-机器可读证据：[cli_dry_run.json](cli_dry_run.json)，记录实际Python版本、平台、安装包版本、两次退出码与映射比较结果。复验包装脚本为 `docs/v2/course_audit/2026-11-04/run_dry_run.py`，仅运行原始只读CLI，不提供apply参数。
+机器可读证据：[cli_dry_run.json](cli_dry_run.json)，记录实际Python版本、平台、安装包版本、两次退出码与映射比较结果。复验包装脚本为 `knowledge_base/course_audit/run_dry_run.py`，仅运行原始只读CLI，不提供apply参数。
 
 **边界：本次验证的是Windows原生下的只读CLI，未启动数据库、解析/Embedding Worker、完整后端或任何云端调用。WSL未安装，不能将此结果写成WSL或完整V2后端兼容性验收。** 工具的dry-run分支未实例化文件存储，因此没有触发完整后端依赖的POSIX文件操作。
 
@@ -25,7 +25,7 @@
 ```powershell
 python3.12 -m venv .venv-course-audit
 .\.venv-course-audit\Scripts\python.exe -m pip install starlette==1.10.0 SQLAlchemy==2.0.55 pydantic-settings==2.16.1 pgvector==0.5.0
-.\.venv-course-audit\Scripts\python.exe -B docs/v2/course_audit/2026-11-04/run_dry_run.py
+.\.venv-course-audit\Scripts\python.exe -B knowledge_base/course_audit/run_dry_run.py
 ```
 
 四个直接依赖版本取自仓库requirements；实际解析出的传递依赖完整版本见cli_dry_run.json。这是精简CLI环境，没有安装完整后端requirements，也没有修改项目依赖清单、系统Python或安装WSL。虚拟环境不提交。
@@ -42,7 +42,7 @@ python -m backend.v2.tools.import_course knowledge_base/ds_chunks.jsonl
 
 ## 离线 prepare() 预览：成功，非完整CLI验收
 
-`docs/v2/course_audit/2026-11-04/review.py` 使用 Python AST 从当前原始 `import_course.py` 提取**未改动的唯一 prepare() 函数**，仅注入其使用的标准库 `Path/hashlib/json/re`，执行该纯函数。没有加载后端服务、伪造第三方模块或改写工具。本结果验证原函数可接受当前数据并生成派生TXT/映射，不能代替在项目支持环境中的CLI运行。
+`knowledge_base/course_audit/review.py` 使用 Python AST 从当前原始 `import_course.py` 提取**未改动的唯一 prepare() 函数**，仅注入其使用的标准库 `Path/hashlib/json/re`，执行该纯函数。没有加载后端服务、伪造第三方模块或改写工具。本结果验证原函数可接受当前数据并生成派生TXT/映射，不能代替在项目支持环境中的CLI运行。
 
 | 项目 | 结果 |
 | --- | --- |

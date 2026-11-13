@@ -8,8 +8,8 @@ import subprocess
 import sys
 from uuid import uuid4
 
-OUT = Path(__file__).resolve().parent
-ROOT = OUT.parents[3]
+ROOT = Path(__file__).resolve().parents[2]
+OUT = ROOT / 'docs/v2/course_audit/2026-11-04'
 COMMAND = ['-B', '-m', 'backend.v2.tools.import_course', 'knowledge_base/ds_chunks.jsonl']
 
 def main():

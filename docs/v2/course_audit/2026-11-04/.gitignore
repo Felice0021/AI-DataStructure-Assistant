@@ -1,4 +1,2 @@
 # Intermediate data for local workbook generation; CSVs are the review deliverables.
 review_data.json
-# Local historical workbook contains source text.
-/course_review.xlsx

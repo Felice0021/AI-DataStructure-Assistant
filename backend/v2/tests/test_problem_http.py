@@ -34,20 +34,25 @@ def test_problem_http_reference_and_refusal(setup,case,monkeypatch):
         'retrieval_mode':'bm25','rerank':'off'},headers=csrf_headers(c))
     assert response.status_code==200,response.text
     body=response.json()
+    if case['id']=='quicksort':
+        # Keep this independent specialization before the existing tree-reference branch.
+        from backend.v2.services.verified_partition import prepare
+        assert body['status']=='answered'
+        source=body['sources'][0]
+        verified,reason=prepare(case['query'],[{'citation_id':source['citation_id'],'content':case['lesson']}])
+        assert reason is None and verified.calculation.final==(1,2,3) and verified.calculation.pivot_index==1
+        assert body['answer']==verified.finish(case['reference_answer']+' '+source['citation_id'],[source['citation_id']])
+        assert source['document_id']==record['id'] and source['knowledge_base_id']==e['kb']['id']
+        with e['factory']() as db:
+            assert case['lesson'] in db.get(DocumentChunk,UUID(source['chunk_id'])).content
+        return
     if case['expected_reason']:
         assert body['status']=='insufficient_evidence' and body['reason']==case['expected_reason']
         assert body['sources']==[] and calls==[]
     else:
         assert body['status']=='answered'
         source=body['sources'][0]
-        if case['id']=='quicksort':
-            # The response intentionally adds provenance and checked steps, not unchecked model numerics.
-            from backend.v2.services.verified_partition import prepare
-            verified,reason=prepare(case['query'],[{'citation_id':source['citation_id'],'content':case['lesson']}])
-            assert reason is None and verified.calculation.final==(1,2,3) and verified.calculation.pivot_index==1
-            assert body['answer']==verified.finish(case['reference_answer']+' '+source['citation_id'],[source['citation_id']])
-        else:
-            assert body['answer']==case['reference_answer']+' '+source['citation_id']
+        assert body['answer']==case['reference_answer']+' '+source['citation_id']
         assert source['document_id']==record['id'] and source['knowledge_base_id']==e['kb']['id']
         with e['factory']() as db:
             assert case['lesson'] in db.get(DocumentChunk,UUID(source['chunk_id'])).content

@@ -8,6 +8,7 @@ from sqlalchemy import select
 from backend.v2.models import DocumentChunk
 from backend.v2.services.generation_provider import Completion
 from backend.v2.services.verified_trees import calculate
+from backend.v2.services.tree_rule_evidence import rule_supported
 from backend.v2.tests.test_problem_solving import CASES
 from backend.v2.tests.test_ingestion import setup, upload
 from backend.v2.tests.test_auth import csrf_headers
@@ -45,7 +46,7 @@ def test_problem_http_reference_and_refusal(setup,case,monkeypatch):
             calculation,_=calculate(case['query'])
             expected={'key':20,'left':{'key':10,'left':None,'right':None},'right':{'key':30,'left':None,'right':None}} if case['id']=='avl' else {'keys':[30],'children':[{'keys':[10,20],'children':[]},{'keys':[30],'children':[]}]}
             assert calculation.final==expected  # Original reference result, now with a verified structure.
-            assert body['answer']==calculation.render(source['citation_id'])
+            assert body['answer']==calculation.render(source['citation_id'],supports={source['citation_id']:rule_supported(calculation,case['lesson'])})
         else:assert body['answer']==case['reference_answer']+' '+source['citation_id']
         assert source['document_id']==record['id'] and source['knowledge_base_id']==e['kb']['id']
         with e['factory']() as db:

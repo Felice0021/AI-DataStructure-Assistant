@@ -8,6 +8,7 @@ from sqlalchemy import select,text
 from backend.v2.models import Message
 from backend.v2.services.generation_provider import Completion
 from backend.v2.services.verified_trees import calculate
+from backend.v2.services.tree_rule_evidence import rule_supported
 from backend.v2.tests.test_auth import csrf_headers,client_for,register,post
 from backend.v2.tests.test_context_turns import conversation,send
 from backend.v2.tests.test_ingestion import setup,upload
@@ -67,7 +68,7 @@ def test_concrete_result_comes_from_verified_algorithm_not_bad_draft(tree_env):
     r,_=send(e,url,query);assert r.status_code==200,r.text
     body=r.json();result,_=calculate(query)
     assert result.final=={'key':20,'left':{'key':10,'left':None,'right':None},'right':{'key':30,'left':None,'right':None}}
-    assert body['answer']==result.render(body['sources'][0]['citation_id'])
+    assert body['answer']==result.render(body['sources'][0]['citation_id'],supports={body['sources'][0]['citation_id']:rule_supported(result,RULES)})
     assert '根 2，' not in body['answer'] and '服务端算法' in body['answer']
     assert body['sources'][0]['document_id']==e['document']['id']
     assert e['client'].get(url+'/messages').json()['items'][-1]['content']==body['answer']

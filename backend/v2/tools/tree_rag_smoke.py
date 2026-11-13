@@ -13,11 +13,13 @@ from backend.v2.core.config import Settings,REPOSITORY_ROOT
 from backend.v2.db.session import build_session_factory
 from backend.v2.models.cloud import CloudAudit
 from backend.v2.services.verified_trees import calculate
+from backend.v2.services.tree_rule_evidence import rule_supported
 from backend.v2.services.generation_provider import QwenProvider
 from backend.v2.tests.support import isolated_database
 from backend.v2.tests.test_auth import local_settings,client_for,register,post,csrf_headers
 from backend.v2.tests.test_ingestion import upload
 from backend.v2.tests.test_verified_tree_http import RULES
+from backend.v2.tests.test_tree_rule_evidence import GENERAL,EXPLICIT
 from backend.v2.worker import run_once as parse_once
 from backend.v2.embedding_worker import run_once as index_once
 
@@ -41,8 +43,11 @@ def main():
     parser.add_argument('--real-qwen',action='store_true',help='Explicitly authorize these original-text cloud calls')
     parser.add_argument('--case',action='append',choices=[c[0] for c in CASES])
     parser.add_argument('--capture-drafts',action='store_true',help='Store only unvalidated original-test response bodies privately')
+    parser.add_argument('--source-convention',choices=['general','left2','left1'],help='Focused provenance check with original B+ rules; requires --case B+-left2')
     args=parser.parse_args()
     if not args.real_qwen:parser.error('--real-qwen is required; no implicit paid calls')
+    if args.source_convention and args.case!=['B+-left2']:parser.error('--source-convention requires exactly --case B+-left2')
+    source_rules={'general':GENERAL,'left2':EXPLICIT,'left1':EXPLICIT.replace('左叶保留2键，右叶保留1键','左叶保留1键，右叶保留2键')}.get(args.source_convention,RULES)
     root=Path(args.output_dir).resolve()
     if root==REPOSITORY_ROOT or REPOSITORY_ROOT in root.parents:parser.error('Output must be outside checkout')
     root.mkdir(mode=0o700,parents=True,exist_ok=True);root.chmod(0o700)
@@ -51,7 +56,8 @@ def main():
     if not source.generation_api_key:print('BLOCKED missing_v2_key');return 2
     report={'model':source.generation_model,'source':'project-authored test rules, not V1 corpus','validation_retry_limit':1,
         'retrieval':'bm25 with isolated deterministic indexing','human_quality':'NOT_SCORED',
-        'structure_owner':'server verified algorithms; Qwen supplies conceptual text/citation selection','cases':[]}
+        'structure_owner':'server verified algorithms; Qwen supplies conceptual text/citation selection',
+        'source_convention':args.source_convention,'cases':[]}
     def save():
         fd=os.open(target,os.O_WRONLY|os.O_CREAT|os.O_TRUNC,0o600)
         with os.fdopen(fd,'w',encoding='utf8') as file:json.dump(report,file,ensure_ascii=False,indent=2)
@@ -78,7 +84,7 @@ def main():
                 kb=c.post('/api/v2/knowledge-bases',json={'name':'original-verified-tree-'+uuid4().hex},headers=csrf_headers(c)).json()['knowledge_base']
                 assert c.post('/api/v2/knowledge-bases/'+kb['id']+'/cloud-consents/generation',headers=csrf_headers(c)).status_code==200
                 report['stage']='upload_and_isolated_processing'
-                upload({'client':c,'base':'/api/v2/knowledge-bases/'+kb['id']+'/documents'},name='original-tree-rules.txt',data=RULES.encode())
+                upload({'client':c,'base':'/api/v2/knowledge-bases/'+kb['id']+'/documents'},name='original-tree-rules.txt',data=source_rules.encode())
                 assert parse_once(factory,config) and index_once(factory,config)
                 for name,questions in CASES:
                     if args.case and name not in args.case:continue
@@ -89,16 +95,17 @@ def main():
                         r=c.post('/api/v2/conversations/'+conv+'/ask',json={'query':query,'knowledge_base_ids':[kb['id']],
                             'request_id':str(uuid4()),'retrieval_mode':'bm25','rerank':'off','allow_cloud_generation':True},headers=csrf_headers(c))
                         body=r.json();calls=audit_count()-before;result,_=calculate(query)
-                        refusal=name=='no-evidence' or name=='ambiguous' and index==1
+                        conflict=args.source_convention=='left1'
+                        refusal=conflict or name=='no-evidence' or name=='ambiguous' and index==1
                         valid=(r.status_code==200 and (body.get('status')=='insufficient_evidence' and not body.get('sources') and calls==0 if refusal else
                             body.get('status')=='answered' and bool(body.get('sources')) and 1<=calls<=2
                             and all(s['knowledge_base_id']==kb['id'] and s['citation_id'] in body['answer'] for s in body['sources'])))
-                        if result and valid:valid=body['answer']==result.render(' '.join(s['citation_id'] for s in body['sources']))
+                        if result and valid and not refusal:valid=body['answer']==result.render(' '.join(s['citation_id'] for s in body['sources']),supports={s['citation_id']:rule_supported(result,source_rules) for s in body['sources']})
                         items=c.get('/api/v2/conversations/'+conv+'/messages').json()['items']
                         resolved=items[-1]['metadata_json']['context']['resolved_query'] if items else None
                         if name=='focus' and index==1:valid=valid and resolved=='AVL 树为什么需要旋转？'
                         if name=='focus-reversed' and index==1:valid=valid and resolved=='二叉搜索树为什么需要旋转？'
-                        if refusal:valid=valid and body.get('reason')==('no_evidence' if name=='no-evidence' else 'conversation_context_ambiguous')
+                        if refusal:valid=valid and body.get('reason')==('tree_rule_conflict' if conflict else 'no_evidence' if name=='no-evidence' else 'conversation_context_ambiguous')
                         report['cases'].append({'id':name,'round':index+1,'question':query,'http_status':r.status_code,
                             'response':body,'elapsed_ms':round((time.monotonic()-start)*1000),'successful_cloud_calls':calls,
                             'resolved_query':resolved,'verified_structure':result.final if result else None,

@@ -11,7 +11,8 @@ from backend.v2.services.answer_validation import parse_draft,validate_answer,An
 from backend.v2.services.generation_provider import build_provider,RequestBudget,GenerationError,Completion
 from backend.v2.services.retrieval_service import capacity
 from backend.v2.services.course_source_labels import read_mapping,source_label
-from backend.v2.services.verified_trees import calculate,TreeError,tree_family,rule_supported,unverified_tree_prose
+from backend.v2.services.verified_trees import calculate,TreeError,tree_family,unverified_tree_prose
+from backend.v2.services.tree_rule_evidence import rule_supported
 
 REFUSAL='根据当前授权资料无法确定。'
 
@@ -52,8 +53,14 @@ def ask(factory,user,data,settings,*,verify_session,provider=None,before_cloud_c
             try:calculation,reason=calculate(effective_query)
             except TreeError:return publish('validation_failed','tree_invariant_failed')
             if reason:return publish('insufficient_evidence',reason,'当前构造不在已校验范围内。请提供从空树开始的整数插入序列及明确规则；不会猜测或替换原题条件。')
-            if calculation and not any(rule_supported(calculation.family,e['content'],single_key=len(calculation.keys)==1) for e in evidence):
-                return publish('insufficient_evidence','tree_rule_evidence_required','本轮未检索到足够的树操作规则，无法为构造结果提供可靠课程引用。')
+            if calculation:
+                rule_support={e['citation_id']:rule_supported(calculation,e['content']) for e in evidence}
+                if any(s.kind=='conflict' for s in rule_support.values()):
+                    return publish('insufficient_evidence','tree_rule_conflict','课程资料中识别到的构造约定与本题条件冲突。请确认采用哪套规则；未修改输入或生成构造结果。')
+                if any(s.kind=='unrecognized' for s in rule_support.values()):
+                    return publish('insufficient_evidence','tree_rule_unverified','课程资料的具体约定超出当前可核对范围，请明确规则依据；不会将其当作一致约定。')
+                if not any(s.usable for s in rule_support.values()):
+                    return publish('insufficient_evidence','tree_rule_evidence_required','本轮未检索到足够的树操作规则，无法为构造结果提供可靠课程引用。')
         messages=build_prompt(data.query,mode,context,settings,history=conversation_history,resolved_query=effective_query)
         # Recheck again immediately before any generator could receive evidence, then release locks.
         with factory() as session:validate_evidence(session,user,data.knowledge_base_ids,evidence,settings,verify_session=verify_session)
@@ -75,12 +82,11 @@ def ask(factory,user,data,settings,*,verify_session,provider=None,before_cloud_c
                         return publish('insufficient_evidence',reason,REFUSAL,model=chosen.model)
                     answer=draft.answer
                     if calculation:
-                        by_citation={e['citation_id']:e for e in evidence}
-                        if any(not rule_supported(calculation.family,by_citation[c]['content'],single_key=len(calculation.keys)==1) for c in citations):
+                        if any(not rule_support[c].usable for c in citations):
                             raise AnswerValidationError('tree_rule_citation_required')
                         # Numerical structures never come from unchecked model prose. Keep the
                         # original strict citation checks; render only the verified calculation.
-                        answer=calculation.render(' '.join(citations))
+                        answer=calculation.render(' '.join(citations),supports={c:rule_support[c] for c in citations})
                         if len(answer.encode())>settings.generation_max_output_bytes:raise AnswerValidationError('tree_output_limit')
                     elif mode!='code' and tree_family(effective_query) and unverified_tree_prose(answer):
                         raise AnswerValidationError('unverified_tree_prose')

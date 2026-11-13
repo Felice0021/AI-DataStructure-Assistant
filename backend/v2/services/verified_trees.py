@@ -144,11 +144,17 @@ class Calculation:
     steps: tuple[dict,...] = ()
     rotations: tuple[dict,...] = ()
     example: bool = False
+    conventions: dict = field(default_factory=dict)
 
-    def render(self,citation):
+    def render(self,citation,*,supports=None):
         lines=['### 已校验的'+('示例' if self.example else '构造结果'),
-            '以下结构由服务端算法计算并校验；不是运行用户代码。规则依据 '+citation+'。',
+            '以下结构由服务端算法计算并校验；不是运行用户代码。',
             '从空树依次插入：'+', '.join(map(str,self.keys))+'。']
+        if supports is not None:
+            from backend.v2.services.tree_rule_evidence import attribution
+            lines+=attribution(self,supports)
+        else:
+            lines+=['课程资料仅作为相关原理的来源 '+citation+'；具体输入与约定来自题设或明示的自拟示例，不宣称由教材规定。']
         if self.example:lines.append('这是明确自拟的演示输入，不是替换题目条件。')
         if self.checks.get('rotation_mismatch'):lines.append(self.checks['rotation_mismatch'])
         if self.family in {'B','B+'}:
@@ -289,14 +295,16 @@ def calculate(query):
         actual=inspect_multi(root,m,cap,plus=family=='B+')
         if actual!=sorted(keys[:i+1]):raise TreeError('insertion_changed_keys')
     rules=f'结点最多 {m} 个孩子；'+('本次没有分裂，不补充分裂约定。' if len(keys)<=cap else f'叶最多 {cap} 键，溢出左叶保留 {left} 键、右叶保留 {cap+1-left} 键，复制右叶最小键到父。' if family=='B+' else '按题中约定，溢出后提升'+('较小中间键。' if lower else '中间键（偶数键取较大中间键）。'))
-    return Calculation(family,keys,multi_snapshot(root),{'keys':actual,'rules':rules},example=self_example),None
-
-
-def rule_supported(family,content,*,single_key=False):
-    names={'AVL':r'AVL|平衡二叉','BST':r'BST|二叉搜索树|二叉排序树','B+':r'B\s*\+\s*树','B':r'B\s*树'}
-    rules={'AVL':r'旋转|左旋|右旋|高度差|平衡因子','BST':r'小于|大于|有序|中序|左.*右','B+':r'分裂|叶|分隔','B':r'分裂|孩子|键'}
-    if single_key:rules[family]+=r'|(?:插入|空树).*(?:根|叶)'
-    return bool(re.search(names[family],content,re.I) and re.search(rules[family],content))
+    # Provenance metadata only: the insertion/rotation/split computations above are unchanged.
+    conventions={'max_children':m,'max_keys':m-1}
+    if family=='B+':conventions['leaf_capacity']=cap
+    if len(keys)>cap:
+        conventions['split_timing']='after'
+        if family=='B+':
+            conventions.update(leaf_left=left,leaf_right=cap+1-left,separator='right_min')
+        if family=='B' or any(c.children for c in root.children):
+            conventions['median']='middle' if m%2 else 'lower' if lower else 'upper'
+    return Calculation(family,keys,multi_snapshot(root),{'keys':actual,'rules':rules},example=self_example,conventions=conventions),None
 
 
 def unverified_tree_prose(answer):

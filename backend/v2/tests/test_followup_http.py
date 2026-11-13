@@ -9,6 +9,7 @@ from sqlalchemy import select, text
 from backend.v2.models import Message
 from backend.v2.services.generation_provider import Completion
 from backend.v2.services.verified_trees import calculate
+from backend.v2.services.tree_rule_evidence import rule_supported
 from backend.v2.tests.test_auth import csrf_headers, client_for, register, post
 from backend.v2.tests.test_context_turns import conversation, send
 from backend.v2.tests.test_ingestion import setup, upload
@@ -90,7 +91,7 @@ def test_step_claim_and_explicit_insertion_cursor(followup_env):
         r,_=send(e,url,'继续展示下一次插入。')
         calculation,_=calculate(json.loads(e['calls'][-1][1]['content'])['resolved_question'])
         assert calculation.final==expected
-        assert r.json()['answer']==calculation.render(r.json()['sources'][0]['citation_id'])
+        assert r.json()['answer']==calculation.render(r.json()['sources'][0]['citation_id'],supports={r.json()['sources'][0]['citation_id']:rule_supported(calculation,json.loads(e['calls'][-1][2]['content'])['blocks'][0]['content'])})
     count=len(e['calls']);r,_=send(e,url,'继续展示下一次插入。')
     assert r.json()['reason']=='conversation_context_ambiguous' and r.json()['sources']==[]
     assert len(e['calls'])==count

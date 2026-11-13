@@ -549,3 +549,6 @@ reason 分别为 `missing_tree_order` 或 `missing_operation_sequence`；前端�
 超出已验证范围）、tree_rule_evidence_required（本轮缺少支持规则）。502 validation_failed
 可能为 tree_invariant_failed、tree_rule_citation_required、tree_output_limit 或
 unverified_tree_prose；无有效答案/来源，不保存未通过结果。详见 VERIFIED_TREE_CONTEXT.md。
+构造规则与资料明确冲突时为 `200 insufficient_evidence / tree_rule_conflict`；
+相关约定超出有界来源语法时为 `tree_rule_unverified`。两者均为空来源、无数值构造，
+在调用生成器前澄清。成功回答区分教材原理、明确规定与用户题设假设，不把题设约定标成教材依据。

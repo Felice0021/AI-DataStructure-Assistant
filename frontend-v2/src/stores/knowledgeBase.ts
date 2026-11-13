@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import { ApiError } from '@/api/http'
 import { knowledgeBaseApi } from '@/api/knowledgeBases'
 import { currentEpoch } from '@/api/session'
+import { configuredCourseId } from '@/api/courseConfig'
 import type { KnowledgeBase } from '@/types/api'
 
 /** 后端 AskRequest.knowledge_base_ids 的上限（backend/v2/schemas/rag.py:9） */
@@ -36,6 +37,19 @@ export const useKnowledgeBaseStore = defineStore('knowledgeBase', {
   }),
 
   getters: {
+    course: (state): KnowledgeBase | null => {
+      const id = configuredCourseId()
+      const matches = id ? state.items.filter(kb => kb.id.toLowerCase() === id) : []
+      return matches.length === 1 ? matches[0]! : null
+    },
+    courseIssue(): string {
+      if (this.loading || this.errorCode) return ''
+      if (!configuredCourseId()) return '课程知识库尚未正确配置，请联系管理员。'
+      return this.course ? '' : '当前账号没有可用的指定课程知识库，请联系管理员核对配置与权限。'
+    },
+    courseSelected(): boolean {
+      return !this.loading && !this.errorCode && !!this.course && this.selectedIds.length === 1 && this.selectedIds[0] === this.course.id
+    },
     /** private 必为本人所有（服务端只返回自己的 private）*/
     mine: (state): KnowledgeBase[] => state.items.filter((kb) => kb.visibility === 'private'),
     shared: (state): KnowledgeBase[] => state.items.filter((kb) => kb.visibility === 'public'),
@@ -69,9 +83,8 @@ export const useKnowledgeBaseStore = defineStore('knowledgeBase', {
         if (!isCurrent()) return
         this.items = collected
         this.total = total
-        // 列表变化后丢弃已不存在的选中项，避免把无效 id 提交给后端（会整单 404）
-        const available = new Set(collected.map((kb) => kb.id))
-        this.selectedIds = this.selectedIds.filter((id) => available.has(id))
+        // Only select the configured course when the authenticated API actually returned it.
+        this.selectCourse()
       } catch (error) {
         if (!isCurrent()) return
         this.items = []
@@ -82,6 +95,11 @@ export const useKnowledgeBaseStore = defineStore('knowledgeBase', {
       } finally {
         if (isCurrent()) this.loading = false
       }
+    },
+
+    selectCourse(): void {
+      this.selectedIds = this.course ? [this.course.id] : []
+      this.limitNotice = ''
     },
 
     isSelected(id: string): boolean {

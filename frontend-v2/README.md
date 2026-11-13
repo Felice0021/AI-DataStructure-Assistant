@@ -4,6 +4,11 @@ V2 前端（Vue 3 + Vite + TypeScript）。**与 V1 的 `frontend/` 完全独立
 
 对应任务：[Issue #3](https://github.com/Felice0021/AI-DataStructure-Assistant/issues/3) · 接口契约：[`docs/v2/openapi.json`](../docs/v2/openapi.json) · 交接说明：[`docs/v2/FRONTEND_HANDOFF.md`](../docs/v2/FRONTEND_HANDOFF.md)
 
+**当前学生聊天界面与发布前配置**见 [STUDENT_CHAT_REVIEW.md](docs/STUDENT_CHAT_REVIEW.md)。
+学生页现为真实会话消息流，课程库通过 `VITE_COURSE_KB_ID` 精确匹配有权限的 API 记录并自动选择；
+未配置时明确报错。下文早期 Sprint 的多选、模式表单及旧截图属于历史记录，不代表当前学生界面。
+旧 MSW 仅覆盖单轮接口，不能代替会话历史浏览器验收；本次预览使用隔离数据库和真实本地 API。
+
 ## 1. 快速开始
 
 ```bash

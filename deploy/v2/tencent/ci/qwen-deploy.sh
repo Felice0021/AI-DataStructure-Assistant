@@ -19,6 +19,9 @@ exec 9>/run/lock/ds-v2-qwen-deploy.lock
 flock -n 9 || { echo 'deployment already running' >&2; exit 1; }
 old=$(readlink -f "$base/qwen-demo")
 case "$old" in "$base"/releases/qa-qwen-*) ;; *) echo 'unexpected current release' >&2; exit 1;; esac
+# Installed and audited separately from the checkout. Fail before creating a release.
+course_id=$(/usr/bin/python3 /usr/local/libexec/ds-v2-qwen-frontend-config)
+[[ "$course_id" =~ ^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$ ]]
 
 # The key alone cannot bypass the test gates; refuse stale commits and missing checks.
 scratch=$(mktemp -d /tmp/ds-qwen-ci.XXXXXXXX)
@@ -66,7 +69,7 @@ build=(systemd-run --wait --collect --pipe --property=User=qwen-build --property
 "${build[@]}" /usr/bin/env -i HOME=/var/lib/qwen-build PATH="$node_bin:/usr/bin:/bin" \
   npm --prefix "$release/frontend-v2" ci --no-audit --no-fund
 "${build[@]}" /usr/bin/env -i HOME=/var/lib/qwen-build PATH="$node_bin:/usr/bin:/bin" \
-  VITE_REGISTRATION_ENABLED=false VITE_USE_MOCK=false VITE_API_BASE= \
+  VITE_REGISTRATION_ENABLED=false VITE_USE_MOCK=false VITE_API_BASE= VITE_COURSE_KB_ID="$course_id" \
   npm --prefix "$release/frontend-v2" run build
 test -d "$release/frontend-v2/dist" && test ! -L "$release/frontend-v2/dist"
 test -z "$(find "$release/frontend-v2/dist" -type l -print -quit)"

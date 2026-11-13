@@ -71,9 +71,10 @@ async function older() { const el = stream.value; const height = el?.scrollHeigh
           <article v-for="message in chat.messages" :key="message.id" :class="['message', message.role]">
             <p v-if="message.role === 'user'" class="user-bubble">{{ message.content }}</p>
             <template v-else><div class="assistant-name">AI 助教</div>
-              <AnswerView v-if="message.metadata_json.result" :phase="message.metadata_json.result.status === 'answered' ? 'answered' : 'refused'" :result="message.metadata_json.result" :error-code="null" :error-status="0" error-message="" />
-              <p v-else>{{ message.content }}</p>
-              <CopyAnswerButton :text="message.metadata_json.result?.answer ?? message.content" />
+              <AnswerView v-if="message.metadata_json.result" :phase="message.metadata_json.result.status === 'answered' ? 'answered' : 'refused'" :result="message.metadata_json.result" :error-code="null" :error-status="0" error-message="">
+                <template #answer-actions><CopyAnswerButton :text="message.metadata_json.result.answer ?? message.content" /></template>
+              </AnswerView>
+              <template v-else><p>{{ message.content }}</p><CopyAnswerButton :text="message.content" /></template>
             </template>
           </article>
           <article v-if="chat.pending" class="message user"><p class="user-bubble">{{ chat.pending.payload.query }}</p></article>

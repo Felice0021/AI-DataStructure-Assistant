@@ -82,6 +82,10 @@ it('copies only the response body and never adds hidden diagnostics', async () =
   vi.stubGlobal('navigator', {...navigator, clipboard: {writeText}})
   useChatStore().messages = [{id: 'reply', seq: 2, role: 'assistant', content: 'legacy diagnostic text', metadata_json: {result: mockAnswered}}]
   const w = mount(ChatWorkspace); await flushPromises()
+  const card = w.find('[data-testid="answer-success"]')
+  const sections = Array.from(card.element.children)
+  expect(sections.indexOf(card.find('.answer-text').element)).toBeLessThan(sections.indexOf(card.find('.copy-answer').element))
+  expect(sections.indexOf(card.find('.copy-answer').element)).toBeLessThan(sections.indexOf(card.find('.sources').element))
   await w.find('button[aria-label="复制回答"]').trigger('click'); await flushPromises()
   expect(writeText).toHaveBeenCalledWith(mockAnswered.answer)
   expect(w.find('.answer-details').exists()).toBe(false)

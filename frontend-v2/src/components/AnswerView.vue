@@ -61,6 +61,7 @@ async function onCite(citationId: string): Promise<void> {
 
     <section v-else-if="phase === 'answered' && result" class="card card-success" data-testid="answer-success">
       <AnswerText :text="result.answer ?? ''" :sources="result.sources" @cite="onCite" />
+      <slot name="answer-actions" />
       <SourceList :id-prefix="sourcePrefix" :sources="result.sources" :highlight="highlight" :open="sourcesOpen" @toggle="sourcesOpen = $event" />
     </section>
 
@@ -71,6 +72,7 @@ async function onCite(citationId: string): Promise<void> {
       </header>
       <p class="refusal-reason">{{ refusalDetail }}</p>
       <p class="hint">可以尝试换用更具体的问法，或请管理员核对课程资料。</p>
+      <slot name="answer-actions" />
     </section>
 
     <section v-else-if="phase === 'failed'" class="card card-error" data-testid="answer-error">

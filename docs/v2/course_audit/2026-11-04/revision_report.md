@@ -13,9 +13,9 @@
 
 ## 本次实际验证
 
-运行 `python -B tools/course_audit/review.py`：**PASS**，1010条、100条候选、556条待复核疑点，数量保持原交付。
+运行 `python -B docs/v2/course_audit/2026-11-04/review.py`：**PASS**，1010条、100条候选、556条待复核疑点，数量保持原交付。
 
-运行 `python -B tools/course_audit/test_review.py`：**PASS，5项测试**：
+运行 `python -B docs/v2/course_audit/2026-11-04/test_review.py`：**PASS，5项测试**：
 
 1. 候选100条、ID唯一、明确AI初审覆盖。
 2. 缺失、空白或带已知问题的AI初审记录拒绝通过。
@@ -29,8 +29,8 @@
 
 ## 修改文件
 
-- 工具：`tools/course_audit/review.py`、新增 `test_review.py`；`content_notes.json`和原dry-run包装脚本未改。
-- 表格：三个CSV更新；含原文 `outputs/course-audit-20261104/course_review.xlsx` 从跟踪中移除，新增同目录 `.gitignore`。
+- 工具：`docs/v2/course_audit/2026-11-04/review.py`、新增 `test_review.py`；`content_notes.json`和原dry-run包装脚本未改。
+- 表格：三个CSV更新；含原文 `docs/v2/course_audit/2026-11-04/course_review.xlsx` 从跟踪中移除，本地副本由审查目录的 `.gitignore` 忽略。
 - JSON：`prepare_offline.json`、`summary.json` 更新摘要口径和状态；元数据映射、近似重复与原校验结果不改变内容。
 - 说明：`README.md`、`authorization.md`、`delivery_drafts.md`、`dry_run.md`、`findings.md`及本报告。
 

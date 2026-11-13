@@ -59,7 +59,7 @@ class ReviewChecks(unittest.TestCase):
 
     def test_public_artifacts_have_no_full_source_body_or_workbook(self):
         # Scan every current public textual deliverable, including notes and scripts.
-        paths = [p for folder in (review.OUT, HERE) for p in folder.iterdir()
+        paths = [p for p in HERE.iterdir()
                  if p.suffix in {'.csv','.json','.md','.py'} and p.is_file()]
         bodies = {''.join(row['text'].split()) for row in self.source.values()}
         for path in paths:
@@ -78,7 +78,8 @@ class ReviewChecks(unittest.TestCase):
                         for item in value.values(): yield from strings(item)
                 normalized += ''.join(''.join(s.split()) for s in strings(json.loads(text)))
             self.assertFalse(any(body in normalized for body in bodies),path.name)
-        tracked = subprocess.run(['git','ls-files','--','outputs/course-audit-20261104/*.xlsx'],
+        workbook = (HERE / 'course_review.xlsx').relative_to(review.ROOT).as_posix()
+        tracked = subprocess.run(['git','ls-files','--',workbook],
                                  cwd=review.ROOT,capture_output=True,text=True,check=True).stdout
         self.assertEqual(tracked.strip(),'','Source-containing workbook must not remain tracked')
 

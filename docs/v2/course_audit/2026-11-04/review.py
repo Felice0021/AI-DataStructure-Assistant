@@ -10,8 +10,8 @@ import re
 import sys
 import subprocess
 
-ROOT = Path(__file__).resolve().parents[2]
-OUT = ROOT / 'docs/v2/course_audit/2026-11-04'
+OUT = Path(__file__).resolve().parent
+ROOT = OUT.parents[3]
 SOURCE = ROOT / 'knowledge_base/ds_chunks.jsonl'
 
 def digest(data):

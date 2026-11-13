@@ -20,3 +20,47 @@ PR 只运行测试；部署分支 push 运行测试，只有三个 job 成功、
 ## 回滚
 
 发布前记录 `readlink -f /opt/ds-v2-qa/qwen-demo`。如需人工回滚，由服务器管理员核对旧 release 后，原子替换 `/opt/ds-v2-qa/qwen-demo` 符号链接到该旧目录，并重启 `ds-v2-qwen@api`、`ds-v2-qwen@parser`、`ds-v2-qwen@embedding`，验证 HTTPS、登录和 RAG。不得更改 `/opt/ds-v2-qa/current`。自动回滚依赖 systemd 可用及旧 release 完整，无法保证机器掉电期间的事务性；应在启用前实际演练。
+
+## 正式课程库的构建配置
+
+服务器管理员维护 `/etc/ds-v2-qa/qwen-course-kb-id`：只包含一个规范 UUID 和可选行尾换行，
+root 所有、0644，禁止组/其他用户写入，禁止符号链接。UUID 是公开资源标识，不是授权凭据。
+不得按名称猜测、选择第一个库或回退 Synthetic，也不要把实际环境的 UUID 硬编码到源码。
+
+发布脚本在创建 release、安装依赖和切换链接**之前**运行
+`/usr/bin/python3 /usr/local/libexec/ds-v2-qwen-frontend-config`：
+
+1. 校验受控配置的文件类型、所有者、权限、长度及 UUID 格式。
+2. 与既有私有 `course-import-state.json` 的 `kb` 字段核对。
+3. 从既有私有 `credentials.json` 内存读取演示账号，经真实 HTTPS、Origin、CSRF 正常登录，
+   调用 `/auth/me` 和 `/knowledge-bases/{id}`，确认它是该账号拥有的私人课程库，最后退出本次会话。
+   不创建账号、不改业务数据、不读取正文、不调用云模型；正常登录/注销只产生现有认证机制的会话记录。
+4. 任何配置、权限、404、认证、网络/TLS或退出失败都终止发布；不输出底层异常、密码、Cookie、CSRF。
+   TLS 正常验证，禁用重定向和环境代理继承，单请求15秒超时，无重试。
+5. 仅把验证得到的 UUID 显式传入清空后的构建环境 `VITE_COURSE_KB_ID`，
+   不将验证用的凭据或其他服务器环境传给 `qwen-build`。
+
+两份既有私有 JSON 路径在 `/var/lib/ds-v2-parser/qwen-demo/`；目前服务 UID 为1002。
+验证器只接受 root/UID1002 所有、0600的常规文件。账号轮换时沿用原私有凭据更新流程；
+失效凭据会阻止后续发布，不会导致当前 release 被切换。
+
+**仓库 push 不会安装发布脚本。** 合并本 PR 前，管理员必须先：
+
+- 核对线上已安装脚本 SHA、当前 release、CI/SSH保护和部署锁，审查本次差异。
+- 在仓库外 root 私有目录备份旧 `/usr/local/libexec/ds-v2-qwen-deploy` 与现有配置（如有）。
+- 将本目录 `qwen-frontend-config.py` 安装为 root:root、0755 的
+  `/usr/local/libexec/ds-v2-qwen-frontend-config`；经鉴权 API 独立核实 UUID 后原子写入上述配置。
+- 运行验证器及 `bash -n`，确认返回已核实 UUID，再原子安装经审查的 `qwen-deploy.sh`
+  到原固定路径，保持 root:root、0755、原 forced-command/sudoers 不变。
+- 对比安装后 SHA、核对发布前验证位置和显式构建变量，记录备份位置与回退步骤。
+  不为安装执行发布脚本，不更改自动发布开关、不切换线上 release。
+
+若安装验证失败，恢复备份的旧部署脚本；不切换 release，不修改数据库或向量。
+新 helper/配置可保留在 root 受控目录供审查，旧脚本不会调用它们。
+
+无外部连接的回归：
+
+```sh
+python -m pytest -q backend/v2/tests/test_qwen_deploy_config.py
+bash -n deploy/v2/tencent/ci/qwen-deploy.sh
+```

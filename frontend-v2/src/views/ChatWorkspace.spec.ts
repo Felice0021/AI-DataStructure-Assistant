@@ -72,6 +72,7 @@ it('fails closed if only synthetic or an unauthorized course is available', asyn
   const w = mount(ChatWorkspace); await flushPromises()
   expect(kb.selectedIds).toEqual([])
   expect(w.find('[role="alert"]').text()).toContain('当前账号没有可用的指定课程知识库')
+  expect(w.find('.composer-wrap [role="alert"]').text()).toContain('当前账号没有可用的指定课程知识库')
   await w.find('textarea').setValue('AVL'); await w.find('form.composer').trigger('submit')
   expect(send).not.toHaveBeenCalled()
 })

@@ -83,6 +83,7 @@ async function older() { const el = stream.value; const height = el?.scrollHeigh
         </div>
       </div>
       <div class="composer-wrap">
+        <p v-if="!kb.loading && (kb.courseIssue || kb.errorCode)" class="course-warning" role="alert">{{ kb.courseIssue || '课程资料加载失败，请在导航中重新加载或联系管理员。' }}</p>
         <p v-if="notice" class="notice" role="status">{{ notice }} <button aria-label="关闭提示" @click="notice = ''">×</button></p>
         <form class="composer" @submit.prevent="send">
           <textarea v-model="query" aria-label="向 AI 助教提问" placeholder="提出你的数据结构问题…" rows="1" maxlength="2000" :disabled="chat.sending || !!chat.pending" @keydown="keydown" @input="resize"></textarea>
@@ -170,6 +171,7 @@ async function older() { const el = stream.value; const height = el?.scrollHeigh
 .composer-note { max-width: 760px; margin: 9px auto 0; text-align: center; font-size: 10px; color: #858585; }
 .composer-note span { margin-left: 12px; }
 .notice { text-align: center; font-size: 12px; color: #525252; }
+.course-warning { max-width: 760px; margin: 0 auto 8px; color: #525252; font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
 .shade { display: none; }
 button { border: 0; background: transparent; cursor: pointer; }
 button:disabled { cursor: not-allowed; opacity: .55; }

@@ -64,6 +64,7 @@ def missing_conditions(query):
         if order<2:return 'ambiguous_tree_rules'
     child=re.search(r'(?:最多|至多|最大)(?:有)?\s*(\d+)\s*个?(?:孩子|子节点|子女|子树)',query)
     degree=re.search(r'(?:最小度数|最小度)\s*t?\s*(?:为|是|[:=])?\s*(\d+)',query,re.I)
+    leaf=re.search(r'叶(?:结点|节点)?[^。;；]{0,16}?(?:最多|至多)\s*(\d+)\s*个?(?:键|关键字)',query)
     if degree and (int(degree[1])<2 or family[1]):return 'ambiguous_tree_rules'
     if child and (int(child[1])<2 or order is not None and int(child[1])!=order):return 'ambiguous_tree_rules'
     if re.search(r'叶(?:结点|节点)?[^。;；]{0,16}?(?:最多|至多)\s*0\s*个?(?:键|关键字)',query):return 'ambiguous_tree_rules'
@@ -73,12 +74,11 @@ def missing_conditions(query):
     defined=bool(child or degree or re.search(r'阶数(?:表示|指|定义为|为)(?:结点|节点)?(?:的)?(?:最大|最多)孩子数',query))
     if not defined:
         # Both common order/degree conventions allow this unsplit root leaf.
-        if order and len(keys)<=order-1:return None
+        if order and len(keys)<=order-1 and (not leaf or len(keys)<=int(leaf[1])):return None
         return 'ambiguous_tree_rules'
     children=int(child[1]) if child else 2*int(degree[1]) if degree else order
     capacity=children-1
     if family[1]:
-        leaf=re.search(r'叶(?:结点|节点)?[^。;；]{0,16}?(?:最多|至多)\s*(\d+)\s*个?(?:键|关键字)',query)
         shorthand=re.search(r'(?:最多|至多)\s*\d+\s*个?孩子\s*[,、]\s*(\d+)\s*个?(?:键|关键字)',query)
         if leaf or shorthand:
             capacity=int((leaf or shorthand)[1])

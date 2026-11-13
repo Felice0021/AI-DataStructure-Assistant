@@ -113,12 +113,12 @@ describe('AnswerView 状态分发', () => {
   })
 })
 
-it('keeps engineering metadata collapsed after the answer instead of a success badge', () => {
+it('omits student-facing diagnostics while retaining answer, sources and metadata', () => {
   const w = mount(AnswerView, {props: {...baseProps, phase: 'answered', result: mockAnswered}})
-  expect(w.find('.badge-success').exists()).toBe(false)
-  expect(w.find('.answer-details').attributes('open')).toBeUndefined()
-  expect(w.find('.answer-details').text()).toContain(String(Math.round(mockAnswered.latency_ms)))
-  const answer = w.find('.answer-text').element
-  const info = w.find('.answer-details').element
-  expect(answer.compareDocumentPosition(info) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  expect(w.find('.answer-details').exists()).toBe(false)
+  expect(w.text()).not.toContain('回答信息')
+  expect(w.text()).not.toContain(mockAnswered.generation_model)
+  expect(w.find('.answer-text').exists()).toBe(true)
+  expect(w.find('.sources').exists()).toBe(true)
+  expect(mockAnswered.generation_model).toBeTruthy()
 })

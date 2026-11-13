@@ -32,19 +32,6 @@ const highlight = ref<string | null>(null)
 const sourcesOpen = ref(false)
 watch(() => props.result, () => { sourcesOpen.value = false; highlight.value = null })
 
-const RETRIEVAL_LABELS: Record<string, string> = {
-  bm25: 'BM25 关键词',
-  dense: '向量检索',
-  hybrid: '混合检索',
-}
-
-const ANSWER_MODE_LABELS: Record<string, string> = {
-  auto: '自动',
-  qa: '问答',
-  exercise: '习题讲解',
-  code: '代码分析',
-}
-
 const authorizationError = computed(() => props.errorCode?.includes('consent_required') === true)
 const showRetry = computed(() => props.phase === 'failed' && ![401, 403].includes(props.errorStatus) && !authorizationError.value)
 
@@ -75,14 +62,6 @@ async function onCite(citationId: string): Promise<void> {
     <section v-else-if="phase === 'answered' && result" class="card card-success" data-testid="answer-success">
       <AnswerText :text="result.answer ?? ''" :sources="result.sources" @cite="onCite" />
       <SourceList :id-prefix="sourcePrefix" :sources="result.sources" :highlight="highlight" :open="sourcesOpen" @toggle="sourcesOpen = $event" />
-      <details class="answer-details">
-        <summary>{{ result.generation_model?.startsWith('deterministic-') ? '确定性工程演示 · 回答信息' : '回答信息' }}</summary>
-        <p class="head-meta">
-          {{ result.generation_model ?? '生成模型未知' }} · {{ RETRIEVAL_LABELS[result.retrieval_mode] ?? result.retrieval_mode }}
-          · {{ ANSWER_MODE_LABELS[result.answer_mode] ?? result.answer_mode }}
-          <span v-if="result.rerank_applied"> · 已重排</span> · {{ Math.round(result.latency_ms) }} ms
-        </p>
-      </details>
     </section>
 
     <section v-else-if="phase === 'refused'" class="card card-warn" data-testid="answer-refused">
@@ -91,7 +70,7 @@ async function onCite(citationId: string): Promise<void> {
         <span class="head-meta">这不是系统故障，而是当前资料无法支撑回答</span>
       </header>
       <p class="refusal-reason">{{ refusalDetail }}</p>
-      <p class="hint">可以尝试：换用更具体的问法、勾选更多相关知识库，或先补充相关资料。</p>
+      <p class="hint">可以尝试换用更具体的问法，或请管理员核对课程资料。</p>
     </section>
 
     <section v-else-if="phase === 'failed'" class="card card-error" data-testid="answer-error">
@@ -121,9 +100,6 @@ async function onCite(citationId: string): Promise<void> {
 .card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
 .badge { font-size: 13px; font-weight: 600; color: #262626; }
 .head-meta { font-size: 12px; color: #737373; }
-.answer-details { margin-top: 10px; font-size: 11px; color: #858585; }
-.answer-details summary { cursor: pointer; }
-.answer-details p { margin: 6px 0 0; }
 .refusal-reason, .error-message { margin: 0 0 8px; font-size: 14px; color: var(--ink); }
 .hint { margin: 0; font-size: 12px; line-height: 1.7; color: var(--muted); }
 .retry { margin-top: 12px; padding: 6px 14px; border: 1px solid #dedede; border-radius: 6px; background: #FFFFFF; font-size: 13px; cursor: pointer; }

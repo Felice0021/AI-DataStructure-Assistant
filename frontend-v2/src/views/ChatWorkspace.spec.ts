@@ -1,21 +1,22 @@
-import { mount, flushPromises } from '@vue/test-utils'
+import { mount, flushPromises, enableAutoUnmount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import ChatWorkspace from './ChatWorkspace.vue'
 import { useChatStore } from '@/stores/chat'
 import { useKnowledgeBaseStore } from '@/stores/knowledgeBase'
 import { useAuthStore } from '@/stores/auth'
 import { logoutAndReset } from '@/stores/reset'
 import { mockAnswered, mockUser } from '@/mocks/fixtures'
+enableAutoUnmount(afterEach)
+const courseId = '11111111-1111-4111-8111-111111111111'
 vi.mock('@/stores/reset', () => ({logoutAndReset: vi.fn()}))
-beforeEach(() => { HTMLElement.prototype.scrollTo = vi.fn(); setActivePinia(createPinia()); useAuthStore().user = mockUser; useAuthStore().status = 'authenticated'; vi.spyOn(useKnowledgeBaseStore(), 'load').mockResolvedValue(); vi.spyOn(useChatStore(), 'list').mockResolvedValue() })
+beforeEach(() => { vi.unstubAllEnvs(); vi.stubEnv('VITE_COURSE_KB_ID', courseId); window.history.replaceState(null, '', '/'); HTMLElement.prototype.scrollTo = vi.fn(); setActivePinia(createPinia()); useAuthStore().user = mockUser; useAuthStore().status = 'authenticated'; useKnowledgeBaseStore().items = [{id: courseId, name: 'API 返回的真实课程名称', visibility: 'private'} as never]; vi.spyOn(useKnowledgeBaseStore(), 'load').mockResolvedValue(); vi.spyOn(useChatStore(), 'list').mockResolvedValue() })
 it('welcomes students without advanced controls; Enter sends and Shift+Enter preserves a newline', async () => {
-  useKnowledgeBaseStore().selectedIds = ['kb']
   const send = vi.spyOn(useChatStore(), 'send').mockResolvedValue()
   const w = mount(ChatWorkspace); await flushPromises()
   expect(w.text()).toContain('把知识连成思路'); expect(w.text()).not.toContain('高级选项')
   await w.find('textarea').setValue('AVL'); await w.find('textarea').trigger('keydown', {key: 'Enter', shiftKey: true}); expect(send).not.toHaveBeenCalled()
-  await w.find('textarea').trigger('keydown', {key: 'Enter'}); expect(send).toHaveBeenCalledWith('AVL', ['kb'])
+  await w.find('textarea').trigger('keydown', {key: 'Enter'}); expect(send).toHaveBeenCalledWith('AVL', [courseId])
 })
 it('keeps two S1 source lists independent', async () => {
   const chat = useChatStore(); chat.messages = [1, 2].map(i => ({id: String(i), seq: i, role: 'assistant', content: mockAnswered.answer!, metadata_json: {result: mockAnswered}}))
@@ -37,11 +38,11 @@ it('reports a failed server logout instead of claiming the session was revoked',
 
 it('places compact API knowledge bases between new chat and scrolling history', async () => {
   const kb = useKnowledgeBaseStore()
-  kb.items = [{ id: 'api-kb', name: 'API 返回的授权课程', description: '无需在侧栏重复的说明', visibility: 'private' } as never]
+  kb.items = [{ id: courseId, name: 'API 返回的授权课程', description: '无需在侧栏重复的说明', visibility: 'private' } as never]
   kb.total = 1
   const w = mount(ChatWorkspace); await flushPromises()
   expect(w.find('.brand').text()).toBe('数据结构 AI 助教')
-  expect(w.find('.knowledge').text()).toContain('API 返回的授权课程')
+  expect(w.find('.knowledge').text()).toContain('课程知识库')
   expect(w.find('.knowledge').text()).not.toContain('无需在侧栏重复的说明')
   expect(w.find('.knowledge').findAll('h2')).toHaveLength(1)
   const children = Array.from(w.find('.sidebar').element.children)
@@ -49,15 +50,73 @@ it('places compact API knowledge bases between new chat and scrolling history', 
   expect(children.indexOf(w.find('.knowledge').element)).toBeLessThan(children.indexOf(w.find('.history').element))
   expect(children.indexOf(w.find('.history').element)).toBeLessThan(children.indexOf(w.find('.account').element))
   expect(w.find('.history-list').exists()).toBe(true)
-  expect(kb.selectedIds).toEqual(['api-kb'])
+  expect(kb.selectedIds).toEqual([courseId])
 })
 
-it('does not silently select or combine multiple API knowledge bases', async () => {
+it('selects only the configured authorized course, hiding synthetic names and all multi-select controls', async () => {
   const kb = useKnowledgeBaseStore()
-  kb.items = ['one', 'two'].map(id => ({id, name: `API 课程 ${id}`, visibility: 'private'} as never))
+  kb.items = [{id: courseId, name: '任意课程名称', visibility: 'private'}, {id: '22222222-2222-4222-8222-222222222222', name: 'Synthetic Qwen Demo', visibility: 'private'}] as never
   kb.total = 2
   const w = mount(ChatWorkspace); await flushPromises()
+  expect(kb.selectedIds).toEqual([courseId])
+  expect(w.find('.knowledge').text()).toBe('课程知识库')
+  expect(w.text()).not.toContain('Synthetic Qwen Demo')
+  expect(w.text()).not.toMatch(/已选|全选|清空/)
+  expect(w.find('.knowledge input').exists()).toBe(false)
+})
+
+it('fails closed if only synthetic or an unauthorized course is available', async () => {
+  const kb = useKnowledgeBaseStore()
+  kb.items = [{id: '22222222-2222-4222-8222-222222222222', name: '课程知识库', visibility: 'private'}] as never
+  const send = vi.spyOn(useChatStore(), 'send').mockResolvedValue()
+  const w = mount(ChatWorkspace); await flushPromises()
   expect(kb.selectedIds).toEqual([])
-  await w.find('.knowledge input').setValue(true)
-  expect(kb.selectedIds).toEqual(['one'])
+  expect(w.find('[role="alert"]').text()).toContain('当前账号没有可用的指定课程知识库')
+  await w.find('textarea').setValue('AVL'); await w.find('form.composer').trigger('submit')
+  expect(send).not.toHaveBeenCalled()
+})
+
+it('copies only the response body and never adds hidden diagnostics', async () => {
+  const writeText = vi.fn().mockResolvedValue(undefined)
+  vi.stubGlobal('navigator', {...navigator, clipboard: {writeText}})
+  useChatStore().messages = [{id: 'reply', seq: 2, role: 'assistant', content: 'legacy diagnostic text', metadata_json: {result: mockAnswered}}]
+  const w = mount(ChatWorkspace); await flushPromises()
+  await w.find('button[aria-label="复制回答"]').trigger('click'); await flushPromises()
+  expect(writeText).toHaveBeenCalledWith(mockAnswered.answer)
+  expect(w.find('.answer-details').exists()).toBe(false)
+  expect(useChatStore().messages[0]!.metadata_json.result?.generation_model).toBe(mockAnswered.generation_model)
+  vi.unstubAllGlobals()
+})
+
+it('retains conversation controls and restores a saved conversation URL', async () => {
+  const chat = useChatStore()
+  chat.items = [{id: 'saved', title: '旧对话', updated_at: ''}]
+  const open = vi.spyOn(chat, 'open').mockResolvedValue()
+  window.history.replaceState(null, '', '/?conversation=saved')
+  const rename = vi.spyOn(chat, 'rename').mockResolvedValue()
+  const remove = vi.spyOn(chat, 'remove').mockResolvedValue()
+  const newChat = vi.spyOn(chat, 'newChat')
+  vi.stubGlobal('confirm', vi.fn().mockReturnValue(true))
+  const w = mount(ChatWorkspace); await flushPromises()
+  expect(open).toHaveBeenCalledWith('saved')
+  await w.find('.history-title').trigger('click'); expect(open).toHaveBeenCalledTimes(2)
+  await w.findAll('.history-actions button')[0]!.trigger('click')
+  await w.find('input[aria-label="对话标题"]').setValue('改名')
+  await w.find('.history-row form').trigger('submit'); await flushPromises()
+  expect(rename).toHaveBeenCalledWith('saved', '改名')
+  await w.findAll('.history-actions button')[1]!.trigger('click'); expect(remove).toHaveBeenCalledWith('saved')
+  await w.find('.new-chat').trigger('click'); expect(newChat).toHaveBeenCalledOnce()
+  vi.unstubAllGlobals()
+})
+
+it('never rewrites a pending request from a hidden knowledge-base scope', async () => {
+  const chat = useChatStore()
+  chat.pending = {id: 'old', payload: {query: '旧问题', knowledge_base_ids: ['hidden'], request_id: 'request'} as never}
+  chat.error = '尚未完成'
+  const send = vi.spyOn(chat, 'send').mockResolvedValue()
+  const w = mount(ChatWorkspace); await flushPromises()
+  await w.find('.error button').trigger('click')
+  expect(send).not.toHaveBeenCalled()
+  expect(chat.pending.payload.knowledge_base_ids).toEqual(['hidden'])
+  expect(w.find('.notice').text()).toContain('不会自动更换')
 })

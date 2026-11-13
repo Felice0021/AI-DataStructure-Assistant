@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/auth'
 import { logoutAndReset } from '@/stores/reset'
 import KnowledgeBasePicker from '@/components/KnowledgeBasePicker.vue'
 import AnswerView from '@/components/AnswerView.vue'
+import CopyAnswerButton from '@/components/CopyAnswerButton.vue'
 
 const chat = useChatStore(), kb = useKnowledgeBaseStore(), auth = useAuthStore()
 const leaving = ref(false)
@@ -13,20 +14,24 @@ const query = ref(''), drawer = ref(false), stream = ref<HTMLElement>(), nearBot
 const renaming = ref<string | null>(null), title = ref(''), notice = ref('')
 const examples = ['栈和队列有什么区别？', '用一个例子解释 AVL 树的旋转', '如何分析图遍历算法的时间复杂度？', '比较快速排序与归并排序']
 const activeTitle = computed(() => chat.items.find(c => c.id === chat.active)?.title ?? '新对话')
-const canSend = computed(() => !!query.value.trim() && kb.selectedCount > 0 && !chat.sending && !chat.loading && !chat.pending)
-onMounted(async () => { try { await Promise.all([chat.list(), kb.load()]); if (kb.items.length === 1 && !kb.selectedCount) kb.selectedIds = [kb.items[0]!.id]; const saved = new URL(window.location.href).searchParams.get('conversation'); if (saved) await open(saved) } catch { notice.value = '对话列表加载失败，请刷新重试。' } })
+const canSend = computed(() => !!query.value.trim() && kb.courseSelected && !chat.sending && !chat.loading && !chat.pending)
+watch(() => kb.course?.id, () => kb.selectCourse(), { immediate: true })
+onMounted(async () => { try { await Promise.all([chat.list(), kb.load()]); const saved = new URL(window.location.href).searchParams.get('conversation'); if (saved) await open(saved) } catch { notice.value = '对话列表加载失败，请刷新重试。' } })
 watch(() => chat.active, id => { const url = new URL(window.location.href); if (id) url.searchParams.set('conversation', id); else url.searchParams.delete('conversation'); window.history.replaceState(null, '', url) })
 function onScroll() { const el = stream.value; if (el) nearBottom.value = el.scrollHeight - el.scrollTop - el.clientHeight < 100 }
 async function bottom(force = false) { await nextTick(); if (force || nearBottom.value) stream.value?.scrollTo({top: stream.value.scrollHeight, behavior: 'smooth'}) }
 watch(() => [chat.messages.length, chat.sending], () => { void bottom() })
 async function send() { if (!canSend.value) return; const text = query.value; query.value = ''; nearBottom.value = true; await chat.send(text, [...kb.selectedIds]); await bottom() }
-async function retry() { if (chat.pending) { nearBottom.value = true; await chat.send(chat.pending.payload.query, chat.pending.payload.knowledge_base_ids); await bottom() } }
+async function retry() { if (chat.pending) {
+  const ids = chat.pending.payload.knowledge_base_ids
+  if (!kb.courseSelected || ids.length !== 1 || ids[0] !== kb.course?.id) { notice.value = '待重试问题属于其他知识库，请新建对话；不会自动更换原问题的资料范围。'; return }
+  nearBottom.value = true; await chat.send(chat.pending.payload.query, ids); await bottom()
+} }
 function keydown(e: KeyboardEvent) { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); void send() } }
 function resize(e: Event) { const el = e.target as HTMLTextAreaElement; el.style.height = 'auto'; el.style.height = `${Math.min(el.scrollHeight, 180)}px` }
 async function open(id: string) { drawer.value = false; await chat.open(id); await bottom(true) }
 async function rename(id: string) { if (!title.value.trim()) return; try { await chat.rename(id, title.value.trim()); renaming.value = null } catch { notice.value = '重命名失败，请重试。' } }
 async function remove(id: string) { if (!window.confirm('删除此对话？此操作会隐藏其全部消息。')) return; try { await chat.remove(id) } catch { notice.value = '删除失败，请重试。' } }
-async function copy(text: string) { try { await navigator.clipboard.writeText(text); notice.value = '回答已复制' } catch { notice.value = '浏览器未允许复制，请手动选择文本。' } }
 async function logout() { if (leaving.value) return; leaving.value = true; try { if (await logoutAndReset() === 'failed') auth.logoutFailed = true } finally { leaving.value = false } }
 async function older() { const el = stream.value; const height = el?.scrollHeight ?? 0; await chat.moreMessages(); await nextTick(); if (el) el.scrollTop += el.scrollHeight - height }
 </script>
@@ -68,7 +73,7 @@ async function older() { const el = stream.value; const height = el?.scrollHeigh
             <template v-else><div class="assistant-name">AI 助教</div>
               <AnswerView v-if="message.metadata_json.result" :phase="message.metadata_json.result.status === 'answered' ? 'answered' : 'refused'" :result="message.metadata_json.result" :error-code="null" :error-status="0" error-message="" />
               <p v-else>{{ message.content }}</p>
-              <button class="copy" @click="copy(message.content)">复制回答</button>
+              <CopyAnswerButton :text="message.metadata_json.result?.answer ?? message.content" />
             </template>
           </article>
           <article v-if="chat.pending" class="message user"><p class="user-bubble">{{ chat.pending.payload.query }}</p></article>
@@ -83,7 +88,7 @@ async function older() { const el = stream.value; const height = el?.scrollHeigh
           <textarea v-model="query" aria-label="向 AI 助教提问" placeholder="提出你的数据结构问题…" rows="1" maxlength="2000" :disabled="chat.sending || !!chat.pending" @keydown="keydown" @input="resize"></textarea>
           <button class="send" :disabled="!canSend" aria-label="发送问题">↑</button>
         </form>
-        <p class="composer-note">{{ kb.selectedCount ? `已选择 ${kb.selectedCount} 个知识库` : '请先选择课程知识库' }} · 回答可能有误，请核对来源。<span>Enter 发送 · Shift + Enter 换行</span></p>
+        <p class="composer-note">回答可能有误，请核对资料来源。<span>Enter 发送 · Shift + Enter 换行</span></p>
       </div>
     </main>
   </div>
@@ -152,7 +157,6 @@ async function older() { const el = stream.value; const height = el?.scrollHeigh
 .message.user { display: flex; justify-content: flex-end; }
 .user-bubble { max-width: 85%; margin: 0; padding: 12px 18px; border-radius: 18px 18px 4px 18px; background: #f3f3f3; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 15px; }
 .assistant-name { margin-bottom: 12px; color: #525252; font-size: 12px; font-weight: 600; }
-.copy { padding: 8px 0; color: #737373; font-size: 11px; }
 .thinking { padding: 14px 0; color: #737373; font-size: 13px; }
 .thinking span { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #737373; animation: pulse 1.4s infinite; }
 .error { padding: 14px; border-radius: 10px; background: #f5f5f5; color: #404040; font-size: 13px; }

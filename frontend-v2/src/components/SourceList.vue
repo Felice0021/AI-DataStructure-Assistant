@@ -5,6 +5,7 @@ defineProps<{
   sources: AnswerSource[]
   highlight: string | null
   open?: boolean
+  idPrefix?: string
 }>()
 const emit = defineEmits<{ (event: 'toggle', open: boolean): void }>()
 </script>
@@ -15,7 +16,7 @@ const emit = defineEmits<{ (event: 'toggle', open: boolean): void }>()
     <ol class="source-list">
       <li
         v-for="source in sources"
-        :id="`source-${source.citation_id.replace(/[[\]]/g, '')}`"
+        :id="`${idPrefix ? idPrefix + '-' : ''}source-${source.citation_id.replace(/[[\]]/g, '')}`"
         :key="source.citation_id"
         class="source-item"
         :class="{ 'is-active': highlight === source.citation_id }"

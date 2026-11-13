@@ -4,6 +4,9 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from backend.v2.schemas.rag import AskRequest, AskResponse
+from backend.v2.schemas.auth import ErrorDetail
+
 
 class ConversationCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -85,3 +88,12 @@ class MessageList(BaseModel):
     total: int
     limit: int
     offset: int
+
+
+class ConversationAskRequest(AskRequest):
+    # Stable across transport retries, scoped to an owned conversation.
+    request_id: UUID
+
+
+class ConversationAskError(AskResponse):
+    error: ErrorDetail

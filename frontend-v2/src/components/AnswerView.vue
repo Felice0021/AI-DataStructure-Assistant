@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch, useId } from 'vue'
 
 import { reasonMessage } from '@/composables/useErrorMessage'
 import type { AskResponse } from '@/types/api'
@@ -27,6 +27,7 @@ const emit = defineEmits<{
   (event: 'retry'): void
 }>()
 
+const sourcePrefix = useId()
 const highlight = ref<string | null>(null)
 const sourcesOpen = ref(false)
 watch(() => props.result, () => { sourcesOpen.value = false; highlight.value = null })
@@ -53,7 +54,7 @@ async function onCite(citationId: string): Promise<void> {
   highlight.value = citationId
   sourcesOpen.value = true
   await nextTick()
-  const element = document.getElementById(`source-${citationId.replace(/[[\]]/g, '')}`)
+  const element = document.getElementById(`${sourcePrefix}-source-${citationId.replace(/[[\]]/g, '')}`)
   try {
     element?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
   } catch {
@@ -83,7 +84,7 @@ async function onCite(citationId: string): Promise<void> {
         </span>
       </header>
       <AnswerText :text="result.answer ?? ''" :sources="result.sources" @cite="onCite" />
-      <SourceList :sources="result.sources" :highlight="highlight" :open="sourcesOpen" @toggle="sourcesOpen = $event" />
+      <SourceList :id-prefix="sourcePrefix" :sources="result.sources" :highlight="highlight" :open="sourcesOpen" @toggle="sourcesOpen = $event" />
     </section>
 
     <section v-else-if="phase === 'refused'" class="card card-warn" data-testid="answer-refused">
@@ -146,14 +147,14 @@ async function onCite(citationId: string): Promise<void> {
 }
 
 .card {
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 16px;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
   background: #fff;
 }
 
 .card-success {
-  border-left: 3px solid #3f8f5b;
+  border-left: 0;
 }
 
 .card-warn {

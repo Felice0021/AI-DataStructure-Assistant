@@ -43,6 +43,7 @@ def test_liveness_and_openapi(app):
             "/api/v2/conversations",
             "/api/v2/conversations/{conversation_id}",
             "/api/v2/conversations/{conversation_id}/messages",
+            "/api/v2/conversations/{conversation_id}/ask",
         }
         assert "503" in paths["/api/v2/health/db"]["get"]["responses"]
 

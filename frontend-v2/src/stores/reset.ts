@@ -12,6 +12,7 @@ import { authApi } from '@/api/auth'
 import { invalidateCsrf } from '@/api/csrf'
 import { ApiError } from '@/api/http'
 
+import { useChatStore } from './chat'
 import { useAskStore } from './ask'
 import { useAuthStore } from './auth'
 import { useKnowledgeBaseStore } from './knowledgeBase'
@@ -19,6 +20,7 @@ import { useKnowledgeBaseStore } from './knowledgeBase'
 /** 只清私人数据（答案、知识库列表与选中项），不动登录态。
  *  用于「登录成功后」——防止上一段会话的错误卡片或旧答案残留到新会话（用户会看到一条过时的"登录已失效"）。 */
 export function resetPrivateData(): void {
+  useChatStore().clear()
   useAskStore().clear()
   useKnowledgeBaseStore().clear()
 }

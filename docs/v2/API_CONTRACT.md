@@ -499,3 +499,19 @@ PATCH知识库的name/description可省略但显式null为422，OpenAPI已移除
 向指定会话追加一条用户消息。
 请求体：`{ role: "user", content: string }`。
 系统会自动生成会话内递增的 `seq` 并更新会话的 `updated_at`。
+
+### 持久化课程对话
+
+`POST /api/v2/conversations/{id}/ask` 使用 AskRequest 字段，额外要求 UUID
+`request_id`。只允许当前会话所有者；复用 Cookie、Origin、CSRF 与全部 Cloud Guard。
+回答模式默认 auto，检索 hybrid。返回 AskResponse；502/503 保持原单轮 RAG 错误格式。
+成功回答或正常拒答在同一事务中追加 user/assistant 两条消息；失败草稿不保存。
+客户端不得通过 messages API 写入 assistant。原 `/rag/ask` 行为不变、不自动保存。
+
+同会话并发请求返回 409 conversation_busy；相同 request_id 和参数重试返回已保存结果，
+参数冲突返回 409 request_id_conflict。未保存的失败可以用原 ID 重试。
+完成前再次检查会话、登录态及来源版本。GET messages 返回服务端保存的完整结果元数据；
+来源删除、失去权限或代次变化后隐藏原回答和来源，返回重新提问提示。
+历史消息分页，按 seq 升序。没有新增数据库迁移，继续使用 0008_conversations。
+
+这提供持久化单轮问答历史，不会把历史问答发给模型，也不代表上下文追问能力。

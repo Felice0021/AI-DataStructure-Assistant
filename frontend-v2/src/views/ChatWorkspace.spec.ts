@@ -126,14 +126,16 @@ it('never rewrites a pending request from a hidden knowledge-base scope', async 
   expect(w.find('.notice').text()).toContain('不会自动更换')
 })
 
-it('clearly marks drafts as unverified plain text without copy, links, citations or SVG', async () => {
+it('previews streamed Markdown but never grants unverified draft copy, links or citations', async () => {
   const w=mount(ChatWorkspace);await flushPromises()
   const chat=useChatStore()
-  chat.sending=true;chat.streamStage='generating';chat.draft='**not Markdown yet** [S1] <svg onload="alert(1)"></svg>'
+  chat.sending=true;chat.streamStage='generating';chat.draft='## 课程知识\n\n**正在生成** [S1] [外链](https://example.com) <svg onload="alert(1)"></svg>'
   await flushPromises()
   expect(w.find('.stream-draft').text()).toContain('尚未校验')
   expect(w.find('.draft-text').text()).toContain('<svg')
-  expect(w.find('.stream-draft strong,.stream-draft button.cite,.stream-draft .copy-answer,.stream-draft svg,.stream-draft script').exists()).toBe(false)
+  expect(w.find('.draft-text h2').text()).toBe('课程知识')
+  expect(w.find('.draft-text strong').text()).toBe('正在生成')
+  expect(w.find('.stream-draft button.cite,.stream-draft .copy-answer,.stream-draft a,.stream-draft svg,.stream-draft script').exists()).toBe(false)
   expect(w.find('.thinking').text()).toContain('正在生成回答')
   const stop=vi.spyOn(chat,'cancel')
   await w.find('button[aria-label="停止生成"]').trigger('click')

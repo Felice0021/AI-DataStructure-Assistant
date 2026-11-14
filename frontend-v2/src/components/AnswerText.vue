@@ -10,7 +10,13 @@ type Token = ReturnType<typeof markdown.parse>[number]
 const tags = new Set(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'ul', 'ol', 'li', 'strong', 'em', 's', 'a', 'table', 'thead', 'tbody', 'tr', 'th', 'td'])
 
 export default defineComponent({
-  props: { text: { type: String, required: true }, sources: { type: Array as PropType<AnswerSource[]>, required: true } },
+  props: {
+    text: { type: String, required: true },
+    sources: { type: Array as PropType<AnswerSource[]>, required: true },
+    // A streamed draft is not a validated answer. Formatting is display-only:
+    // never create interactive citations or links before the final result.
+    preview: { type: Boolean, default: false },
+  },
   emits: ['cite'],
   setup(props, { emit }) {
     function renderTokens(tokens: Token[], known: Set<string>): VNodeChild[] {
@@ -22,12 +28,12 @@ export default defineComponent({
         if (token.nesting === 1 && tags.has(token.tag)) {
           const children: VNodeChild[] = []
           const attrs: Record<string, string> = {}
-          if (token.tag === 'a') {
+          if (token.tag === 'a' && !props.preview) {
             const href = token.attrGet('href') ?? ''
             if (/^(https?:|mailto:)/i.test(String(href)) && markdown.validateLink(String(href))) { attrs.href = String(href); attrs.rel = 'noopener noreferrer nofollow' }
           }
           if (token.tag === 'ol' && token.attrGet('start')) attrs.start = String(token.attrGet('start'))
-          const node = h(token.tag, attrs, children)
+          const node = h(props.preview && token.tag === 'a' ? 'span' : token.tag, attrs, children)
           append(token.tag === 'table' ? h('div', { class: 'answer-table-scroll', tabindex: 0, role: 'region', 'aria-label': '回答表格，可横向滚动' }, [node]) : node)
           stack.push({ children, tag: token.tag }); continue
         }
@@ -38,7 +44,7 @@ export default defineComponent({
           const parts = token.content.split(/(\[S[1-9]\d*\])/g)
           for (const part of parts) {
             if (!part) continue
-            if (!inLink && /^\[S[1-9]\d*\]$/.test(part)) {
+            if (!props.preview && !inLink && /^\[S[1-9]\d*\]$/.test(part)) {
               append(known.has(part)
                 ? h('button', { type: 'button', class: 'cite', title: `查看来源 ${part}`, onClick: () => emit('cite', part) }, part)
                 : h('span', { class: 'cite-unknown', title: '本次回答未返回该来源' }, part))

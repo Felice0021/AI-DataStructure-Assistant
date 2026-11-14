@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/auth'
 import { logoutAndReset } from '@/stores/reset'
 import KnowledgeBasePicker from '@/components/KnowledgeBasePicker.vue'
 import AnswerView from '@/components/AnswerView.vue'
+import AnswerText from '@/components/AnswerText.vue'
 import CopyAnswerButton from '@/components/CopyAnswerButton.vue'
 
 const chat = useChatStore(), kb = useKnowledgeBaseStore(), auth = useAuthStore()
@@ -82,7 +83,7 @@ async function older() { const el = stream.value; const height = el?.scrollHeigh
           <div v-if="chat.sending" class="thinking" role="status"><span></span> {{ progress }}</div>
           <section v-if="chat.sending && chat.draft" class="stream-draft" aria-label="临时草稿，尚未校验" @copy.prevent>
             <p class="draft-label">生成草稿 · 尚未校验，完成后可能修正或撤回</p>
-            <div class="draft-text">{{ chat.draft }}</div>
+            <div class="draft-text"><AnswerText :text="chat.draft" :sources="[]" preview /></div>
           </section>
           <p v-if="chat.loading" class="muted" role="status">正在读取历史记录…</p>
           <div v-if="chat.error" class="error" role="alert">{{ chat.error }} <button v-if="chat.pending && !chat.sending" @click="retry">重试</button></div>
@@ -178,7 +179,8 @@ async function older() { const el = stream.value; const height = el?.scrollHeigh
 .stop { width: 36px; height: 36px; flex-shrink: 0; border-radius: 50%; background: #262626; color: #fff; }
 .stream-draft { margin: 12px 0 24px; min-width: 0; max-width: 100%; }
 .draft-label { font-size: 12px; color: #737373; margin: 0 0 10px; }
-.draft-text { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.8; color: #525252; font-size: 15px; }
+.draft-text { overflow-wrap: anywhere; line-height: 1.8; font-size: 15px; }
+.draft-text :deep(.answer-text) { color: #525252; }
 .composer-note { max-width: 760px; margin: 9px auto 0; text-align: center; font-size: 10px; color: #858585; }
 .composer-note span { margin-left: 12px; }
 .notice { text-align: center; font-size: 12px; color: #525252; }

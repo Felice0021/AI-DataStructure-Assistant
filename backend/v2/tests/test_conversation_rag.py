@@ -95,12 +95,13 @@ def test_project_memory_is_generated_and_imported_only_by_explicit_source_select
     enabled = c.patch(f'/api/v2/projects/{target}', json={'memory_source_ids': [source]}, headers=headers)
     assert enabled.status_code == 200
     ask_in(target)
-    assert len(observed[-1]) == 1
-    assert observed[-1][0]['source_project_id'] == source
+    assert sum(note['source_project_id'] == source for note in observed[-1]) == 1
+    assert any(note['source_project_id'] == target for note in observed[-1])
 
     assert c.patch(f'/api/v2/projects/{target}', json={'memory_source_ids': []}, headers=headers).status_code == 200
     ask_in(target)
-    assert not observed[-1]  # A revoked link cannot provide old hints.
+    assert observed[-1]  # Own project memory remains available after revocation.
+    assert all(note['source_project_id'] == target for note in observed[-1])  # No imported hints.
 
 
 def test_failure_does_not_save_and_delete_during_generation(env, monkeypatch):

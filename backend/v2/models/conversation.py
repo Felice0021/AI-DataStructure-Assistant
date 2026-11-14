@@ -16,6 +16,7 @@ class Conversation(Base):
     __table_args__ = (
         CheckConstraint("length(btrim(title)) > 0", name="title_not_blank"),
         CheckConstraint("length(title) <= 200", name="title_length"),
+        Index("ix_conversations_project_id", "project_id"),
         Index(
             "ix_conversations_user_active_updated", "user_id", "updated_at",
             postgresql_where=text("deleted_at IS NULL"),

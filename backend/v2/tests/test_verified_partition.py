@@ -111,3 +111,16 @@ def test_complexity_keeps_variant_and_distinguishes_partition_from_whole_sort():
 def test_added_control_instructions_respect_the_generation_input_budget():
     plan,_=prepare(QUERY,evidence())
     with pytest.raises(AuthError):plan.instruct([{'role':'system','content':'base'}],20)
+
+
+@pytest.mark.parametrize('clause',['下标从 0 开始','下标 从 0 开始','索引（从 0 开始）','下标从\n0\t开始'])
+def test_ordinary_spacing_does_not_change_zero_based_partition_convention(clause):
+    query=QUERY.replace('数组下标从0开始',clause)
+    plan,reason=prepare(query,evidence())
+    assert reason is None and plan.calculation.final==(1,2,3) and plan.calculation.pivot_index==1
+    assert prepare(query,evidence(HOARE))[1]=='partition_rule_evidence_required'
+    assert prepare(query,evidence(RULE.replace('末元素','首元素')))[1]=='partition_rule_conflict'
+
+
+def test_spaced_conflicting_index_conventions_cannot_sneak_past_zero_based_check():
+    assert prepare(QUERY+'另规定索引从 1 开始。',evidence())[1]=='partition_convention_not_supported'

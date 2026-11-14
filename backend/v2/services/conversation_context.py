@@ -89,20 +89,27 @@ def contextual(query):
 def history_focus(turns):
     """Replay bounded user discourse. Comparands/operations cannot seize the main topic."""
     anchor = variant = task = None
-    for index, turn in enumerate(turns):
+    bootstrap = True
+    for turn in turns:
         query = turn.question
         names = topics(query)
         stated = variants(query)
         reference = contextual(query)
+        answered = turn.result.get('status') == 'answered'
+        if not answered and not names and not TOPIC_SWITCH.search(query):
+            # A refusal supplies no facts or verified resolution. An unrelated failed
+            # question must not erase an earlier, independently revalidated subject.
+            continue
         independent = bool(names and not REFERENCE.match(query) and not re.search(r'(?:和|与|跟|同)它', query))
         if TOPIC_SWITCH.search(query) or independent or not reference:
+            bootstrap = False
             anchor = discourse_focus(query)
             variant = stated[0] if anchor == '快速排序' and len(stated) == 1 else None
             task = query if variant else None
             if len(stated) > 1:
                 anchor = None  # A comparison between two partition variants has no implicit subject.
             continue
-        if index == 0 and anchor is None:
+        if bootstrap and anchor is None and answered:
             # The first definition can have fallen outside the three-turn window. Only the
             # server's saved resolution bootstraps an incomplete first turn, never model prose.
             anchor = discourse_focus(turn.resolved_query)
@@ -117,6 +124,7 @@ def history_focus(turns):
                         task = original
                 except (ValueError, AttributeError):
                     pass
+        bootstrap = False
         if names and (len(names) != 1 or names[0] != anchor) and not COMPARISON.search(query):
             anchor = variant = task = None
         if stated:
@@ -141,7 +149,8 @@ class Turn:
     kb_ids: tuple
 
     def prompt(self):
-        return {'user': bounded(self.question, 512), 'assistant': bounded(self.answer, 768)}
+        return {'user': bounded(self.question, 512),
+                'assistant': bounded(self.answer, 768) if self.result.get('status') == 'answered' else ''}
 
 
 @dataclass(frozen=True)
@@ -169,9 +178,12 @@ def load_recent(session, user, conversation_id, kb_ids, settings, verify_session
         meta = answer.metadata_json
         if (answer.role != 'assistant' or question.role != 'user' or answer.seq != question.seq + 1
                 or not meta.get('request_id') or meta['request_id'] != question.metadata_json.get('request_id')
-                or set(meta.get('knowledge_base_ids', [])) != scope
-                or meta.get('result', {}).get('status') != 'answered'
-                or not meta.get('result', {}).get('sources')):
+                or set(meta.get('knowledge_base_ids', [])) != scope):
+            break
+        result = meta.get('result', {})
+        if (result.get('status') not in {'answered', 'insufficient_evidence', 'out_of_scope'}
+                or result.get('status') == 'answered' and not result.get('sources')
+                or result.get('status') != 'answered' and result.get('sources')):
             break
         try:
             check_result(session, user, meta['result'], settings, verify_session, kb_ids)
@@ -261,10 +273,10 @@ def focused_plan(query, turns, limit):
             keys = operation_sequence(task)
             names = topics(task)
             if (len(names) != 1 or not re.search(r'初始为空|空(?:AVL|B\s*\+?|二叉(?:搜索|排序)?)?树|从空树', task, re.I)
-                    or not keys or not 0 < count < len(keys)):
+                or not keys or not 0 < count < len(keys) or turns[i].result.get('status') != 'answered'):
                 break
             done = count + len(turns)-i-1
-            if done >= len(keys) or any(not NEXT_INSERT.fullmatch(t.question) for t in turns[i+1:]):
+            if done >= len(keys) or any(not NEXT_INSERT.fullmatch(t.question) or t.result.get('status') != 'answered' for t in turns[i+1:]):
                 break
             return finish(names[0]+'插入', {'untrusted_user_task': task,
                 'requested_prefix_count': done+1, 'next_key': keys[done],
@@ -291,6 +303,8 @@ def focused_plan(query, turns, limit):
 
     # Numbered model steps identify a claim to check, never establish that it actually happened.
     previous = turns[-1]
+    if previous.result.get('status') != 'answered':
+        return Plan(query, reason='conversation_context_ambiguous')
     names = topics(previous.resolved_query)
     if len(names) != 1:
         return Plan(query, reason='conversation_context_ambiguous')

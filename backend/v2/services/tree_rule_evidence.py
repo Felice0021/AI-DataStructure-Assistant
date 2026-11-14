@@ -98,6 +98,31 @@ class RuleSupport:
     def usable(self):return self.kind in {'explicit','principle_only'}
 
 
+def _double_rotation_support(calculation, content):
+    """A complete case/path/target/order proposition, not a bag of AVL keywords.
+
+    Some course chunks are standalone LR/RL declarations, without an AVL subject
+    in the same sentence. Recognize only this bounded positive syntax and compare
+    every slot against the independently checked rotation. Import JSON is never
+    used to supply missing rule facts.
+    """
+    required={event['rotation'] for event in calculation.rotations}
+    expected={'LR':('左','右','左','左','LL','右'),
+              'RL':('右','左','右','右','RR','左')}
+    principles=[]
+    for line in normalized(content).splitlines():
+        line=re.sub(r'[\s`*_]','',line)
+        head=re.match(r'(LR|RL)型失衡:',line)
+        if not head or head[1] not in required:continue
+        match=re.fullmatch(r'(LR|RL)型失衡:(左|右)孩子(?:的)?(左|右)子树插入,'
+            r'先(?:对)?(左|右)孩子(左|右)旋转为(LL|RR),再整体(左|右)旋;属于双旋[。.]?',line)
+        if not match:return RuleSupport('unrecognized')
+        if match.groups()[1:]!=expected[match[1]]:
+            return RuleSupport('conflict',conflicts=('rotation_'+match[1],))
+        principles.append(match[1]+'失衡的插入位置、子结点调整和双旋顺序')
+    return RuleSupport('principle_only',tuple(principles)) if principles else None
+
+
 def _bound_example(calculation,content):
     """The existing one-split B+ reference format, bound to identical keys and shape.
 
@@ -129,7 +154,9 @@ def rule_supported(calculation,content):
     """Assess only conventions used by this bounded calculation; fail closed on unknown rules."""
     example=_bound_example(calculation,content)
     if example is not None:return example
-    expected=calculation.conventions;facts={};principles=[];unknown=False
+    rotation=_double_rotation_support(calculation,content) if calculation.family=='AVL' else None
+    if rotation and not rotation.usable:return rotation
+    expected=calculation.conventions;facts={};principles=list(rotation.principles) if rotation else [];unknown=False
     for clause,mixed in _clauses(content,calculation.family):
         # Negation, alternative cases and quoted examples are outside this grammar.
         uncertain=bool(re.search(r'不|非本|若|如果|假设|例如|示例|或者|也可|可能|[?？]',clause.replace('不超过1','至多一')))

@@ -163,6 +163,9 @@ class Calculation:
             lines+=['','| 插入键 | 调整 | 当前根 |','|---|---|---|']
             lines += [f"| {s['key']} | {s['rotation'] or '无需旋转'} | {s['root']} |" for s in self.steps]
         for event in self.rotations:
+            if event['rotation'] in {'LR','RL'}:
+                side,first,second=('left','左','右') if event['rotation']=='LR' else ('right','右','左')
+                lines.append(f"参考算法操作：先对结点{event['before'][side]['key']}{first}旋，再对结点{event['before']['key']}{second}旋。")
             lines += ['',event['rotation']+'：旋转前','```text',*binary_lines(event['before']),'```','旋转后','```text',*binary_lines(event['after']),'```']
         lines+=['','最终结构','```text',*(binary_lines(self.final) if self.family in {'AVL','BST'} else multi_lines(self.final)),'```',
             '校验：键集合不变；'+('中序严格有序；所有结点平衡因子绝对值不超过一。' if self.family=='AVL' else '中序严格有序。' if self.family=='BST' else '结点有序、容量和分隔范围正确，所有叶子同层。')]

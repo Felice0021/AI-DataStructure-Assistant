@@ -274,7 +274,7 @@ async function older() { const el = stream.value; const height = el?.scrollHeigh
 .project-heading { display: flex; align-items: center; justify-content: space-between; min-height: 24px; margin: 0 10px 20px; }
 .project-heading .eyebrow { margin: 0; }
 .project-heading > button:last-child { padding: 0; color: #555; font-size: 12px; }
-.section-toggle { display: inline-flex; align-items: center; gap: 8px; min-height: 24px; padding: 0; font-size: 12px; font-weight: 400; line-height: 1.4; color: var(--muted); text-align: left; }
+.section-toggle { display: inline-flex; align-items: center; gap: 8px; min-height: 24px; padding: 0; font-size: 14px; font-weight: 600; line-height: 1.4; color: #525252; text-align: left; }
 .project-create { display: grid; gap: 6px; padding: 7px 10px 12px; }
 .project-create input, .project-create textarea { width: 100%; min-width: 0; border: 1px solid #dedede; border-radius: 6px; padding: 7px; font: inherit; font-size: 12px; resize: vertical; }
 .project-create div { display: flex; gap: 12px; font-size: 12px; }
@@ -286,9 +286,10 @@ async function older() { const el = stream.value; const height = el?.scrollHeigh
 .project-header > button:not(.project-title) { padding: 4px 5px; color: #777; font-size: 14px; }
 .group-conversations { margin-left: 6px; }
 .more-chats { padding: 9px; font-size: 12px; color: #666; }
-.eyebrow { margin: 0 10px 8px; font-size: 12px; color: var(--muted); }
+.eyebrow { margin: 0 10px 8px; }
 .history-toggle { flex-shrink: 0; }
 .fold-chevron { display: block; width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; transform-origin: 50% 50%; transition: transform 150ms ease; }
+.section-toggle .fold-chevron { width: 14px; height: 14px; stroke-width: 1.25; }
 .fold-chevron.collapsed { transform: rotate(-90deg); }
 @media (prefers-reduced-motion: reduce) { .fold-chevron { transition: none; } }
 .muted { padding: 0 10px; font-size: 13px; color: var(--muted); }

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useChatStore } from '@/stores/chat'
 import { useKnowledgeBaseStore } from '@/stores/knowledgeBase'
 import { useAuthStore } from '@/stores/auth'
@@ -13,11 +13,24 @@ const chat = useChatStore(), kb = useKnowledgeBaseStore(), auth = useAuthStore()
 const leaving = ref(false)
 const query = ref(''), drawer = ref(false), stream = ref<HTMLElement>(), nearBottom = ref(true)
 const renaming = ref<string | null>(null), title = ref(''), notice = ref('')
+const openActions = ref<string | null>(null), historyExpanded = ref(true)
 const examples = ['栈和队列有什么区别？', '用一个例子解释 AVL 树的旋转', '如何分析图遍历算法的时间复杂度？', '比较快速排序与归并排序']
 const activeTitle = computed(() => chat.items.find(c => c.id === chat.active)?.title ?? '新对话')
 const canSend = computed(() => !!query.value.trim() && kb.courseSelected && !chat.sending && !chat.loading && !chat.pending)
 watch(() => kb.course?.id, () => { if (chat.sending) chat.cancel(); kb.selectCourse() }, { immediate: true })
-onMounted(async () => { try { await Promise.all([chat.list(), kb.load()]); const saved = new URL(window.location.href).searchParams.get('conversation'); if (saved) await open(saved) } catch { notice.value = '对话列表加载失败，请刷新重试。' } })
+function closeActionsOutside(event: MouseEvent) {
+  if (!(event.target instanceof Element) || !event.target.closest('.history-operations')) openActions.value = null
+}
+function closeActionsOnEscape(event: KeyboardEvent) { if (event.key === 'Escape') openActions.value = null }
+onMounted(async () => {
+  document.addEventListener('click', closeActionsOutside)
+  document.addEventListener('keydown', closeActionsOnEscape)
+  try { await Promise.all([chat.list(), kb.load()]); const saved = new URL(window.location.href).searchParams.get('conversation'); if (saved) await open(saved) } catch { notice.value = '对话列表加载失败，请刷新重试。' }
+})
+onUnmounted(() => {
+  document.removeEventListener('click', closeActionsOutside)
+  document.removeEventListener('keydown', closeActionsOnEscape)
+})
 watch(() => chat.active, id => { const url = new URL(window.location.href); if (id) url.searchParams.set('conversation', id); else url.searchParams.delete('conversation'); window.history.replaceState(null, '', url) })
 function onScroll() { const el = stream.value; if (el) nearBottom.value = el.scrollHeight - el.scrollTop - el.clientHeight < 100 }
 async function bottom(force = false) { await nextTick(); if (force || nearBottom.value) stream.value?.scrollTo({top: stream.value.scrollHeight, behavior: 'smooth'}) }
@@ -31,9 +44,21 @@ async function retry() { if (chat.pending) {
 } }
 function keydown(e: KeyboardEvent) { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); void send() } }
 function resize(e: Event) { const el = e.target as HTMLTextAreaElement; el.style.height = 'auto'; el.style.height = `${Math.min(el.scrollHeight, 180)}px` }
-async function open(id: string) { drawer.value = false; await chat.open(id); await bottom(true) }
-async function rename(id: string) { if (!title.value.trim()) return; try { await chat.rename(id, title.value.trim()); renaming.value = null } catch { notice.value = '重命名失败，请重试。' } }
-async function remove(id: string) { if (!window.confirm('删除此对话？此操作会隐藏其全部消息。')) return; try { await chat.remove(id) } catch { notice.value = '删除失败，请重试。' } }
+async function open(id: string) {
+  drawer.value = false; openActions.value = null; nearBottom.value = false
+  await chat.open(id)
+  await nextTick()
+  if (chat.active === id) {
+    // History must appear at its latest message without animating through the entire transcript.
+    stream.value?.scrollTo({ top: stream.value.scrollHeight, behavior: 'instant' })
+    nearBottom.value = true
+  }
+}
+function newChat() { openActions.value = null; drawer.value = false; nearBottom.value = true; chat.newChat() }
+function toggleHistory() { historyExpanded.value = !historyExpanded.value; openActions.value = null }
+function toggleActions(id: string) { openActions.value = openActions.value === id ? null : id }
+async function rename(id: string) { if (!title.value.trim()) return; try { await chat.rename(id, title.value.trim()); renaming.value = null; openActions.value = null } catch { notice.value = '重命名失败，请重试。' } }
+async function remove(id: string) { openActions.value = null; if (!window.confirm('删除此对话？此操作会隐藏其全部消息。')) return; try { await chat.remove(id) } catch { notice.value = '删除失败，请重试。' } }
 async function logout() { if (leaving.value) return; leaving.value = true; try { if (await logoutAndReset() === 'failed') auth.logoutFailed = true } finally { leaving.value = false } }
 async function older() { const el = stream.value; const height = el?.scrollHeight ?? 0; await chat.moreMessages(); await nextTick(); if (el) el.scrollTop += el.scrollHeight - height }
 </script>
@@ -43,17 +68,25 @@ async function older() { const el = stream.value; const height = el?.scrollHeigh
     <button v-if="drawer" class="shade" aria-label="关闭导航" @click="drawer = false"></button>
     <aside class="sidebar" :class="{ visible: drawer }" aria-label="对话导航">
       <a class="brand" href="/">数据结构 AI 助教</a>
-      <button class="new-chat" @click="chat.newChat(); drawer = false">＋ 新建对话</button>
+      <button class="new-chat" @click="newChat">＋ 新建对话</button>
       <section class="knowledge" aria-label="课程知识库"><KnowledgeBasePicker /></section>
-      <div class="history">
-        <p class="eyebrow">历史对话</p>
-        <div class="history-list">
+      <div class="history" :class="{ collapsed: !historyExpanded }">
+        <button class="history-toggle eyebrow" type="button" aria-controls="history-conversations" :aria-expanded="historyExpanded" @click="toggleHistory">
+          <span>历史对话</span><span class="history-chevron" :class="{ collapsed: !historyExpanded }" aria-hidden="true">⌄</span>
+        </button>
+        <div id="history-conversations" v-show="historyExpanded" class="history-list">
         <p v-if="!chat.items.length" class="muted">从一个问题开始，记录会保存在这里。</p>
-        <div v-for="item in chat.items" :key="item.id" class="history-row" :class="{active: item.id === chat.active}">
+        <div v-for="item in chat.items" :key="item.id" class="history-row" :class="{active: item.id === chat.active, 'actions-open': openActions === item.id}">
           <form v-if="renaming === item.id" @submit.prevent="rename(item.id)"><input v-model="title" aria-label="对话标题" maxlength="200" /><button>保存</button><button type="button" @click="renaming = null">取消</button></form>
           <template v-else>
             <button class="history-title" @click="open(item.id)">{{ item.title }}</button>
-            <details><summary aria-label="对话操作">···</summary><div class="history-actions"><button :disabled="chat.sending" @click="renaming = item.id; title = item.title">重命名</button><button :disabled="chat.sending" @click="remove(item.id)">删除</button></div></details>
+            <div class="history-operations">
+              <button class="history-more" type="button" :aria-label="`对话操作：${item.title}`" :aria-expanded="openActions === item.id" aria-haspopup="menu" @click="toggleActions(item.id)">···</button>
+              <div v-if="openActions === item.id" class="history-actions" role="menu">
+                <button type="button" role="menuitem" :disabled="chat.sending" @click="renaming = item.id; title = item.title; openActions = null">重命名</button>
+                <button type="button" role="menuitem" :disabled="chat.sending" @click="remove(item.id)">删除</button>
+              </div>
+            </div>
           </template>
         </div>
         <button v-if="chat.items.length < chat.total" @click="chat.list(true).catch(() => notice = '加载失败')">更多对话</button>
@@ -126,26 +159,29 @@ async function older() { const el = stream.value; const height = el?.scrollHeigh
   border-right: 1px solid var(--line);
 }
 .brand { padding: 0 10px; color: var(--ink); font-size: 17px; font-weight: 650; text-decoration: none; }
-.new-chat { padding: 11px 12px; border: 1px solid #e5e5e5; border-radius: 10px; text-align: left; font-weight: 550; }
+.new-chat { padding: 11px 12px; border: 1px solid #e5e5e5; border-radius: 10px; text-align: left; font-weight: 400; }
 .new-chat:hover { background: #f5f5f5; }
 .knowledge { flex-shrink: 0; max-height: 30vh; overflow-y: auto; }
 .history { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.history.collapsed { flex: 0 0 auto; }
 .history-list { flex: 1; min-height: 0; overflow-y: auto; }
 .eyebrow { margin: 0 10px 8px; font-size: 12px; color: var(--muted); }
+.history-toggle { display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; padding: 2px 0; text-align: left; }
+.history-chevron { display: inline-block; font-size: 18px; line-height: 10px; transform: rotate(0); transition: transform 150ms ease; }
+.history-chevron.collapsed { transform: rotate(-90deg); }
 .muted { padding: 0 10px; font-size: 13px; color: var(--muted); }
 .history-row { display: flex; align-items: center; border-radius: 8px; position: relative; }
+.history-row.actions-open { z-index: 6; }
 .history-row:hover { background: #fafafa; }
 .history-row.active { background: #f1f1f1; }
 .history-title { flex: 1; min-width: 0; padding: 11px 10px; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; text-align: left; }
-.history-row details { padding: 8px; }
-.history-row summary { cursor: pointer; list-style: none; }
-.history-row summary::-webkit-details-marker { display: none; }
-.history-actions { position: absolute; right: 0; z-index: 5; padding: 8px; border: 1px solid #e5e5e5; border-radius: 8px; background: #FFFFFF; }
+.history-more { padding: 8px; }
+.history-actions { position: absolute; top: calc(100% - 2px); right: 0; z-index: 5; padding: 8px; border: 1px solid #e5e5e5; border-radius: 8px; background: #FFFFFF; box-shadow: 0 6px 18px #00000010; }
 .history-actions button { display: block; padding: 6px 12px; white-space: nowrap; }
 .history-actions button:hover { background: #f5f5f5; }
 .history-row form { display: flex; flex-wrap: wrap; gap: 4px; min-width: 0; padding: 6px; }
 .history-row input { width: 100%; min-width: 0; }
-.account { display: flex; flex-shrink: 0; align-items: center; gap: 9px; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12px; }
+.account { display: flex; flex-shrink: 0; align-items: center; gap: 9px; margin-top: auto; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12px; }
 .avatar { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: #f1f1f1; color: #525252; }
 .email { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }

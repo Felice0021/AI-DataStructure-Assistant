@@ -991,12 +991,12 @@ HTTP冒烟会创建随机测试数据库/临时目录，启动双进程FastAPI�
 |GENERATION_MODEL / GENERATION_MODEL_VERIFIED|qwen3.7-flash / false，真实账户/地域可用性未验证|
 |GENERATION_ENDPOINT|官方HTTPS compatible-mode/v1/chat/completions路径，允许官方workspace.maas域名|
 |GENERATION_TEMPERATURE|0.2，范围0–1|
-|GENERATION_TIMEOUT_SECONDS|20，单次绝对超时，范围0.1–60|
+|GENERATION_TIMEOUT_SECONDS|60，单次绝对超时，范围0.1–60|
 |GENERATION_RETRIES / GENERATION_BACKOFF_SECONDS|2 / 0.5，临时网络/429/5xx有限退避|
 |GENERATION_MAX_CALLS|3，总生成尝试预算，最高4；与校验重试共享|
 |GENERATION_VALIDATION_RETRIES|0，可选1；不对坏答案做引用删除式修复|
 |GENERATION_MAX_INPUT_BYTES|24000，完整Prompt JSON的UTF-8字节上限，非精确Token|
-|GENERATION_MAX_OUTPUT_TOKENS / GENERATION_MAX_OUTPUT_BYTES|1024 / 12000，协议输出参数及服务端字节双重限制|
+|GENERATION_MAX_OUTPUT_TOKENS / GENERATION_MAX_OUTPUT_BYTES|3072 / 24000，协议输出参数及服务端字节双重限制；部署环境显式配置优先于默认值|
 |GENERATION_CONCURRENCY|2，流程槽和云适配槽分开命名，跨API进程；所有进程应统一配置|
 
 测试Provider只引用第一条授权证据，不执行算法、代码或网络操作；模式标题用于验证接口组织，不代表具备推理或语义质量。

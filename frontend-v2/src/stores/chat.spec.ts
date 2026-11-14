@@ -79,6 +79,22 @@ it('updates an unverified draft only from event callbacks and withdraws it on va
   expect(chat.messages).toEqual([]);expect(chat.pending).not.toBeNull()
 })
 
+it.each([
+  ['truncated_or_invalid_completion', '生成长度限制'],
+  ['generation_timeout', '生成或流式连接超时'],
+  ['invalid_citations', '最终格式或来源校验'],
+  ['network_error', '流式连接中断'],
+] as const)('shows a safe actionable error for %s without persisting drafts', async (code, description) => {
+  const { ApiError } = await import('@/api/http')
+  vi.mocked(conversationsApi.askStream).mockRejectedValueOnce(new ApiError(503,code,'synthetic-secret-must-not-leak'))
+  const chat=useChatStore();await chat.send('快速排序',['kb'])
+  expect(chat.error).toContain(description)
+  expect(chat.error).toContain(`诊断码：${code}`)
+  expect(chat.error).not.toContain('synthetic-secret')
+  expect(chat.draft).toBe('');expect(chat.messages).toEqual([])
+  expect(chat.pending).not.toBeNull()
+})
+
 it('cancel aborts fetch and preserves the same request id for a safe retry', async () => {
   let resolve!: (value:typeof mockAnswered)=>void,signal:AbortSignal|undefined
   vi.mocked(conversationsApi.askStream).mockImplementation((_id,_payload,_event,current)=>{signal=current;return new Promise(r=>{resolve=r})})

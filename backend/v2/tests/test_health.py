@@ -45,6 +45,10 @@ def test_liveness_and_openapi(app):
             "/api/v2/conversations/{conversation_id}/messages",
             "/api/v2/conversations/{conversation_id}/ask",
             "/api/v2/conversations/{conversation_id}/ask-stream",
+            "/api/v2/projects",
+            "/api/v2/projects/{project_id}",
+            "/api/v2/projects/{project_id}/memories",
+            "/api/v2/projects/{project_id}/memories/{note_id}",
         }
         stream=paths["/api/v2/conversations/{conversation_id}/ask-stream"]["post"]
         assert set(stream['responses']['200']['content'])=={'text/event-stream'}

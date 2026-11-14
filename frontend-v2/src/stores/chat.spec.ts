@@ -5,7 +5,8 @@ import { cloudConsentApi } from '@/api/cloudConsent'
 import { bumpEpoch } from '@/api/session'
 import { useChatStore } from './chat'
 import { mockAnswered } from '@/mocks/fixtures'
-vi.mock('@/api/conversations', () => ({conversationsApi: {list: vi.fn(), create: vi.fn(), messages: vi.fn(), ask: vi.fn(), askStream: vi.fn(), rename: vi.fn(), remove: vi.fn()}}))
+vi.mock('@/api/conversations', () => ({conversationsApi: {list: vi.fn(), get: vi.fn(), create: vi.fn(), messages: vi.fn(), ask: vi.fn(), askStream: vi.fn(), rename: vi.fn(), remove: vi.fn(), move: vi.fn()}}))
+vi.mock('@/api/projects', () => ({projectsApi: {list: vi.fn(), create: vi.fn(), update: vi.fn(), remove: vi.fn(), memories: vi.fn(), forget: vi.fn()}}))
 vi.mock('@/api/cloudConsent', () => ({cloudConsentApi: {list: vi.fn(), targets: vi.fn()}}))
 const grants = ['embedding', 'reranking', 'generation'].map(purpose => ({purpose, service_key: purpose, revoked_at: null}))
 beforeEach(() => {
@@ -13,14 +14,30 @@ beforeEach(() => {
   vi.mocked(cloudConsentApi.list).mockResolvedValue(grants as never)
   vi.mocked(cloudConsentApi.targets).mockResolvedValue(grants as never)
   vi.mocked(conversationsApi.create).mockResolvedValue({conversation: {id: 'one', title: 'AVL', updated_at: ''}})
+  vi.mocked(conversationsApi.get).mockResolvedValue({conversation: {id: 'one', title: 'AVL', project_id: null, updated_at: ''}})
   vi.mocked(conversationsApi.messages).mockResolvedValue({items: [], total: 0})
   vi.mocked(conversationsApi.list).mockResolvedValue({items: [], total: 0})
   vi.mocked(conversationsApi.askStream).mockResolvedValue(mockAnswered)
 })
 it('creates an owned conversation and fixes auto/hybrid using only active grants', async () => {
   const chat = useChatStore(); await chat.send('AVL', ['kb'])
+  expect(conversationsApi.create).toHaveBeenCalledWith('AVL', null)
   expect(conversationsApi.askStream).toHaveBeenCalledWith('one', expect.objectContaining({query: 'AVL', answer_mode: 'auto', retrieval_mode: 'hybrid', allow_cloud: true, allow_cloud_rerank: true, allow_cloud_generation: true}), expect.any(Function), expect.any(AbortSignal))
   expect(chat.pending).toBeNull()
+})
+it('keeps project selection scoped to new conversations and wipes private projects on logout', async () => {
+  const chat = useChatStore()
+  chat.projects = [{id: 'project-1', title: '二叉树', description: '', memory_source_ids: [], created_at: '', updated_at: ''}]
+  chat.selectProject('project-1')
+  await chat.send('AVL', ['kb'])
+  expect(conversationsApi.create).toHaveBeenCalledWith('AVL', 'project-1')
+  chat.newChat()
+  expect(chat.activeProject).toBe('project-1')
+  chat.selectProject(null)
+  expect(chat.activeProject).toBeNull()
+  chat.clear()
+  expect(chat.projects).toEqual([])
+  expect(chat.activeProject).toBeNull()
 })
 it('reuses request id and original scope after timeout; blocks duplicate in-flight sends', async () => {
   const chat = useChatStore()
@@ -47,7 +64,9 @@ it('logout invalidates late replies and clears all private history', async () =>
 it('ignores an older conversation load after switching', async () => {
   let resolve!: (value: {items: never[]; total: number}) => void
   vi.mocked(conversationsApi.messages).mockImplementationOnce(() => new Promise(r => {resolve = r}))
-  const chat = useChatStore(); const first = chat.open('old'); await chat.open('new')
+  const chat = useChatStore(); const first = chat.open('old')
+  await vi.waitFor(() => expect(conversationsApi.messages).toHaveBeenCalledTimes(1))
+  await chat.open('new')
   resolve({items: [], total: 9}); await first
   expect(chat.active).toBe('new'); expect(chat.messageTotal).toBe(0)
 })

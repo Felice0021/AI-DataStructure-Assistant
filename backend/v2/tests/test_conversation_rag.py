@@ -55,6 +55,54 @@ def test_turn_persistence_replay_isolation_and_redaction(env):
     assert '[S1]' not in history.json()['items'][1]['content']
 
 
+def test_project_memory_is_generated_and_imported_only_by_explicit_source_selection(env, monkeypatch):
+    c = env['client']
+    env['settings'].generation_provider = 'deterministic'
+    env['settings'].generation_allow_test_provider = True
+    headers = csrf_headers(c)
+
+    def project(title):
+        response = c.post('/api/v2/projects', json={'title': title}, headers=headers)
+        assert response.status_code == 201
+        return response.json()['id']
+
+    source, target = project('AVL 树'), project('二叉树')
+
+    def ask_in(project_id):
+        created = c.post('/api/v2/conversations', json={'title': 'AVL 问答', 'project_id': project_id}, headers=headers)
+        assert created.status_code == 201
+        path = '/api/v2/conversations/' + created.json()['conversation']['id']
+        answered = c.post(path+'/ask', json={'query': 'AVL', 'knowledge_base_ids': [env['kb']['id']],
+                                               'request_id': str(uuid4())}, headers=headers)
+        assert answered.status_code == 200, answered.text
+        assert answered.json()['status'] == 'answered'
+        return path
+
+    ask_in(source)
+    notes = c.get(f'/api/v2/projects/{source}/memories').json()['items']
+    assert len(notes) == 1 and '[S1]' not in notes[0]['summary']
+
+    observed = []
+    original = conversation_rag.ask
+    def capture(*args, **kwargs):
+        observed.append(kwargs.get('project_memories', ()))
+        return original(*args, **kwargs)
+    monkeypatch.setattr(conversation_rag, 'ask', capture)
+
+    ask_in(target)
+    assert not observed[-1]  # No inbound allowlist: project isolation by default.
+
+    enabled = c.patch(f'/api/v2/projects/{target}', json={'memory_source_ids': [source]}, headers=headers)
+    assert enabled.status_code == 200
+    ask_in(target)
+    assert len(observed[-1]) == 1
+    assert observed[-1][0]['source_project_id'] == source
+
+    assert c.patch(f'/api/v2/projects/{target}', json={'memory_source_ids': []}, headers=headers).status_code == 200
+    ask_in(target)
+    assert not observed[-1]  # A revoked link cannot provide old hints.
+
+
 def test_failure_does_not_save_and_delete_during_generation(env, monkeypatch):
     c, url, data = turn_env(env)
     env['settings'].generation_provider = 'disabled'

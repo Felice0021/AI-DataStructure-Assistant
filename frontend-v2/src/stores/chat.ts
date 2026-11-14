@@ -5,6 +5,7 @@ import { currentEpoch } from '@/api/session'
 import { ApiError } from '@/api/http'
 import type { AskRequest } from '@/types/api'
 import type { StreamStage } from '@/api/stream'
+import { projectsApi, type TopicProject, type StudyMemory } from '@/api/projects'
 
 const controllers = new WeakMap<object, AbortController>()
 
@@ -32,12 +33,54 @@ function streamFailureMessage(code: string): string {
 
 export const useChatStore = defineStore('chat', {
   state: () => ({ items: [] as Conversation[], total: 0, active: null as string | null,
+    projects: [] as TopicProject[], activeProject: null as string | null,
     messages: [] as ChatMessage[], messageOffset: 0, messageTotal: 0, loading: false, sending: false, error: '', revision: 0,
     pending: null as Pending | null, draft: '', streamStage: null as StreamStage | 'completed' | 'failed' | 'cancelled' | null }),
   actions: {
     cancel() { controllers.get(this)?.abort(); controllers.delete(this); this.sending = false; this.draft = ''; this.streamStage = 'cancelled'; this.error = this.pending ? '已停止生成。可以重试确认结果；已完成的回答不会重复保存。' : '' },
-    clear() { this.cancel(); this.streamStage = null; this.revision++; this.items = []; this.total = 0; this.active = null; this.messages = []; this.messageOffset = 0; this.messageTotal = 0; this.loading = false; this.sending = false; this.error = ''; this.pending = null },
+    clear() { this.cancel(); this.streamStage = null; this.revision++; this.items = []; this.total = 0; this.active = null; this.activeProject = null; this.projects = []; this.messages = []; this.messageOffset = 0; this.messageTotal = 0; this.loading = false; this.sending = false; this.error = ''; this.pending = null },
     newChat() { this.cancel(); this.streamStage = null; this.revision++; this.active = null; this.messages = []; this.messageOffset = 0; this.messageTotal = 0; this.loading = false; this.pending = null; this.error = '' },
+    selectProject(id: string | null) { this.newChat(); this.activeProject = id },
+    async listProjects() {
+      const epoch = currentEpoch(); const revision = this.revision
+      const {items} = await projectsApi.list()
+      if (epoch === currentEpoch() && revision === this.revision) this.projects = items
+    },
+    async createProject(title: string, description = '') {
+      const epoch = currentEpoch()
+      const project = await projectsApi.create(title, description)
+      if (epoch !== currentEpoch()) return
+      this.projects.push(project)
+      this.selectProject(project.id)
+      return project
+    },
+    async updateProject(id: string, data: {title?: string; description?: string; memory_source_ids?: string[]}) {
+      const epoch = currentEpoch()
+      const project = await projectsApi.update(id, data)
+      if (epoch === currentEpoch()) this.projects = this.projects.map(p => p.id === id ? project : p)
+      return project
+    },
+    async deleteProject(id: string) {
+      const epoch = currentEpoch()
+      await projectsApi.remove(id)
+      if (epoch !== currentEpoch()) return
+      this.projects = this.projects.filter(p => p.id !== id).map(p => ({...p, memory_source_ids: p.memory_source_ids.filter(source => source !== id)}))
+      this.items = this.items.map(item => item.project_id === id ? {...item, project_id: null} : item)
+      if (this.activeProject === id) this.selectProject(null)
+    },
+    async moveConversation(id: string, projectId: string | null) {
+      const epoch = currentEpoch()
+      await conversationsApi.move(id, projectId)
+      if (epoch !== currentEpoch()) return
+      this.items = this.items.map(item => item.id === id ? {...item, project_id: projectId} : item)
+      if (this.active === id) this.activeProject = projectId
+    },
+    async projectMemories(id: string): Promise<StudyMemory[]> {
+      const epoch = currentEpoch()
+      const notes = (await projectsApi.memories(id)).items
+      return epoch === currentEpoch() ? notes : []
+    },
+    async forgetMemory(id: string, noteId: string) { await projectsApi.forget(id, noteId) },
     async list(more = false) {
       const epoch = currentEpoch(); const revision = this.revision
       const page = await conversationsApi.list(more ? this.items.length : 0)
@@ -47,8 +90,14 @@ export const useChatStore = defineStore('chat', {
     async open(id: string) {
       this.cancel(); this.streamStage = null
       const rev = ++this.revision; const epoch = currentEpoch()
+      this.activeProject = this.items.find(item => item.id === id)?.project_id ?? null
       this.active = id; this.messages = []; this.messageOffset = 0; this.messageTotal = 0; this.error = ''; this.pending = null; this.loading = true
       try {
+        if (!this.items.some(item => item.id === id)) {
+          const {conversation} = await conversationsApi.get(id)
+          if (rev !== this.revision || epoch !== currentEpoch()) return
+          this.activeProject = conversation.project_id ?? null
+        }
         // Bounded pages; explicit continuation is offered for longer conversations.
         let page = await conversationsApi.messages(id)
         const offset = Math.max(0, page.total - 100)
@@ -80,7 +129,7 @@ export const useChatStore = defineStore('chat', {
             return (purpose: CloudPurpose) => { const target = targets.find(t => t.purpose === purpose); return !!target && records.some(g => g.purpose === purpose && g.service_key === target.service_key && !g.revoked_at) }
           }))
           if (!alive()) return
-          if (!this.active) { const created = await conversationsApi.create(query.trim().slice(0, 40)); if (!alive()) return; this.active = created.conversation.id }
+          if (!this.active) { const created = await conversationsApi.create(query.trim().slice(0, 40), this.activeProject); if (!alive()) return; this.active = created.conversation.id }
           this.pending = {id: this.active, payload: {request_id: crypto.randomUUID(), query, knowledge_base_ids: [...ids], answer_mode: 'auto', retrieval_mode: 'hybrid',
             allow_cloud: grants.every(g => g('embedding')), allow_cloud_rerank: grants.every(g => g('reranking')), allow_cloud_generation: grants.every(g => g('generation'))}}
         }

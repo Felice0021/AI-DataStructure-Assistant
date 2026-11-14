@@ -1,10 +1,10 @@
 from uuid import UUID
 
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, delete as sql_delete, func, select, update as sql_update
 from sqlalchemy.orm import Session
 
 from backend.v2.core.errors import AuthError, unauthorized
-from backend.v2.models import Conversation, Message, User
+from backend.v2.models import Conversation, Message, ProjectMemory, User
 from backend.v2.schemas.conversation import (
     ConversationCreate, ConversationUpdate, MessageCreate,
 )
@@ -45,7 +45,10 @@ def list_owned(session: Session, user: User, *, limit: int, offset: int):
 def create(session: Session, user: User, data: ConversationCreate) -> Conversation:
     if not user.is_active:
         raise unauthorized()
-    record = Conversation(user_id=user.id, title=data.title)
+    if data.project_id is not None:
+        from backend.v2.services.project_service import get_owned as get_project
+        get_project(session, user, data.project_id)
+    record = Conversation(user_id=user.id, title=data.title, project_id=data.project_id)
     session.add(record)
     session.flush()
     session.refresh(record)
@@ -55,7 +58,24 @@ def create(session: Session, user: User, data: ConversationCreate) -> Conversati
 
 def update(session: Session, user: User, conversation_id: UUID, data: ConversationUpdate) -> Conversation:
     record = get_owned(session, user, conversation_id, for_update=True)
-    record.title = data.title
+    if not data.model_fields_set:
+        raise AuthError(422, 'empty_update', 'No conversation changes')
+    if 'title' in data.model_fields_set:
+        if data.title is None or not data.title.strip():
+            raise AuthError(422, 'invalid_title', 'Invalid conversation title')
+        record.title = data.title
+    if 'project_id' in data.model_fields_set:
+        if data.project_id is not None:
+            from backend.v2.services.project_service import get_owned as get_project
+            get_project(session, user, data.project_id)
+        if record.project_id != data.project_id:
+            owned_messages = select(Message.id).where(Message.conversation_id == record.id)
+            notes = ProjectMemory.answer_message_id.in_(owned_messages)
+            if data.project_id is None:
+                session.execute(sql_delete(ProjectMemory).where(notes))
+            else:
+                session.execute(sql_update(ProjectMemory).where(notes).values(project_id=data.project_id))
+        record.project_id = data.project_id
     record.updated_at = session.scalar(select(func.clock_timestamp()))
     session.flush()
     session.refresh(record)
@@ -65,6 +85,8 @@ def update(session: Session, user: User, conversation_id: UUID, data: Conversati
 
 def delete(session: Session, user: User, conversation_id: UUID) -> None:
     record = get_owned(session, user, conversation_id, for_update=True)
+    session.execute(sql_delete(ProjectMemory).where(ProjectMemory.answer_message_id.in_(
+        select(Message.id).where(Message.conversation_id == conversation_id))))
     now = session.scalar(select(func.clock_timestamp()))
     record.deleted_at = now
     record.updated_at = now

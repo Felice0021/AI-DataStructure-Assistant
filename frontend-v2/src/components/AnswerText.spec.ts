@@ -23,6 +23,18 @@ function makeSource(citationId: string): AnswerSource {
 }
 
 describe('AnswerText 引用渲染', () => {
+  it('renders streaming Markdown incrementally without activating unverified links or citations', async () => {
+    const wrapper = mount(AnswerText, { props: { text: '## 标题\n\n**未结束', sources: [makeSource('[S1]')], preview: true } })
+    expect(wrapper.find('h2').text()).toBe('标题')
+    expect(wrapper.text()).toContain('**未结束')
+    await wrapper.setProps({ text: '## 标题\n\n**完成** [S1] [站点](https://example.com)\n\n```cpp\nint x = 1;' })
+    expect(wrapper.find('strong').text()).toBe('完成')
+    expect(wrapper.find('pre code').text()).toContain('int x = 1;')
+    expect(wrapper.text()).toContain('[S1]')
+    expect(wrapper.find('button.cite,.cite-unknown,a,img').exists()).toBe(false)
+    expect(wrapper.emitted('cite')).toBeUndefined()
+  })
+
   it('renders nested Markdown and keeps code citations inert', () => {
     const wrapper = mount(AnswerText, { props: { text: '# 标题\n\n**粗体和 *斜体*** [S1]\n\n- 项目\n\n`[S1]`\n\n```python\nprint("[S1]")\n```\n\n| A | B |\n|---|---|\n| 1 | 2 |', sources: [makeSource('[S1]')] } })
     expect(wrapper.find('h1').text()).toBe('标题')

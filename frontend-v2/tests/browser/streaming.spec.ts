@@ -27,7 +27,7 @@ async function prepare(page:Page,baseURL:string,kind:'answer'|'failure'|'tree'='
     res.on('close',()=>{state.closed++})
     if(state.saved){write('status',{stage:'validating',preview:false});write('result',{result});res.end();return}
     write('status',{stage:'retrieving',preview:false});write('reset',{});write('status',{stage:'generating',preview:kind!=='tree'})
-    if(kind!=='tree')write('draft',{text:'栈采用后进先出，队列采用先进先出。接下来结合 A、B、C 的例子说明。[S1]'+(kind==='failure'?'\n<script>window.__streamXss=true</script>':'')})
+    if(kind!=='tree')write('draft',{text:'## 栈与队列\n\n**栈采用后进先出**，队列采用先进先出。[S1]\n\n- 栈：LIFO\n- 队列：FIFO\n\n[外部站点](https://example.com)\n\n```cpp\nstack.push(1);'+(kind==='failure'?'\n<script>window.__streamXss=true</script>':'')})
     // Intentionally wait on a test-controlled barrier, never a timer/typing simulation.
   })
   await new Promise<void>(resolve=>server.listen(0,'127.0.0.1',resolve))
@@ -76,7 +76,12 @@ for(const kind of ['answer','failure','tree'] as const) test(`incremental ${kind
     else {
       await expect(page.locator('.draft-text')).toContainText('栈采用后进先出')
       await expect(page.locator('.stream-draft')).toContainText('尚未校验')
-      await expect(page.locator('.stream-draft button.cite,.stream-draft .copy-answer,.stream-draft script,.stream-draft .katex')).toHaveCount(0)
+      await expect(page.locator('.draft-text h2')).toHaveText('栈与队列')
+      await expect(page.locator('.draft-text strong')).toHaveText('栈采用后进先出')
+      await expect(page.locator('.draft-text li')).toHaveCount(2)
+      await expect(page.locator('.draft-text pre code')).toContainText('stack.push(1);')
+      await expect(page.locator('.stream-draft button.cite,.stream-draft .copy-answer,.stream-draft a,.stream-draft script,.stream-draft .katex')).toHaveCount(0)
+      expect(await page.locator('.draft-text').evaluate(element => !element.dispatchEvent(new Event('copy',{bubbles:true,cancelable:true})))).toBe(true)
       expect(await page.evaluate(()=>(window as unknown as Record<string,unknown>).__streamXss)).toBeUndefined()
     }
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)

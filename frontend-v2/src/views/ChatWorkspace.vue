@@ -14,7 +14,7 @@ const chat = useChatStore(), kb = useKnowledgeBaseStore(), auth = useAuthStore()
 const leaving = ref(false)
 const query = ref(''), drawer = ref(false), stream = ref<HTMLElement>(), nearBottom = ref(true)
 const renaming = ref<string | null>(null), title = ref(''), notice = ref('')
-const openActions = ref<string | null>(null), historyExpanded = ref(true)
+const openActions = ref<string | null>(null), historyExpanded = ref(true), projectsExpanded = ref(true)
 const expandedProjects = ref<Record<string, boolean>>({})
 const creatingProject = ref(false), projectName = ref(''), projectDescription = ref('')
 const editingProject = ref<string | null>(null), editName = ref(''), editDescription = ref('')
@@ -69,11 +69,15 @@ async function open(id: string) {
   }
 }
 function newChat(projectId: string | null = null) { openActions.value = null; drawer.value = false; nearBottom.value = true; chat.selectProject(projectId) }
+function toggleProjectCreation() {
+  if (!projectsExpanded.value) { projectsExpanded.value = true; creatingProject.value = true }
+  else creatingProject.value = !creatingProject.value
+}
 async function addProject() {
   if (!projectName.value.trim()) return
   try {
     const created = await chat.createProject(projectName.value.trim(), projectDescription.value.trim())
-    if (created) expandedProjects.value[created.id] = true
+    if (created) { expandedProjects.value[created.id] = true; projectsExpanded.value = true }
     projectName.value = ''; projectDescription.value = ''; creatingProject.value = false; drawer.value = false
   } catch { notice.value = '项目创建失败，请检查名称或稍后重试。' }
 }
@@ -121,21 +125,28 @@ async function older() { const el = stream.value; const height = el?.scrollHeigh
       <section class="knowledge" aria-label="课程知识库"><KnowledgeBasePicker /></section>
       <div class="history">
         <div class="history-list">
-          <div class="project-heading"><span class="eyebrow">项目</span><button type="button" aria-label="新建项目" :disabled="chat.sending" @click="creatingProject = !creatingProject">＋ 新建项目</button></div>
-          <form v-if="creatingProject" class="project-create" @submit.prevent="addProject">
+          <div class="project-heading">
+            <button class="project-toggle eyebrow" type="button" :aria-expanded="projectsExpanded" :aria-controls="chat.projects.map(project => `project-section-${project.id}`).join(' ') || undefined" @click="projectsExpanded = !projectsExpanded">
+              <span>项目</span><svg class="fold-chevron" :class="{ collapsed: !projectsExpanded }" viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4" /></svg>
+            </button>
+            <button type="button" aria-label="新建项目" :disabled="chat.sending" @click="toggleProjectCreation">＋ 新建项目</button>
+          </div>
+          <form v-if="creatingProject" v-show="projectsExpanded" class="project-create" @submit.prevent="addProject">
             <input v-model="projectName" aria-label="项目名称" maxlength="100" placeholder="例如：二叉树" required />
             <textarea v-model="projectDescription" aria-label="项目说明" maxlength="500" placeholder="可选：这个项目准备学习什么？" rows="2"></textarea>
             <div><button type="submit">创建</button><button type="button" @click="creatingProject = false">取消</button></div>
           </form>
-          <section v-for="group in sidebarGroups" :key="group.id" class="conversation-group">
+          <section v-for="group in sidebarGroups" :id="group.project ? `project-section-${group.id}` : undefined" :key="group.id" v-show="!group.project || projectsExpanded" class="conversation-group">
             <div v-if="group.project" class="project-header" :class="{ selected: chat.activeProject === group.id }">
               <button class="project-title" type="button" :title="group.project.title" @click="newChat(group.id)">{{ group.project.title }}</button>
               <button type="button" :aria-label="`在${group.project.title}中新建对话`" :disabled="chat.sending" @click="newChat(group.id)">＋</button>
               <button type="button" :aria-label="`设置项目：${group.project.title}`" :disabled="chat.sending" @click="editProject(group.id)">⚙</button>
-              <button type="button" :aria-label="`展开或收起项目：${group.project.title}`" :aria-expanded="expandedProjects[group.id] !== false" :aria-controls="`group-${group.id}`" @click="expandedProjects[group.id] = expandedProjects[group.id] === false">⌄</button>
+              <button type="button" :aria-label="`展开或收起项目：${group.project.title}`" :aria-expanded="expandedProjects[group.id] !== false" :aria-controls="`group-${group.id}`" @click="expandedProjects[group.id] = expandedProjects[group.id] === false">
+                <svg class="fold-chevron" :class="{ collapsed: expandedProjects[group.id] === false }" viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4" /></svg>
+              </button>
             </div>
             <button v-else class="history-toggle eyebrow" type="button" aria-controls="history-conversations" :aria-expanded="historyExpanded" @click="toggleHistory">
-              <span>历史对话</span><span class="history-chevron" :class="{ collapsed: !historyExpanded }" aria-hidden="true">⌄</span>
+              <span>历史对话</span><svg class="fold-chevron" :class="{ collapsed: !historyExpanded }" viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4" /></svg>
             </button>
             <div :id="group.project ? `group-${group.id}` : 'history-conversations'" v-show="group.project ? expandedProjects[group.id] !== false : historyExpanded" class="group-conversations">
               <p v-if="!group.items.length && !group.project" class="muted">从一个问题开始，记录会保存在这里。</p>
@@ -263,6 +274,7 @@ async function older() { const el = stream.value; const height = el?.scrollHeigh
 .project-heading { display: flex; align-items: center; justify-content: space-between; padding: 0 10px 8px; }
 .project-heading .eyebrow { margin: 0; }
 .project-heading button { color: #555; font-size: 12px; }
+.project-toggle { display: flex; align-items: center; gap: 6px; text-align: left; }
 .project-create { display: grid; gap: 6px; padding: 7px 10px 12px; }
 .project-create input, .project-create textarea { width: 100%; min-width: 0; border: 1px solid #dedede; border-radius: 6px; padding: 7px; font: inherit; font-size: 12px; resize: vertical; }
 .project-create div { display: flex; gap: 12px; font-size: 12px; }
@@ -276,8 +288,9 @@ async function older() { const el = stream.value; const height = el?.scrollHeigh
 .more-chats { padding: 9px; font-size: 12px; color: #666; }
 .eyebrow { margin: 0 10px 8px; font-size: 12px; color: var(--muted); }
 .history-toggle { display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; padding: 2px 0; text-align: left; }
-.history-chevron { display: inline-block; font-size: 18px; line-height: 10px; transform: rotate(0); transition: transform 150ms ease; }
-.history-chevron.collapsed { transform: rotate(-90deg); }
+.fold-chevron { display: block; width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; transform-origin: 50% 50%; transition: transform 150ms ease; }
+.fold-chevron.collapsed { transform: rotate(-90deg); }
+@media (prefers-reduced-motion: reduce) { .fold-chevron { transition: none; } }
 .muted { padding: 0 10px; font-size: 13px; color: var(--muted); }
 .history-row { display: flex; align-items: center; border-radius: 8px; position: relative; }
 .history-row.actions-open { z-index: 6; }

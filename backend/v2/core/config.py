@@ -121,14 +121,14 @@ class Settings(BaseSettings):
     generation_model_verified: bool = False
     generation_endpoint: str = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
     generation_temperature: float = Field(default=0.2, ge=0, le=1, allow_inf_nan=False)
-    generation_timeout_seconds: float = Field(default=20, ge=0.1, le=60)
+    generation_timeout_seconds: float = Field(default=60, ge=0.1, le=60)
     generation_retries: int = Field(default=2, ge=0, le=3)
     generation_backoff_seconds: float = Field(default=0.5, ge=0, le=5)
     generation_max_calls: int = Field(default=3, ge=1, le=4)
     generation_validation_retries: int = Field(default=0, ge=0, le=1)
     generation_max_input_bytes: int = Field(default=24000, ge=1, le=64000)
-    generation_max_output_tokens: int = Field(default=1024, ge=64, le=4096)
-    generation_max_output_bytes: int = Field(default=12000, ge=64, le=32000)
+    generation_max_output_tokens: int = Field(default=3072, ge=64, le=4096)
+    generation_max_output_bytes: int = Field(default=24000, ge=64, le=32000)
     generation_concurrency: int = Field(default=2, ge=1, le=8)
     conversation_stream_timeout_seconds: float = Field(default=120, ge=1, le=300)
 

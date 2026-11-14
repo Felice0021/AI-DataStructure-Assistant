@@ -28,6 +28,14 @@ def events(answer='增量回答中文😀 [S1]'):
 def capacity(monkeypatch):monkeypatch.setattr('backend.v2.services.generation_stream.capacity',lambda *a,**kw:nullcontext())
 
 
+def test_default_generation_limits_allow_bounded_long_course_explanations():
+    s=settings()
+    assert s.generation_max_output_tokens==3072
+    assert s.generation_max_output_bytes==24000
+    assert s.generation_timeout_seconds==60
+    assert s.generation_timeout_seconds<s.conversation_stream_timeout_seconds
+
+
 def test_provider_emits_actual_increments_before_completion_and_keeps_final_json():
     done=False;observed=[];closed=[]
     async def transport(_):
@@ -68,6 +76,7 @@ def test_real_http_adapter_sets_stream_true_and_decodes_fragmented_utf8(monkeypa
     p=QwenProvider(settings(),cloud_guard=guard);parts=[]
     result=p.generate_stream([],before_attempt=lambda:None,on_delta=parts.append,check_cancel=lambda:None)
     assert captured['json']['stream'] is True and captured['json']['stream_options']=={'include_usage':True}
+    assert captured['json']['max_tokens']==p.settings.generation_max_output_tokens
     assert captured['json']['response_format']=={'type':'json_object'}
     assert captured['usage']['completion_tokens']==30 and closed
     assert ''.join(parts)=='中文😀 栈 [S1]' and json.loads(result.content)['answer']==''.join(parts)

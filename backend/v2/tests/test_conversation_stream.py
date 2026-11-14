@@ -40,7 +40,8 @@ def streaming(env,monkeypatch):
     data.update(query='Dijkstra是什么？',allow_cloud_generation=True)
     grant='/api/v2/knowledge-bases/'+env['kb']['id']+'/cloud-consents/generation'
     assert c.post(grant,headers=csrf_headers(c)).status_code==200
-    env.update(url=url,data=data,calls=0,after_first=None,answer='Dijkstra 可用于非负边权图的最短路径分析。 [S1]',closed=Event(),entered=Event(),release=None)
+    env.update(url=url,data=data,calls=0,after_first=None,answer='Dijkstra 可用于非负边权图的最短路径分析。 [S1]',
+        completion_tokens=30,closed=Event(),entered=Event(),release=None)
     async def source(provider,messages,check_cancel):
         env['calls']+=1
         try:
@@ -53,7 +54,8 @@ def streaming(env,monkeypatch):
                 while not env['release'].is_set():await asyncio.sleep(0.01)
             yield event(raw[start:])
             yield event('', 'stop')
-            yield json.dumps({'choices':[],'usage':{'prompt_tokens':40,'completion_tokens':30,'total_tokens':70}})
+            yield json.dumps({'choices':[],'usage':{'prompt_tokens':40,'completion_tokens':env['completion_tokens'],
+                'total_tokens':40+env['completion_tokens']}})
             yield '[DONE]'
         finally:env['closed'].set()
     monkeypatch.setattr('backend.v2.services.generation_stream.http_events',source)
@@ -85,6 +87,22 @@ def test_real_stream_order_guard_audit_persistence_and_cross_transport_idempoten
         assert [r.event for r in audit]==['granted','attempt','succeeded']
         assert audit[-1].details['usage']['completion_tokens']==30
         assert e['answer'] not in json.dumps([r.details for r in audit],ensure_ascii=False)
+
+
+def test_long_streaming_answer_within_new_budgets_is_validated_and_saved(streaming):
+    e=streaming
+    e['answer']='Dijkstra 通过边松弛不断更新最短路径估计值。[S1]\n'*140
+    e['completion_tokens']=1800
+    raw=json.dumps({'status':'answered','answer':e['answer'],'used_source_ids':['[S1]']},ensure_ascii=True)
+    assert 12000<len(raw.encode())<e['settings'].generation_max_output_bytes
+    assert 1024<e['completion_tokens']<=e['settings'].generation_max_output_tokens
+    out=frames(call(e))
+    assert out[-1]['type']=='result' and out[-1]['payload']['result']['answer']==e['answer']
+    assert ''.join(frame['payload']['text'] for frame in out if frame['type']=='draft')==e['answer']
+    assert e['client'].get(e['url']+'/messages').json()['total']==2
+    with e['engine'].connect() as db:
+        usage=db.execute(text("SELECT details FROM cloud_audits WHERE event='succeeded' AND purpose='generation'")).scalar_one()['usage']
+        assert usage['completion_tokens']==1800
 
 
 @pytest.mark.parametrize('kind,sql,code',[

@@ -9,6 +9,27 @@ import type { StreamStage } from '@/api/stream'
 const controllers = new WeakMap<object, AbortController>()
 
 type Pending = { id: string; payload: AskRequest & {request_id: string} }
+
+/** Keep diagnostic codes visible without exposing provider messages or unfinished drafts. */
+function streamFailureMessage(code: string): string {
+  if (code === 'cancelled') return '已停止生成，可以重试确认结果。'
+  if (code.includes('consent')) return '此知识库尚未获得所需 AI 处理授权，请联系资料所有者或管理员。'
+  if (code === 'conversation_busy') return '上一条问题仍在处理，请稍后重试确认结果。'
+
+  const lengthCodes = ['truncated_or_invalid_completion', 'generation_output_limit', 'invalid_output_budget', 'generation_response_limit']
+  const timeoutCodes = ['generation_timeout', 'stream_timeout', 'timeout']
+  const validationCodes = ['invalid_citations', 'invalid_citation_format', 'invalid_output_schema', 'generation_invalid_response', 'missing_citations', 'validation_failed']
+  const suffix = '未校验的草稿已撤回；已完成的回答不会重复保存。'
+  let message = '本次回答未完成，可重试确认结果。'
+  if (lengthCodes.includes(code)) message = '回答未能正常结束（可能达到生成长度限制）。建议拆成几个较短的问题，直接重试原问题可能仍会失败。'
+  else if (timeoutCodes.includes(code)) message = '生成或流式连接超时，可稍后重试确认结果。'
+  else if (validationCodes.includes(code)) message = '回答未通过最终格式或来源校验，可重试确认结果。'
+  else if (code === 'network_error' || code === 'invalid_stream') message = '流式连接中断或响应不完整，请检查网络后重试确认结果。'
+  // Codes are bounded server-side and are safe to share with QA; never show raw provider errors.
+  const diagnostic = /^[a-z_]{1,80}$/.test(code) ? `（诊断码：${code}）` : ''
+  return `${message}${suffix}${diagnostic}`
+}
+
 export const useChatStore = defineStore('chat', {
   state: () => ({ items: [] as Conversation[], total: 0, active: null as string | null,
     messages: [] as ChatMessage[], messageOffset: 0, messageTotal: 0, loading: false, sending: false, error: '', revision: 0,
@@ -80,7 +101,7 @@ export const useChatStore = defineStore('chat', {
         if (!alive()) return
         this.draft = ''; this.streamStage = 'failed'
         const code = e instanceof ApiError ? e.code : ''
-        this.error = code === 'cancelled' ? '已停止生成，可以重试确认结果。' : code.includes('consent') ? '此知识库尚未获得所需 AI 处理授权，请联系资料所有者或管理员。' : code === 'conversation_busy' ? '上一条问题仍在处理，请稍后重试确认结果。' : '本次回答未完成。可重试确认结果；重试不会重复保存已完成的回答。'
+        this.error = streamFailureMessage(code)
       } finally { if (controllers.get(this) === controller) { controllers.delete(this); this.draft = ''; if (epoch === currentEpoch() && rev === this.revision) this.sending = false } }
     },
   },

@@ -44,6 +44,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.include_router(router)
     app.state.settings = settings
+    from threading import BoundedSemaphore
+    app.state.rag_stream_slots = BoundedSemaphore(settings.generation_concurrency)
     app.add_middleware(
         CORSMiddleware, allow_origins=settings.allowed_origins, allow_credentials=True,
         allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"], allow_headers=["Content-Type", "X-CSRF-Token"],
@@ -63,7 +65,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def auth_cache_control(request: Request, call_next):
         response = await call_next(request)
         if request.url.path.startswith(PRIVATE_API_PREFIXES):
-            response.headers["Cache-Control"] = "no-store"
+            response.headers["Cache-Control"] = "no-store, no-transform" if response.headers.get("content-type", "").startswith("text/event-stream") else "no-store"
             response.headers["X-Content-Type-Options"] = "nosniff"
         return response
 

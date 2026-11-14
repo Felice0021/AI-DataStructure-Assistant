@@ -46,6 +46,7 @@ export type LogoutOutcome = 'ok' | 'expired' | 'failed'
  * 否则会出现「界面显示已退出、服务端 Session 仍有效」的错觉。
  */
 export async function logoutAndReset(): Promise<LogoutOutcome> {
+  useChatStore().clear() // stop the upstream reader and withdraw drafts before waiting for logout
   let outcome: LogoutOutcome = 'ok'
   try {
     await authApi.logout()

@@ -17,19 +17,27 @@ from backend.v2.services.tree_rule_evidence import rule_supported
 REFUSAL='根据当前授权资料无法确定。'
 
 
-def ask(factory,user,data,settings,*,verify_session,provider=None,before_cloud_call=None,retrieval_query=None,conversation_history=()):
+def ask(factory,user,data,settings,*,verify_session,provider=None,before_cloud_call=None,retrieval_query=None,conversation_history=(),stream=None):
     from backend.v2.services.verified_partition import prepare as prepare_partition
+    if stream:
+        original_before_call=before_cloud_call
+        def before_cloud_call(purpose):
+            stream.check()
+            if original_before_call:original_before_call(purpose)
     started=time.monotonic();mode=resolve_mode(data.query,data.answer_mode)
     effective_query=retrieval_query or data.query
     partition=None
     request=PrepareRequest(query=effective_query,knowledge_base_ids=data.knowledge_base_ids,mode=data.retrieval_mode,
         top_k=data.top_k,rerank=data.rerank,allow_cloud=data.allow_cloud,allow_cloud_rerank=data.allow_cloud_rerank)
     with capacity(factory.kw['bind'],settings.generation_concurrency,namespace=174928):
+        if stream:stream.stage('retrieving')
         context=prepare_context(factory,user,request,settings,verify_session=verify_session,before_cloud_call=before_cloud_call)
+        if stream:stream.check()
         evidence=context['evidence']
         partition_reason=None
         if mode!='code':partition,partition_reason=prepare_partition(effective_query,evidence,user_query=data.query)
         def publish(status,reason,answer=None,citations=(),model=None,tree=None):
+            if stream:stream.stage('validating')
             if status=='insufficient_evidence' and reason and reason.startswith('partition_'):
                 answer='当前分区题的变体、输入、基准、下标约定或课程依据不满足已校验条件。仅支持明确末元素基准、下标从0开始的Lomuto单次分区；请核对条件，不会改用其他算法或伪造引用。'
             if status=='answered' and partition:
@@ -84,9 +92,35 @@ def ask(factory,user,data,settings,*,verify_session,provider=None,before_cloud_c
             chosen=provider or build_provider(settings,factory.kw['bind'],cloud_guard=guard)
             if settings.generation_provider=='qwen' and not data.allow_cloud_generation:
                 raise GenerationError('generation_cloud_consent_required')
+            if stream:
+                from contextlib import contextmanager
+                @contextmanager
+                def preview_check():
+                    stream.check()
+                    with factory() as session:
+                        validate_evidence(session,user,data.knowledge_base_ids,evidence,settings,verify_session=verify_session)
+                        if settings.generation_provider=='qwen':
+                            from backend.v2.services.cloud_service import require
+                            current=verify_session(session)
+                            if current is None or current.id!=user.id:raise unauthorized()
+                            require(session,current,data.knowledge_base_ids,'generation',settings)
+                        yield
+                stream.preview_check=preview_check
+            preview_allowed=not (calculation or partition or tree_family(effective_query))
             for attempt in range(settings.generation_validation_retries+1):
                 try:
-                    completion=chosen.generate(messages,before_attempt=budget.reserve)
+                    if stream:
+                        def before_attempt():
+                            stream.check();budget.reserve();stream.reset()
+                            stream.stage('generating',preview=preview_allowed and hasattr(chosen,'generate_stream'))
+                        if hasattr(chosen,'generate_stream'):
+                            completion=chosen.generate_stream(messages,before_attempt=before_attempt,
+                                on_delta=stream.draft if preview_allowed else lambda _text:stream.check(),check_cancel=stream.check)
+                            stream.flush()
+                        else:
+                            completion=chosen.generate(messages,before_attempt=before_attempt)
+                        stream.stage('validating')
+                    else:completion=chosen.generate(messages,before_attempt=budget.reserve)
                     if not isinstance(completion,Completion) or completion.finish_reason!='stop':raise AnswerValidationError('truncated_or_invalid_completion')
                     draft=parse_draft(completion.content,settings)
                     citations=validate_answer(draft,evidence)

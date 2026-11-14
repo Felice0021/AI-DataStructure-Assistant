@@ -130,6 +130,7 @@ class Settings(BaseSettings):
     generation_max_output_tokens: int = Field(default=1024, ge=64, le=4096)
     generation_max_output_bytes: int = Field(default=12000, ge=64, le=32000)
     generation_concurrency: int = Field(default=2, ge=1, le=8)
+    conversation_stream_timeout_seconds: float = Field(default=120, ge=1, le=300)
 
     @classmethod
     def settings_customise_sources(cls,settings_cls,init_settings,env_settings,dotenv_settings,file_secret_settings):

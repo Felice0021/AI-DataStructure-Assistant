@@ -125,3 +125,27 @@ it('never rewrites a pending request from a hidden knowledge-base scope', async 
   expect(chat.pending.payload.knowledge_base_ids).toEqual(['hidden'])
   expect(w.find('.notice').text()).toContain('不会自动更换')
 })
+
+it('clearly marks drafts as unverified plain text without copy, links, citations or SVG', async () => {
+  const w=mount(ChatWorkspace);await flushPromises()
+  const chat=useChatStore()
+  chat.sending=true;chat.streamStage='generating';chat.draft='**not Markdown yet** [S1] <svg onload="alert(1)"></svg>'
+  await flushPromises()
+  expect(w.find('.stream-draft').text()).toContain('尚未校验')
+  expect(w.find('.draft-text').text()).toContain('<svg')
+  expect(w.find('.stream-draft strong,.stream-draft button.cite,.stream-draft .copy-answer,.stream-draft svg,.stream-draft script').exists()).toBe(false)
+  expect(w.find('.thinking').text()).toContain('正在生成回答')
+  const stop=vi.spyOn(chat,'cancel')
+  await w.find('button[aria-label="停止生成"]').trigger('click')
+  expect(stop).toHaveBeenCalled();expect(w.find('.draft-text').exists()).toBe(false)
+})
+
+it('changing the configured course cancels an in-flight draft instead of keeping its old scope', async () => {
+  mount(ChatWorkspace);await flushPromises()
+  const chat=useChatStore(),cancel=vi.spyOn(chat,'cancel')
+  chat.sending=true;chat.draft='private old scope'
+  vi.stubEnv('VITE_COURSE_KB_ID','22222222-2222-4222-8222-222222222222')
+  const kb=useKnowledgeBaseStore();kb.items=[{id:'22222222-2222-4222-8222-222222222222',name:'new course',visibility:'private'} as never]
+  await flushPromises()
+  expect(cancel).toHaveBeenCalled();expect(chat.draft).toBe('')
+})

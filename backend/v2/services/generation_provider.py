@@ -1,4 +1,4 @@
-"""Independent non-streaming Chat Completions adapter; durable purpose-specific consent required."""
+"""Chat Completions adapter; durable purpose-specific consent required."""
 from contextlib import nullcontext
 import asyncio
 from dataclasses import dataclass
@@ -60,10 +60,15 @@ class DeterministicProvider:
 
 
 class QwenProvider:
-    def __init__(self,settings,engine=None,transport=None,cloud_guard=None):
+    def __init__(self,settings,engine=None,transport=None,cloud_guard=None,stream_transport=None):
         self.settings,self.engine,self.transport=settings,engine,transport
         self.cloud_guard=cloud_guard
         self.model=settings.generation_model
+        self.stream_transport=stream_transport
+
+    def generate_stream(self,messages,*,before_attempt,on_delta,check_cancel):
+        from backend.v2.services.generation_stream import generate
+        return generate(self,messages,before_attempt=before_attempt,on_delta=on_delta,check_cancel=check_cancel)
 
     async def _http_async(self,messages):
         s=self.settings

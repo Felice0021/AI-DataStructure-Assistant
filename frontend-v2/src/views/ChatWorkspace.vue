@@ -15,12 +15,13 @@ const renaming = ref<string | null>(null), title = ref(''), notice = ref('')
 const examples = ['栈和队列有什么区别？', '用一个例子解释 AVL 树的旋转', '如何分析图遍历算法的时间复杂度？', '比较快速排序与归并排序']
 const activeTitle = computed(() => chat.items.find(c => c.id === chat.active)?.title ?? '新对话')
 const canSend = computed(() => !!query.value.trim() && kb.courseSelected && !chat.sending && !chat.loading && !chat.pending)
-watch(() => kb.course?.id, () => kb.selectCourse(), { immediate: true })
+watch(() => kb.course?.id, () => { if (chat.sending) chat.cancel(); kb.selectCourse() }, { immediate: true })
 onMounted(async () => { try { await Promise.all([chat.list(), kb.load()]); const saved = new URL(window.location.href).searchParams.get('conversation'); if (saved) await open(saved) } catch { notice.value = '对话列表加载失败，请刷新重试。' } })
 watch(() => chat.active, id => { const url = new URL(window.location.href); if (id) url.searchParams.set('conversation', id); else url.searchParams.delete('conversation'); window.history.replaceState(null, '', url) })
 function onScroll() { const el = stream.value; if (el) nearBottom.value = el.scrollHeight - el.scrollTop - el.clientHeight < 100 }
 async function bottom(force = false) { await nextTick(); if (force || nearBottom.value) stream.value?.scrollTo({top: stream.value.scrollHeight, behavior: 'smooth'}) }
-watch(() => [chat.messages.length, chat.sending], () => { void bottom() })
+watch(() => [chat.messages.length, chat.sending, chat.draft.length, chat.streamStage], () => { void bottom() })
+const progress = computed(() => ({accepted:'正在发送问题…',retrieving:'正在检索课程资料…',generating:'正在生成回答…',validating:'正在校验回答与资料来源…',saving:'正在保存已校验的回答…',completed:'回答已完成',failed:'回答未完成',cancelled:'已停止生成'}[chat.streamStage ?? 'accepted']))
 async function send() { if (!canSend.value) return; const text = query.value; query.value = ''; nearBottom.value = true; await chat.send(text, [...kb.selectedIds]); await bottom() }
 async function retry() { if (chat.pending) {
   const ids = chat.pending.payload.knowledge_base_ids
@@ -41,7 +42,7 @@ async function older() { const el = stream.value; const height = el?.scrollHeigh
     <button v-if="drawer" class="shade" aria-label="关闭导航" @click="drawer = false"></button>
     <aside class="sidebar" :class="{ visible: drawer }" aria-label="对话导航">
       <a class="brand" href="/">数据结构 AI 助教</a>
-      <button class="new-chat" :disabled="chat.sending" @click="chat.newChat(); drawer = false">＋ 新建对话</button>
+      <button class="new-chat" @click="chat.newChat(); drawer = false">＋ 新建对话</button>
       <section class="knowledge" aria-label="课程知识库"><KnowledgeBasePicker /></section>
       <div class="history">
         <p class="eyebrow">历史对话</p>
@@ -50,7 +51,7 @@ async function older() { const el = stream.value; const height = el?.scrollHeigh
         <div v-for="item in chat.items" :key="item.id" class="history-row" :class="{active: item.id === chat.active}">
           <form v-if="renaming === item.id" @submit.prevent="rename(item.id)"><input v-model="title" aria-label="对话标题" maxlength="200" /><button>保存</button><button type="button" @click="renaming = null">取消</button></form>
           <template v-else>
-            <button class="history-title" :disabled="chat.sending" @click="open(item.id)">{{ item.title }}</button>
+            <button class="history-title" @click="open(item.id)">{{ item.title }}</button>
             <details><summary aria-label="对话操作">···</summary><div class="history-actions"><button :disabled="chat.sending" @click="renaming = item.id; title = item.title">重命名</button><button :disabled="chat.sending" @click="remove(item.id)">删除</button></div></details>
           </template>
         </div>
@@ -78,7 +79,11 @@ async function older() { const el = stream.value; const height = el?.scrollHeigh
             </template>
           </article>
           <article v-if="chat.pending" class="message user"><p class="user-bubble">{{ chat.pending.payload.query }}</p></article>
-          <div v-if="chat.sending" class="thinking" role="status"><span></span> 正在查阅课程资料，整理回答…</div>
+          <div v-if="chat.sending" class="thinking" role="status"><span></span> {{ progress }}</div>
+          <section v-if="chat.sending && chat.draft" class="stream-draft" aria-label="临时草稿，尚未校验" @copy.prevent>
+            <p class="draft-label">生成草稿 · 尚未校验，完成后可能修正或撤回</p>
+            <div class="draft-text">{{ chat.draft }}</div>
+          </section>
           <p v-if="chat.loading" class="muted" role="status">正在读取历史记录…</p>
           <div v-if="chat.error" class="error" role="alert">{{ chat.error }} <button v-if="chat.pending && !chat.sending" @click="retry">重试</button></div>
         </div>
@@ -88,7 +93,8 @@ async function older() { const el = stream.value; const height = el?.scrollHeigh
         <p v-if="notice" class="notice" role="status">{{ notice }} <button aria-label="关闭提示" @click="notice = ''">×</button></p>
         <form class="composer" @submit.prevent="send">
           <textarea v-model="query" aria-label="向 AI 助教提问" placeholder="提出你的数据结构问题…" rows="1" maxlength="2000" :disabled="chat.sending || !!chat.pending" @keydown="keydown" @input="resize"></textarea>
-          <button class="send" :disabled="!canSend" aria-label="发送问题">↑</button>
+          <button v-if="chat.sending" type="button" class="stop" aria-label="停止生成" @click="chat.cancel()">■</button>
+          <button v-else class="send" :disabled="!canSend" aria-label="发送问题">↑</button>
         </form>
         <p class="composer-note">回答可能有误，请核对资料来源。<span>Enter 发送 · Shift + Enter 换行</span></p>
       </div>
@@ -169,6 +175,10 @@ async function older() { const el = stream.value; const height = el?.scrollHeigh
 .composer textarea { flex: 1; min-width: 0; max-height: 180px; padding: 3px 0; border: 0; outline: 0; resize: none; background: transparent; line-height: 1.7; font-size: 15px; }
 .send { width: 36px; height: 36px; flex-shrink: 0; border-radius: 50%; background: #2563EB; color: #FFFFFF; font-size: 22px; }
 .send:disabled { background: #e5e5e5; color: #a3a3a3; opacity: 1; }
+.stop { width: 36px; height: 36px; flex-shrink: 0; border-radius: 50%; background: #262626; color: #fff; }
+.stream-draft { margin: 12px 0 24px; min-width: 0; max-width: 100%; }
+.draft-label { font-size: 12px; color: #737373; margin: 0 0 10px; }
+.draft-text { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.8; color: #525252; font-size: 15px; }
 .composer-note { max-width: 760px; margin: 9px auto 0; text-align: center; font-size: 10px; color: #858585; }
 .composer-note span { margin-left: 12px; }
 .notice { text-align: center; font-size: 12px; color: #525252; }

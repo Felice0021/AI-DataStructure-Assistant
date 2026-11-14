@@ -1,0 +1,125 @@
+"""Bounded bridge from the existing synchronous transaction path to POST/SSE.
+
+Only validated, committed results are terminal. Disconnect cancels the upstream Qwen
+reader; a result committed just before disconnect is recovered by the same request_id.
+"""
+import asyncio
+from concurrent.futures import TimeoutError as FutureTimeout
+import json
+import logging
+import threading
+import time
+from fastapi.responses import StreamingResponse
+from sqlalchemy.exc import SQLAlchemyError
+from backend.v2.core.errors import AuthError
+
+
+class StreamStopped(Exception):
+    def __init__(self,code):super().__init__(code);self.code=code
+
+
+class StreamControl:
+    def __init__(self,loop,request_id,timeout):
+        self.loop=loop;self.request_id=str(request_id);self.queue=asyncio.Queue(maxsize=16)
+        self.cancelled=threading.Event();self.deadline=time.monotonic()+timeout;self.seq=0
+        self.preview_check=None;self.buffer='';self.preview_started=False
+
+    def cancel(self):self.cancelled.set()
+    def check(self):
+        if self.cancelled.is_set():raise StreamStopped('stream_cancelled')
+        if time.monotonic()>=self.deadline:raise StreamStopped('stream_timeout')
+
+    def emit(self,kind,payload,*,terminal=False):
+        if not terminal:self.check()
+        if self.cancelled.is_set():raise StreamStopped('stream_cancelled')
+        self.seq+=1
+        event={'type':kind,'seq':self.seq,'request_id':self.request_id,'payload':payload}
+        pending=self.queue.put(event)
+        try:task=asyncio.run_coroutine_threadsafe(pending,self.loop)
+        except RuntimeError:
+            pending.close();raise StreamStopped('stream_cancelled') from None
+        until=time.monotonic()+1
+        try:
+            while True:
+                try:task.result(timeout=0.05);return
+                except FutureTimeout:
+                    if not terminal:self.check()
+                    if self.cancelled.is_set() or time.monotonic()>until:raise StreamStopped('stream_backpressure')
+        except BaseException:
+            task.cancel();raise
+
+    def stage(self,value,*,preview=False):
+        self.emit('status',{'stage':value,'preview':preview})
+
+    def reset(self):
+        self.buffer='';self.preview_started=False;self.emit('reset',{})
+
+    def draft(self,text):
+        self.check();self.buffer+=text
+        # Coalesce real arrivals; no timers or simulated characters.
+        if not self.preview_started or len(self.buffer)>=64 or '\n' in text:self.flush()
+
+    def flush(self):
+        self.check()
+        if self.buffer and self.preview_check is not None:
+            with self.preview_check():self.emit('draft',{'text':self.buffer})
+            self.preview_started=True
+        self.buffer=''
+
+    def authorize_commit(self):
+        self.check()
+        if self.preview_check is not None:
+            with self.preview_check():pass
+
+
+class ConversationStreamResponse(StreamingResponse):
+    """Explicit ASGI finally covers disconnect during send, even before body iteration."""
+    media_type='text/event-stream'
+    def __init__(self,control,produce,slots):
+        self.control=control;self.produce=produce;self.slots=slots;self.worker=None
+        super().__init__(self.events(),media_type=self.media_type,headers={
+            'Cache-Control':'no-store, no-transform','X-Accel-Buffering':'no','X-Content-Type-Options':'nosniff'})
+
+    async def __call__(self,scope,receive,send):
+        self.worker=asyncio.create_task(asyncio.to_thread(self.run))
+        try:await super().__call__(scope,receive,send)
+        finally:self.control.cancel()
+
+    def run(self):
+        c=self.control
+        try:
+            c.stage('accepted')
+            result=self.produce(c)
+            if result.status in {'generation_unavailable','validation_failed'}:
+                c.emit('error',{'code':result.reason or result.status,'status':503 if result.status=='generation_unavailable' else 502,'message':'Answer unavailable'},terminal=True)
+            else:
+                c.emit('result',{'result':result.model_dump(mode='json')},terminal=True)
+        except BaseException as error:
+            if isinstance(error,StreamStopped):code,status=error.code,408
+            elif isinstance(error,AuthError):code,status=error.code,error.status
+            elif isinstance(error,SQLAlchemyError):code,status='service_unavailable',503
+            else:
+                code,status='internal_error',500
+                logging.getLogger(__name__).error('Stream failed (%s)',type(error).__name__)
+            try:c.emit('error',{'code':code,'status':status,'message':'Answer unavailable'},terminal=True)
+            except (StreamStopped,RuntimeError):pass
+        finally:self.slots.release()
+
+    async def events(self):
+        c=self.control;last=0
+        while True:
+            remaining=c.deadline-time.monotonic()
+            if remaining<=0:
+                c.cancel()
+                # This terminal frame is generated by the deadline, not by a model.
+                event={'type':'error','seq':last+1,'request_id':c.request_id,'payload':{'code':'stream_timeout','status':408,'message':'Answer unavailable'}}
+                yield encode(event);return
+            try:event=await asyncio.wait_for(c.queue.get(),timeout=min(5,remaining))
+            except TimeoutError:
+                yield ': keepalive\n\n';continue
+            last=event['seq'];yield encode(event)
+            if event['type'] in {'result','error'}:return
+
+
+def encode(event):
+    return f"event: {event['type']}\nid: {event['seq']}\ndata: "+json.dumps(event,ensure_ascii=False,separators=(',',':'))+'\n\n'

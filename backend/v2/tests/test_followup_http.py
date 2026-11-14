@@ -22,7 +22,7 @@ pytestmark=[pytest.mark.integration,pytest.mark.skipif(os.getenv('DS_V2_RUN_DB_T
 @pytest.fixture
 def followup_env(setup,monkeypatch):
     e=setup;s=e['settings'];s.embedding_provider='deterministic';s.embedding_allow_test_provider=True
-    lesson='递归必须有终止条件；非负阶乘在0或1时返回1。Lomuto将小于等于pivot的键交换到前区。AVL插入按二叉搜索树规则，LL失衡右旋。'
+    lesson='递归必须有终止条件；非负阶乘在0或1时返回1。Lomuto分区以末元素为pivot，从左到右把小于等于pivot的元素交换到前部，再把pivot交换到分界位置。AVL插入按二叉搜索树规则，LL失衡右旋。'
     e['document']=upload(e,name='original-followup-rules.txt',data=lesson.encode())
     assert parse_once(e['factory'],s) and index_once(e['factory'],s)
     e['calls']=[];e['during_generation']=None

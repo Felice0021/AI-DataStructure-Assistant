@@ -1,0 +1,86 @@
+{
+  "source": "project-authored rules and reference answers; no human scores",
+  "cases": [
+    {
+      "rules": "快速排序先按基准分区，再递归处理两侧子数组。Lomuto分区以末元素为pivot，从左到右把小于等于pivot的元素交换到前部，再把pivot交换到分界位置。一次Lomuto分区在最好、平均和最坏情况下时间均为O(n)，辅助空间为O(1)。完整快速排序最好时间O(n log n)，随机输入假设下平均O(n log n)，最坏O(n²)。常规递归实现栈空间平均O(log n)，最坏O(n)。",
+      "expected_reason": null,
+      "id": "lomuto-example",
+      "query": "请详细讲解快速排序的基本思想，并用数组[3,1,2]演示一次Lomuto分区。规定最后一个元素为基准，数组下标从0开始。",
+      "reference_answer": "扫描j=0不交换：[3,1,2]；j=1交换0与1：[1,3,2]；最终交换1与2：[1,2,3]，pivot下标1。",
+      "calculation": {
+        "array": [
+          1,
+          2,
+          3
+        ],
+        "pivot_index": 1,
+        "steps": [
+          [
+            3,
+            1,
+            2
+          ],
+          [
+            1,
+            3,
+            2
+          ],
+          [
+            1,
+            2,
+            3
+          ]
+        ]
+      }
+    },
+    {
+      "rules": "快速排序先按基准分区，再递归处理两侧子数组。Lomuto分区以末元素为pivot，从左到右把小于等于pivot的元素交换到前部，再把pivot交换到分界位置。一次Lomuto分区在最好、平均和最坏情况下时间均为O(n)，辅助空间为O(1)。完整快速排序最好时间O(n log n)，随机输入假设下平均O(n log n)，最坏O(n²)。常规递归实现栈空间平均O(log n)，最坏O(n)。",
+      "expected_reason": null,
+      "id": "partition-best",
+      "query": "Lomuto一次分区的最好时间和辅助空间复杂度是什么？",
+      "reference_answer": "即使最好情况也扫描n-1个位置，时间Θ(n)，辅助空间O(1)，不等于完整快排复杂度。"
+    },
+    {
+      "rules": "快速排序先按基准分区，再递归处理两侧子数组。Lomuto分区以末元素为pivot，从左到右把小于等于pivot的元素交换到前部，再把pivot交换到分界位置。一次Lomuto分区在最好、平均和最坏情况下时间均为O(n)，辅助空间为O(1)。完整快速排序最好时间O(n log n)，随机输入假设下平均O(n log n)，最坏O(n²)。常规递归实现栈空间平均O(log n)，最坏O(n)。",
+      "expected_reason": null,
+      "id": "partition-average",
+      "query": "Lomuto一次分区的平均时间复杂度，与完整快速排序平均复杂度有什么区别？",
+      "reference_answer": "一次分区Θ(n)；完整快排在随机输入假设下平均O(n log n)，不是无条件最坏保证。"
+    },
+    {
+      "rules": "快速排序先按基准分区，再递归处理两侧子数组。Lomuto分区以末元素为pivot，从左到右把小于等于pivot的元素交换到前部，再把pivot交换到分界位置。一次Lomuto分区在最好、平均和最坏情况下时间均为O(n)，辅助空间为O(1)。完整快速排序最好时间O(n log n)，随机输入假设下平均O(n log n)，最坏O(n²)。常规递归实现栈空间平均O(log n)，最坏O(n)。",
+      "expected_reason": null,
+      "id": "partition-worst",
+      "query": "采用Lomuto分区的完整快速排序，最坏时间和递归栈空间是多少？",
+      "reference_answer": "完整快排最坏O(n²)，常规递归最坏栈O(n)；一次Lomuto分区仍Θ(n)、辅助O(1)。"
+    },
+    {
+      "rules": "快速排序先按基准分区，再递归处理两侧子数组。Lomuto分区以末元素为pivot，从左到右把小于等于pivot的元素交换到前部，再把pivot交换到分界位置。一次Lomuto分区在最好、平均和最坏情况下时间均为O(n)，辅助空间为O(1)。完整快速排序最好时间O(n log n)，随机输入假设下平均O(n log n)，最坏O(n²)。常规递归实现栈空间平均O(log n)，最坏O(n)。",
+      "expected_reason": "partition_variant_not_supported",
+      "id": "hoare-construction",
+      "query": "请详细讲解快速排序的基本思想，并用数组[3,1,2]演示一次Hoare分区。规定最后一个元素为基准，数组下标从0开始。",
+      "reference_answer": "当前有界计算器不支持Hoare，不能改用Lomuto。"
+    },
+    {
+      "rules": "快速排序先按基准分区，再递归处理两侧子数组。Lomuto分区以末元素为pivot，从左到右把小于等于pivot的元素交换到前部，再把pivot交换到分界位置。一次Lomuto分区在最好、平均和最坏情况下时间均为O(n)，辅助空间为O(1)。完整快速排序最好时间O(n log n)，随机输入假设下平均O(n log n)，最坏O(n²)。常规递归实现栈空间平均O(log n)，最坏O(n)。",
+      "expected_reason": "partition_conditions_required",
+      "id": "missing-index",
+      "query": "请详细讲解快速排序的基本思想，并用数组[3,1,2]演示一次Lomuto分区。规定最后一个元素为基准，",
+      "reference_answer": "下标约定缺失，先澄清。"
+    },
+    {
+      "rules": "快速排序先按基准分区，再递归处理两侧子数组。Lomuto分区以末元素为pivot，从左到右把小于等于pivot的元素交换到前部，再把pivot交换到分界位置。一次Lomuto分区在最好、平均和最坏情况下时间均为O(n)，辅助空间为O(1)。完整快速排序最好时间O(n log n)，随机输入假设下平均O(n log n)，最坏O(n²)。常规递归实现栈空间平均O(log n)，最坏O(n)。",
+      "expected_reason": "no_evidence",
+      "id": "no-evidence",
+      "query": "unmatchedzzzzz",
+      "reference_answer": "无证据，不生成。"
+    },
+    {
+      "rules": "Hoare分区使用左右双向扫描交换错位元素，返回分界下标，不保证基准归位。",
+      "expected_reason": "partition_rule_evidence_required",
+      "id": "hoare-evidence-only",
+      "query": "请详细讲解快速排序的基本思想，并用数组[3,1,2]演示一次Lomuto分区。规定最后一个元素为基准，数组下标从0开始。",
+      "reference_answer": "Hoare资料不能作为Lomuto规则依据。"
+    }
+  ]
+}

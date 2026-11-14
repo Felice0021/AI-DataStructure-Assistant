@@ -18,14 +18,24 @@ REFUSAL='根据当前授权资料无法确定。'
 
 
 def ask(factory,user,data,settings,*,verify_session,provider=None,before_cloud_call=None,retrieval_query=None,conversation_history=()):
+    from backend.v2.services.verified_partition import prepare as prepare_partition
     started=time.monotonic();mode=resolve_mode(data.query,data.answer_mode)
     effective_query=retrieval_query or data.query
+    partition=None
     request=PrepareRequest(query=effective_query,knowledge_base_ids=data.knowledge_base_ids,mode=data.retrieval_mode,
         top_k=data.top_k,rerank=data.rerank,allow_cloud=data.allow_cloud,allow_cloud_rerank=data.allow_cloud_rerank)
     with capacity(factory.kw['bind'],settings.generation_concurrency,namespace=174928):
         context=prepare_context(factory,user,request,settings,verify_session=verify_session,before_cloud_call=before_cloud_call)
         evidence=context['evidence']
+        partition_reason=None
+        if mode!='code':partition,partition_reason=prepare_partition(effective_query,evidence,user_query=data.query)
         def publish(status,reason,answer=None,citations=(),model=None):
+            if status=='insufficient_evidence' and reason and reason.startswith('partition_'):
+                answer='当前分区题的变体、输入、基准、下标约定或课程依据不满足已校验条件。仅支持明确末元素基准、下标从0开始的Lomuto单次分区；请核对条件，不会改用其他算法或伪造引用。'
+            if status=='answered' and partition:
+                answer=partition.finish(answer,citations)
+                if len(answer.encode())>settings.generation_max_output_bytes:
+                    raise AnswerValidationError('partition_output_limit')
             with factory() as session:
                 # Revalidate every submitted block, even if the model omitted its citation.
                 fresh=validate_evidence(session,user,data.knowledge_base_ids,evidence,settings,verify_session=verify_session)
@@ -46,7 +56,7 @@ def ask(factory,user,data,settings,*,verify_session,provider=None,before_cloud_c
                 return {'status':status,'reason':reason,'answer':answer,'sources':sources,
                     'retrieval_mode':context['actual_mode'],'answer_mode':mode,'rerank_applied':context['rerank_applied'],
                     'generation_model':model,'execution_performed':False,'latency_ms':round((time.monotonic()-started)*1000,3)}
-        reason=preflight(effective_query,evidence)
+        reason=preflight(effective_query,evidence) or partition_reason
         if reason:return publish('insufficient_evidence',reason,REFUSAL)
         calculation=None
         if mode!='code':
@@ -62,6 +72,7 @@ def ask(factory,user,data,settings,*,verify_session,provider=None,before_cloud_c
                 if not any(s.usable for s in rule_support.values()):
                     return publish('insufficient_evidence','tree_rule_evidence_required','本轮未检索到足够的树操作规则，无法为构造结果提供可靠课程引用。')
         messages=build_prompt(data.query,mode,context,settings,history=conversation_history,resolved_query=effective_query)
+        if partition:partition.instruct(messages,settings.generation_max_input_bytes)
         # Recheck again immediately before any generator could receive evidence, then release locks.
         with factory() as session:validate_evidence(session,user,data.knowledge_base_ids,evidence,settings,verify_session=verify_session)
         budget=RequestBudget(settings.generation_max_calls)
@@ -96,5 +107,6 @@ def ask(factory,user,data,settings,*,verify_session,provider=None,before_cloud_c
                         return publish('validation_failed',str(error),model=chosen.model)
                     # Do not feed unvalidated output back as control text, and do not strip bad citations.
                     messages=build_prompt(data.query,mode,context,settings,feedback=str(error),history=conversation_history,resolved_query=effective_query)
+                    if partition:partition.instruct(messages,settings.generation_max_input_bytes)
         except GenerationError as error:
             return publish('generation_unavailable',error.code)

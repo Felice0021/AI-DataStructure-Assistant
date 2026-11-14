@@ -10,6 +10,8 @@ from uuid import uuid4
 from backend.v2.core.config import Settings, REPOSITORY_ROOT
 from backend.v2.db.session import build_session_factory
 from backend.v2.models import DocumentChunk
+from backend.v2.models.cloud import CloudAudit
+from sqlalchemy import select,func
 from uuid import UUID
 from backend.v2.tests.support import isolated_database
 from backend.v2.tests.test_auth import local_settings, client_for, register, post, csrf_headers
@@ -23,13 +25,19 @@ def main():
     parser.add_argument('--v2-env-file',required=True)
     parser.add_argument('--output-dir',required=True)
     parser.add_argument('--case',action='append',help='Optional fixture IDs for a targeted regression')
+    parser.add_argument('--fixture-set',choices=['problem','partition'],default='problem')
     args=parser.parse_args()
     out=Path(args.output_dir).resolve()
     if out==REPOSITORY_ROOT or REPOSITORY_ROOT in out.parents:raise ValueError('Output must be outside checkout')
     out.mkdir(mode=0o700,parents=True,exist_ok=True);os.chmod(out,0o700)
     target=out/('problems-'+uuid4().hex+'.json')
     source=Settings(_env_file=Path(args.v2_env_file))
-    cases=json.loads((REPOSITORY_ROOT/'backend/v2/tests/fixtures/problem_reference_cases.json').read_text())['cases']
+    fixture='partition_reference_cases.json' if args.fixture_set=='partition' else 'problem_reference_cases.json'
+    cases=json.loads((REPOSITORY_ROOT/'backend/v2/tests/fixtures'/fixture).read_text())['cases']
+    if args.fixture_set=='partition' and not args.case:
+        parser.error('Partition checks require explicit --case selection; hoare-evidence-only must run alone')
+    if args.fixture_set=='partition' and args.case and 'hoare-evidence-only' in args.case and len(args.case)!=1:
+        parser.error('hoare-evidence-only requires its own isolated corpus')
     if args.case:
         if set(args.case)-{c['id'] for c in cases}:raise ValueError('Unknown case')
         cases=[c for c in cases if c['id'] in args.case]
@@ -58,6 +66,8 @@ def main():
                     upload(env,name=case['id']+'.txt',data=case['rules'].encode())
                     assert parse_once(factory,s) and index_once(factory,s)
                 for case in cases:
+                    with factory() as db:
+                        before=db.scalar(select(func.count()).select_from(CloudAudit).where(CloudAudit.event=='succeeded',CloudAudit.purpose=='generation'))
                     started=time.monotonic()
                     r=c.post('/api/v2/rag/ask',json={'query':case['query'],'knowledge_base_ids':[kb['id']],
                         'retrieval_mode':'bm25','answer_mode':'auto','rerank':'off','allow_cloud_generation':True},headers=csrf_headers(c))
@@ -69,14 +79,30 @@ def main():
                             and body.get('reason')==case['expected_reason'] and not sources)))
                     with factory() as db:
                         evidence=[{'chunk_id':x['chunk_id'],'content':db.get(DocumentChunk,UUID(x['chunk_id'])).content,'content_hash':x['content_hash']} for x in sources]
+                        calls=db.scalar(select(func.count()).select_from(CloudAudit).where(CloudAudit.event=='succeeded',CloudAudit.purpose=='generation'))-before
+                    calculation_pass=None
+                    if case.get('calculation') and structurally_valid:
+                        from backend.v2.services.verified_partition import prepare
+                        blocks=[{**e,'citation_id':s['citation_id']} for e,s in zip(evidence,sources)]
+                        plan,reason=prepare(case['query'],blocks)
+                        gold=case['calculation'];ids=[s['citation_id'] for s in sources]
+                        calculation_pass=(reason is None and list(plan.calculation.final)==gold['array']
+                            and plan.calculation.pivot_index==gold['pivot_index']
+                            and [list(x['array']) for x in plan.calculation.steps]==gold['steps']
+                            and body['answer']==plan.finish('Lomuto规则 '+' '.join(ids),ids))
+                        structurally_valid=structurally_valid and calculation_pass
+                    if args.fixture_set=='partition':
+                        structurally_valid=structurally_valid and calls==(0 if case['expected_reason'] else 1)
                     report['cases'].append({'id':case['id'],'question':case['query'],'reference_answer':case['reference_answer'],
                         'expected_reason':case['expected_reason'],'http_status':r.status_code,'response':body,
                         'evidence':evidence,'fact_correctness':None,'steps_complete':None,'citation_faithfulness':None,
-                        'latency_ms':round((time.monotonic()-started)*1000),'structure_valid':structurally_valid})
+                        'latency_ms':round((time.monotonic()-started)*1000),'structure_valid':structurally_valid,
+                        'successful_cloud_calls':calls,'calculation_reference_match':calculation_pass})
                     save();print('CASE',case['id'],'HTTP',r.status_code,'STATUS',body.get('status'),'STRUCTURE',structurally_valid,flush=True)
                     if r.status_code in {401,403,429,503}:
                         report['stopped']='authentication_or_provider_error';save();return 1
                 valid=all(c['structure_valid'] for c in report['cases'])
+                with factory() as db:report['cloud_usage']=[a.details for a in db.scalars(select(CloudAudit).where(CloudAudit.event=='succeeded',CloudAudit.purpose=='generation'))]
                 report['result']='ENGINEERING_PASS_QUALITY_PENDING_HUMAN' if valid else 'RECORDED_WITH_FAILURES'
                 save();print('TRANSCRIPT',target)
                 return 0 if valid else 1

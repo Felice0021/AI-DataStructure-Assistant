@@ -176,6 +176,8 @@ export interface AskResponse {
   generation_model: string | null
   execution_performed?: false
   latency_ms: number
+  /** Optional server-calculated display data; validated before rendering, never model JSON. */
+  tree_visualization?: import('@/utils/verifiedTree').VerifiedTree | null
 }
 
 /**

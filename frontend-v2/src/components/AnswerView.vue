@@ -6,6 +6,8 @@ import type { AskResponse } from '@/types/api'
 
 import AnswerText from './AnswerText.vue'
 import SourceList from './SourceList.vue'
+import TreeVisualization from './TreeVisualization.vue'
+import { parseVerifiedTree } from '@/utils/verifiedTree'
 
 /**
  * 五态分发。三种「不成功」必须视觉可区分，不能混为一谈：
@@ -36,6 +38,8 @@ const authorizationError = computed(() => props.errorCode?.includes('consent_req
 const showRetry = computed(() => props.phase === 'failed' && ![401, 403].includes(props.errorStatus) && !authorizationError.value)
 
 const refusalDetail = computed(() => reasonMessage(props.result?.reason ?? null))
+const tree = computed(() => props.phase === 'answered' && props.result
+  ? parseVerifiedTree(props.result.tree_visualization, props.result.sources.map(s => s.citation_id)) : null)
 
 async function onCite(citationId: string): Promise<void> {
   highlight.value = citationId
@@ -60,7 +64,8 @@ async function onCite(citationId: string): Promise<void> {
     </div>
 
     <section v-else-if="phase === 'answered' && result" class="card card-success" data-testid="answer-success">
-      <AnswerText :text="result.answer ?? ''" :sources="result.sources" @cite="onCite" />
+      <AnswerText :text="tree?.explanation ?? result.answer ?? ''" :sources="result.sources" @cite="onCite" />
+      <TreeVisualization v-if="tree" :tree="tree" />
       <slot name="answer-actions" />
       <SourceList :id-prefix="sourcePrefix" :sources="result.sources" :highlight="highlight" :open="sourcesOpen" @toggle="sourcesOpen = $event" />
     </section>

@@ -29,7 +29,7 @@ def ask(factory,user,data,settings,*,verify_session,provider=None,before_cloud_c
         evidence=context['evidence']
         partition_reason=None
         if mode!='code':partition,partition_reason=prepare_partition(effective_query,evidence,user_query=data.query)
-        def publish(status,reason,answer=None,citations=(),model=None):
+        def publish(status,reason,answer=None,citations=(),model=None,tree=None):
             if status=='insufficient_evidence' and reason and reason.startswith('partition_'):
                 answer='当前分区题的变体、输入、基准、下标约定或课程依据不满足已校验条件。仅支持明确末元素基准、下标从0开始的Lomuto单次分区；请核对条件，不会改用其他算法或伪造引用。'
             if status=='answered' and partition:
@@ -55,7 +55,8 @@ def ask(factory,user,data,settings,*,verify_session,provider=None,before_cloud_c
                 if verified is None or verified.id!=user.id:raise unauthorized()
                 return {'status':status,'reason':reason,'answer':answer,'sources':sources,
                     'retrieval_mode':context['actual_mode'],'answer_mode':mode,'rerank_applied':context['rerank_applied'],
-                    'generation_model':model,'execution_performed':False,'latency_ms':round((time.monotonic()-started)*1000,3)}
+                    'generation_model':model,'execution_performed':False,'latency_ms':round((time.monotonic()-started)*1000,3),
+                    'tree_visualization':tree}
         reason=preflight(effective_query,evidence) or partition_reason
         if reason:return publish('insufficient_evidence',reason,REFUSAL)
         calculation=None
@@ -93,6 +94,7 @@ def ask(factory,user,data,settings,*,verify_session,provider=None,before_cloud_c
                         reason='model_reported_conflict' if draft.status=='evidence_conflict' else 'scope_not_verified' if draft.status=='out_of_scope' else 'model_refusal'
                         return publish('insufficient_evidence',reason,REFUSAL,model=chosen.model)
                     answer=draft.answer
+                    tree=None
                     if calculation:
                         if any(not rule_support[c].usable for c in citations):
                             raise AnswerValidationError('tree_rule_citation_required')
@@ -100,9 +102,13 @@ def ask(factory,user,data,settings,*,verify_session,provider=None,before_cloud_c
                         # original strict citation checks; render only the verified calculation.
                         answer=calculation.render(' '.join(citations),supports={c:rule_support[c] for c in citations})
                         if len(answer.encode())>settings.generation_max_output_bytes:raise AnswerValidationError('tree_output_limit')
+                        from backend.v2.services.tree_visualization import build
+                        from pydantic import ValidationError
+                        try:tree=build(calculation,citations,{c:rule_support[c] for c in citations}).model_dump(mode='json')
+                        except (TreeError,ValidationError):raise AnswerValidationError('tree_display_invalid') from None
                     elif mode!='code' and tree_family(effective_query) and unverified_tree_prose(answer):
                         raise AnswerValidationError('unverified_tree_prose')
-                    return publish('answered',None,answer,citations,chosen.model)
+                    return publish('answered',None,answer,citations,chosen.model,tree)
                 except AnswerValidationError as error:
                     if attempt==settings.generation_validation_retries:
                         return publish('validation_failed',str(error),model=chosen.model)

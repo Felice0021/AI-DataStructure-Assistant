@@ -12,5 +12,6 @@
   "error": {
     "code": "generation_disabled",
     "message": "Generation unavailable"
-  }
+  },
+  "tree_visualization": null
 }

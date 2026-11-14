@@ -38,7 +38,7 @@ def inspect_binary(root, *, balanced=False):
     return {'inorder':keys,'height':height,'balance_factors':factors}
 
 
-def rotate(root,kind):
+def rotate(root,kind,*,trace=None):
     if root is None:raise TreeError('invalid_rotation_case')
     before=inspect_binary(root);f=before['balance_factors']
     if (kind not in {'LL','RR','LR','RL'} or abs(f[root.key])!=2
@@ -56,6 +56,10 @@ def rotate(root,kind):
         pivot=n.left;n.left=pivot.right;pivot.right=n;return pivot
     if kind=='LR':root.left=left(root.left)
     if kind=='RL':root.right=right(root.right)
+    if kind in {'LR','RL'}:
+        intermediate=inspect_binary(root)
+        if before['inorder']!=intermediate['inorder']:raise TreeError('rotation_changed_keys')
+        if trace is not None:trace.append(snapshot(root))
     root=right(root) if kind[0]=='L' else left(root)
     after=inspect_binary(root,balanced=True)
     if before['inorder']!=after['inorder']:raise TreeError('rotation_changed_keys')
@@ -71,8 +75,10 @@ def binary_insert(root,key,avl,events):
         info=inspect_binary(root);bf=info['balance_factors']
         if abs(bf[root.key])>1:
             kind=('LL' if bf[root.left.key]>=0 else 'LR') if bf[root.key]>0 else ('RR' if bf[root.right.key]<=0 else 'RL')
-            before=snapshot(root);root=rotate(root,kind)
-            events.append({'rotation':kind,'before':before,'after':snapshot(root)})
+            before=snapshot(root);trace=[];root=rotate(root,kind,trace=trace)
+            event={'rotation':kind,'before':before,'after':snapshot(root)}
+            if trace:event['intermediate']=trace[0]
+            events.append(event)
     return root
 
 
@@ -146,7 +152,7 @@ class Calculation:
     example: bool = False
     conventions: dict = field(default_factory=dict)
 
-    def render(self,citation,*,supports=None):
+    def render(self,citation,*,supports=None,include_tree_text=True):
         lines=['### 已校验的'+('示例' if self.example else '构造结果'),
             '以下结构由服务端算法计算并校验；不是运行用户代码。',
             '从空树依次插入：'+', '.join(map(str,self.keys))+'。']
@@ -162,15 +168,18 @@ class Calculation:
         if self.steps:
             lines+=['','| 插入键 | 调整 | 当前根 |','|---|---|---|']
             lines += [f"| {s['key']} | {s['rotation'] or '无需旋转'} | {s['root']} |" for s in self.steps]
+            lines.append('')
         for event in self.rotations:
             if event['rotation'] in {'LR','RL'}:
                 side,first,second=('left','左','右') if event['rotation']=='LR' else ('right','右','左')
                 lines.append(f"参考算法操作：先对结点{event['before'][side]['key']}{first}旋，再对结点{event['before']['key']}{second}旋。")
-            lines += ['',event['rotation']+'：旋转前','```text',*binary_lines(event['before']),'```','旋转后','```text',*binary_lines(event['after']),'```']
-        lines+=['','最终结构','```text',*(binary_lines(self.final) if self.family in {'AVL','BST'} else multi_lines(self.final)),'```',
-            '校验：键集合不变；'+('中序严格有序；所有结点平衡因子绝对值不超过一。' if self.family=='AVL' else '中序严格有序。' if self.family=='BST' else '结点有序、容量和分隔范围正确，所有叶子同层。')]
+            if include_tree_text:
+                for stage,label in [('before','旋转前'),('intermediate','第一次旋转后'),('after','旋转后')]:
+                    if stage in event:lines+=['',event['rotation']+'：'+label,'```text',*binary_lines(event[stage]),'```']
+        if include_tree_text:lines+=['','最终结构','```text',*(binary_lines(self.final) if self.family in {'AVL','BST'} else multi_lines(self.final)),'```']
+        lines+=['','校验：键集合不变；'+('中序严格有序；所有结点平衡因子绝对值不超过一。' if self.family=='AVL' else '中序严格有序。' if self.family=='BST' else '结点有序、容量和分隔范围正确，所有叶子同层。')]
         if self.checks.get('root_only'):lines[-1]='校验：根叶键有序、键集合一致；本次没有分裂。'
-        if self.family=='AVL':lines.append('平衡因子（左高减右高）：'+', '.join(f'{k}: {v}' for k,v in self.checks['balance_factors'].items())+'。')
+        if self.family=='AVL':lines+=['','平衡因子（左高减右高）：'+', '.join(f'{k}: {v}' for k,v in self.checks['balance_factors'].items())+'。']
         return '\n'.join(lines)
 
 

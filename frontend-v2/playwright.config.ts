@@ -12,7 +12,7 @@ export default defineConfig({
     command: 'npm run build && npm run preview -- --port 4178',
     url: 'http://127.0.0.1:4178',
     // Synthetic course ID used only for this browser test build.
-    env: { VITE_COURSE_KB_ID: '33333333-3333-4333-8333-333333333333' },
+    env: { VITE_API_BASE: '', VITE_USE_MOCK: 'false', VITE_COURSE_KB_ID: '33333333-3333-4333-8333-333333333333' },
     reuseExistingServer: false,
   },
 })

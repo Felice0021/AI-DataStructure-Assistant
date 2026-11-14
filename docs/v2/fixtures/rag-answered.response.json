@@ -23,5 +23,6 @@
   "rerank_applied": true,
   "generation_model": "deterministic-evidence-quote-v1",
   "execution_performed": false,
-  "latency_ms": 12.5
+  "latency_ms": 12.5,
+  "tree_visualization": null
 }

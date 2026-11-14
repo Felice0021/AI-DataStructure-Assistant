@@ -96,7 +96,7 @@ it('copies only the response body and never adds hidden diagnostics', async () =
 it('retains conversation controls and restores a saved conversation URL', async () => {
   const chat = useChatStore()
   chat.items = [{id: 'saved', title: '旧对话', updated_at: ''}]
-  const open = vi.spyOn(chat, 'open').mockResolvedValue()
+  const open = vi.spyOn(chat, 'open').mockImplementation(async id => { chat.active = id })
   window.history.replaceState(null, '', '/?conversation=saved')
   const rename = vi.spyOn(chat, 'rename').mockResolvedValue()
   const remove = vi.spyOn(chat, 'remove').mockResolvedValue()
@@ -105,13 +105,57 @@ it('retains conversation controls and restores a saved conversation URL', async 
   const w = mount(ChatWorkspace); await flushPromises()
   expect(open).toHaveBeenCalledWith('saved')
   await w.find('.history-title').trigger('click'); expect(open).toHaveBeenCalledTimes(2)
+  await w.find('.history-more').trigger('click')
   await w.findAll('.history-actions button')[0]!.trigger('click')
   await w.find('input[aria-label="对话标题"]').setValue('改名')
   await w.find('.history-row form').trigger('submit'); await flushPromises()
   expect(rename).toHaveBeenCalledWith('saved', '改名')
+  await w.find('.history-more').trigger('click')
   await w.findAll('.history-actions button')[1]!.trigger('click'); expect(remove).toHaveBeenCalledWith('saved')
   await w.find('.new-chat').trigger('click'); expect(newChat).toHaveBeenCalledOnce()
   vi.unstubAllGlobals()
+})
+
+it('allows only one conversation menu, dismisses it outside or with Escape, and collapses history', async () => {
+  const chat = useChatStore()
+  chat.items = [{id: 'one', title: '复杂度', updated_at: ''}, {id: 'two', title: '二叉树', updated_at: ''}]
+  const w = mount(ChatWorkspace, {attachTo: document.body}); await flushPromises()
+  const menus = w.findAll('.history-more')
+  await menus[0]!.trigger('click')
+  expect(w.findAll('.history-actions')).toHaveLength(1)
+  expect(menus[0]!.attributes('aria-expanded')).toBe('true')
+  await menus[1]!.trigger('click')
+  expect(w.findAll('.history-actions')).toHaveLength(1)
+  expect(menus[0]!.attributes('aria-expanded')).toBe('false')
+  expect(menus[1]!.attributes('aria-expanded')).toBe('true')
+  document.body.click(); await flushPromises()
+  expect(w.findAll('.history-actions')).toHaveLength(0)
+  await menus[0]!.trigger('click')
+  document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true})); await flushPromises()
+  expect(w.findAll('.history-actions')).toHaveLength(0)
+  const toggle = w.find('.history-toggle')
+  expect(toggle.attributes('aria-expanded')).toBe('true')
+  await toggle.trigger('click')
+  expect(toggle.attributes('aria-expanded')).toBe('false')
+  expect((w.find('.history-list').element as HTMLElement).style.display).toBe('none')
+  await toggle.trigger('click')
+  expect(toggle.attributes('aria-expanded')).toBe('true')
+  expect((w.find('.history-list').element as HTMLElement).style.display).not.toBe('none')
+})
+
+it('positions an opened historical conversation at the bottom without smooth scrolling', async () => {
+  const chat = useChatStore()
+  chat.items = [{id: 'saved', title: '长对话', updated_at: ''}]
+  vi.spyOn(chat, 'open').mockImplementation(async id => {
+    chat.active = id
+    chat.messages = [{id: 'reply', seq: 2, role: 'assistant', content: '最后一条', metadata_json: {}}]
+  })
+  const w = mount(ChatWorkspace); await flushPromises()
+  const stream = w.find('.stream').element as HTMLElement
+  Object.defineProperty(stream, 'scrollHeight', {configurable: true, value: 3200})
+  await w.find('.history-title').trigger('click'); await flushPromises()
+  expect(stream.scrollTo).toHaveBeenCalledWith({top: 3200, behavior: 'instant'})
+  expect(w.text()).toContain('最后一条')
 })
 
 it('never rewrites a pending request from a hidden knowledge-base scope', async () => {

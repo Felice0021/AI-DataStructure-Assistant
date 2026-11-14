@@ -4,6 +4,8 @@ import os
 
 import pytest
 from backend.v2.services.generation_provider import Completion
+from backend.v2.services.verified_trees import calculate
+from backend.v2.services.tree_rule_evidence import rule_supported
 from backend.v2.tests.test_auth import csrf_headers
 from backend.v2.tests.test_ingestion import setup, upload
 from backend.v2.worker import run_once as parse_once
@@ -45,5 +47,13 @@ def test_real_http_condition_decisions(setup,monkeypatch,query,reason,answer):
         assert body['sources']==[] and calls==[]
     else:
         assert body['status']=='answered' and len(calls)==1
-        assert body['answer']==answer+' '+body['sources'][0]['citation_id']
+        calculation,_=calculate(query)
+        if calculation:
+            if '空AVL' in query:assert calculation.final=={'key':10,'left':None,'right':None}
+            elif '空B' in query:assert calculation.final=={'keys':[10],'children':[]}
+            else:
+                expected=({'keys':[20],'children':[{'keys':[10],'children':[]},{'keys':[20,30],'children':[]}]} if '左叶前1' in query else {'keys':[30],'children':[{'keys':[10,20],'children':[]},{'keys':[30],'children':[]}]})
+                assert calculation.final==expected
+            assert body['answer']==calculation.render(body['sources'][0]['citation_id'],supports={body['sources'][0]['citation_id']:rule_supported(calculation,lesson)})
+        else:assert body['answer']==answer+' '+body['sources'][0]['citation_id']
         assert body['sources'][0]['document_id']==document['id']

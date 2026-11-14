@@ -1165,3 +1165,9 @@ python -m backend.v2.tools.problem_smoke --v2-env-file deploy/v2/.env --output-d
 人工质量字段留空，待组员审核。每题最多一次生成、无自动重试，认证/限流/服务故障停止。
 所有测试资源退出时清理，原课程库、QA 与向量均不变。结果和已发现问题见
 [PROBLEM_SOLVING_ACCEPTANCE.md](PROBLEM_SOLVING_ACCEPTANCE.md)。
+
+### 多主题与已校验树算法（PR 1）
+
+回归：`DS_V2_RUN_DB_TESTS=1 python -m pytest backend/v2/tests/test_verified_trees.py backend/v2/tests/test_verified_tree_http.py`。
+完整规则、真实 Qwen 的显式测试命令、支持范围、失败记录和不部署边界见
+[VERIFIED_TREE_CONTEXT.md](VERIFIED_TREE_CONTEXT.md)。没有新增依赖、迁移或课程索引任务。

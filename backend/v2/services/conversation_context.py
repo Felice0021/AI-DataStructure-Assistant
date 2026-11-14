@@ -15,11 +15,12 @@ from backend.v2.services.tree_inputs import operation_sequence, first_insert_cou
 # Reviewed lexical resolver, deliberately limited. Unknown/ambiguous anaphora asks for clarification.
 TOPICS = (
     ('AVL 树', r'(?<![A-Za-z0-9_])AVL(?![A-Za-z0-9_])(?:\s*树)?'),
+    ('红黑树', r'红黑树|red[ -]?black\s*tree|(?<![A-Za-z0-9_])RB\s*tree(?![A-Za-z0-9_])'),
     ('B+ 树', r'(?<![A-Za-z0-9_])B\s*\+\s*树'),
     ('B 树', r'(?<![A-Za-z0-9_])B\s*树'),
     ('二叉搜索树', r'二叉搜索树|二叉排序树|(?<![A-Za-z0-9_])BST(?![A-Za-z0-9_])'),
     ('二叉树', r'二叉树'),
-    ('快速排序', r'快速排序|快排|(?<![A-Za-z0-9_])quicksort(?![A-Za-z0-9_])'),
+    ('快速排序', r'快速排序|快排|(?<![A-Za-z0-9_])(?:quicksort|Lomuto|Hoare)(?![A-Za-z0-9_])'),
     ('归并排序', r'归并排序|\bmerge\s*sort\b'),
     ('堆排序', r'堆排序|\bheap\s*sort\b'),
     ('冒泡排序', r'冒泡排序|\bbubble\s*sort\b'),
@@ -32,6 +33,10 @@ TOPICS = (
     ('链表', r'链表|\blinked\s*list\b'),
 )
 REFERENCE = re.compile(r'它|该(?:算法|结构|方法|树)|这(?:个|种)(?:算法|结构|方法|树)?|上述|前面|刚才|^(?:那|那么)|^(?:最坏|最好|平均)(?:情况|情况下)|^(?:时间|空间)复杂度(?:呢|怎么样|如何|[？?])')
+CASE_FOLLOWUP = re.compile(r'^(?:最好|平均|最坏)(?:(?:情况|情况下))?(?:呢|如何|怎么样)?[？?。\s]*$')
+ROTATION_REFERENCE = re.compile(r'(?<![A-Za-z0-9_])(?:LL|RR|LR|RL)(?![A-Za-z0-9_]).*(?:失衡|旋转|树形)', re.I)
+PARTITION_VARIANT = re.compile(r'(?<![A-Za-z0-9_])(Lomuto|Hoare)(?![A-Za-z0-9_])', re.I)
+TOPIC_SWITCH = re.compile(r'换个话题|换一个话题|另一个问题|改讲|现在(?:讨论|讲)|接下来(?:讨论|讲)')
 COMPARISON = re.compile(r'不同|区别|相比|比较')
 CITATION = re.compile(r'\[S\d+\]')
 MODIFICATION = re.compile(r'^(?:那|那么)?(?:应该|应当|要)?怎么(?:修改|修正)|^(?:那|那么)?(?:应该|应当|要)?如何(?:修改|修正)')
@@ -48,6 +53,76 @@ def topics(text):
         if not any(start < e and end > s for s, e, _ in chosen):
             chosen.append((start, end, name))
     return list(dict.fromkeys(name for _, _, name in sorted(chosen)))
+
+
+def discourse_focus(question):
+    """An explicit focus or a unique independent subject, never the first item in a comparison."""
+    clauses=re.split(r'[？?。；;，,\n]',question)
+    emphasized=[];subjects=[]
+    for clause in clauses:
+        focus=re.search(r'(?:(?:重点|主要|着重|只)(?:讨论|介绍|解释|分析|关注)|改讲|现在(?:讨论|讲)|接下来(?:讨论|讲))\s*(.+)',clause)
+        if focus:
+            names=topics(focus[1])
+            if len(names)==1:emphasized.extend(names)
+        # "It differs from BST" is subordinate; BST is not an independent discussion subject.
+        if COMPARISON.search(clause) or re.search(r'与|相比|对比|对照|比较',clause):
+            continue
+        names=topics(clause)
+        if len(names)==1 and re.search(r'是什么|什么是|如何|为什么|呢|解释|介绍|定义|特点|原理',clause):
+            subjects.extend(names)
+    chosen=set(emphasized or subjects)
+    if len(chosen)==1:return next(iter(chosen))
+    if chosen:return None
+    names=topics(question)
+    return names[0] if len(names)==1 else None
+
+
+def variants(query):
+    return tuple(dict.fromkeys(m[1].casefold() for m in PARTITION_VARIANT.finditer(query)))
+
+
+def contextual(query):
+    return bool(REFERENCE.search(query) or CASE_FOLLOWUP.fullmatch(query)
+                or not topics(query) and ROTATION_REFERENCE.search(query))
+
+
+def history_focus(turns):
+    """Replay bounded user discourse. Comparands/operations cannot seize the main topic."""
+    anchor = variant = task = None
+    for index, turn in enumerate(turns):
+        query = turn.question
+        names = topics(query)
+        stated = variants(query)
+        reference = contextual(query)
+        independent = bool(names and not REFERENCE.match(query) and not re.search(r'(?:和|与|跟|同)它', query))
+        if TOPIC_SWITCH.search(query) or independent or not reference:
+            anchor = discourse_focus(query)
+            variant = stated[0] if anchor == '快速排序' and len(stated) == 1 else None
+            task = query if variant else None
+            if len(stated) > 1:
+                anchor = None  # A comparison between two partition variants has no implicit subject.
+            continue
+        if index == 0 and anchor is None:
+            # The first definition can have fallen outside the three-turn window. Only the
+            # server's saved resolution bootstraps an incomplete first turn, never model prose.
+            anchor = discourse_focus(turn.resolved_query)
+            saved = variants(turn.resolved_query)
+            variant = saved[0] if anchor == '快速排序' and len(saved) == 1 else None
+            if variant and '；用户原题条件（不作为证据）：' in turn.resolved_query:
+                try:
+                    conditions = json.loads(turn.resolved_query.split('；用户原题条件（不作为证据）：', 1)[1])
+                    original = conditions.get('untrusted_user_task')
+                    if (conditions.get('partition_variant') == variant and isinstance(original, str)
+                            and variants(original) == (variant,)):
+                        task = original
+                except (ValueError, AttributeError):
+                    pass
+        if names and (len(names) != 1 or names[0] != anchor) and not COMPARISON.search(query):
+            anchor = variant = task = None
+        if stated:
+            variant = stated[0] if anchor == '快速排序' and len(stated) == 1 else None
+            task = query if variant else None
+    return anchor, variant, task
 
 
 def bounded(text, max_bytes):
@@ -79,7 +154,7 @@ class Plan:
         return [turn.prompt() for turn in self.turns]
 
     def audit(self):
-        return {'method': 'bounded-topic-rules-v2', 'resolved_query': self.query,
+        return {'method': 'bounded-topic-rules-v4', 'resolved_query': self.query,
                 'history_request_ids': [t.request_id for t in self.turns]}
 
 
@@ -119,7 +194,7 @@ def plan(query, turns, max_query_chars):
     if focused is not None:
         return focused
     explicit = topics(query)
-    needs_context = bool(REFERENCE.search(query))
+    needs_context = contextual(query)
     # A complete named question may contain a later pronoun referring to its own subject.
     if explicit and not REFERENCE.match(query) and not re.search(r'(?:和|与|跟|同)它', query):
         needs_context = False
@@ -129,10 +204,13 @@ def plan(query, turns, max_query_chars):
         return Plan(query, relevant)
     if not turns:
         return Plan(query, reason='conversation_context_required')
-    anchors = topics(turns[-1].resolved_query)
-    if len(anchors) != 1:
+    if TOPIC_SWITCH.search(query) and not explicit:
         return Plan(query, reason='conversation_context_ambiguous')
-    anchor = anchors[0]
+    anchor, variant, task = history_focus(turns)
+    if anchor is None:
+        return Plan(query, reason='conversation_context_ambiguous')
+    if not explicit and ROTATION_REFERENCE.search(query) and anchor != 'AVL 树':
+        return Plan(query, reason='conversation_context_ambiguous')
     if explicit and anchor not in explicit:
         if len(explicit) != 1 or not COMPARISON.search(query):
             return Plan(query, reason='conversation_context_ambiguous')
@@ -143,6 +221,11 @@ def plan(query, turns, max_query_chars):
         rewritten = re.sub(r'它|该(?:算法|结构|方法|树)|这(?:个|种)(?:算法|结构|方法|树)?|上述(?:算法|结构|方法)?', anchor, query)
         if rewritten == query:
             rewritten = f'{anchor}：{query}'
+    if variant and not variants(query):
+        # Preserve the named variant as user conditions, not as textbook evidence. Include
+        # only the original user task, never a historical assistant's partition result.
+        rewritten += '；用户原题条件（不作为证据）：' + json.dumps(
+            {'partition_variant': variant, 'untrusted_user_task': task}, ensure_ascii=False)
     if len(rewritten) > max_query_chars:
         raise AuthError(422, 'conversation_query_limit', 'Resolved question exceeds retrieval limit')
     return Plan(rewritten, turns)

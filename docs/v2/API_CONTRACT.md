@@ -552,3 +552,7 @@ unverified_tree_prose；无有效答案/来源，不保存未通过结果。详�
 构造规则与资料明确冲突时为 `200 insufficient_evidence / tree_rule_conflict`；
 相关约定超出有界来源语法时为 `tree_rule_unverified`。两者均为空来源、无数值构造，
 在调用生成器前澄清。成功回答区分教材原理、明确规定与用户题设假设，不把题设约定标成教材依据。
+
+### 可选的已校验树形图
+
+`AskResponse.tree_visualization` 默认为 `null`，仅对服务端参考算法及引用检查通过的树构造回答提供。其结构、安全限制、旋转中间状态和旧客户端兼容方式见 [VERIFIED_TREE_DISPLAY.md](VERIFIED_TREE_DISPLAY.md)。模型生成器不能提供该字段；旧 `answer` 文字及单轮接口继续有效。冻结 OpenAPI 已同步。会话历史保留此数据，并沿用原来源权限与代次复核。

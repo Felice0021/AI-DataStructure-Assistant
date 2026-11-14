@@ -8,5 +8,6 @@
   "rerank_applied": false,
   "generation_model": null,
   "execution_performed": false,
-  "latency_ms": 2.5
+  "latency_ms": 2.5,
+  "tree_visualization": null
 }

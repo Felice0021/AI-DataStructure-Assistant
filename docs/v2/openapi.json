@@ -3699,6 +3699,16 @@
           "latency_ms": {
             "type": "number",
             "title": "Latency Ms"
+          },
+          "tree_visualization": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VerifiedTreeVisualization"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -4155,6 +4165,16 @@
           "latency_ms": {
             "type": "number",
             "title": "Latency Ms"
+          },
+          "tree_visualization": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VerifiedTreeVisualization"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "error": {
             "$ref": "#/components/schemas/ErrorDetail"
@@ -5687,6 +5707,128 @@
         ],
         "title": "SearchResponse"
       },
+      "TreeFrame": {
+        "properties": {
+          "stage": {
+            "type": "string",
+            "enum": [
+              "before",
+              "intermediate",
+              "after"
+            ],
+            "title": "Stage"
+          },
+          "graph": {
+            "$ref": "#/components/schemas/TreeGraph"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "stage",
+          "graph"
+        ],
+        "title": "TreeFrame"
+      },
+      "TreeGraph": {
+        "properties": {
+          "root": {
+            "type": "string",
+            "pattern": "^n(?:[0-9]|[1-5][0-9]|6[0-3])$",
+            "title": "Root"
+          },
+          "nodes": {
+            "items": {
+              "$ref": "#/components/schemas/TreeNode"
+            },
+            "type": "array",
+            "maxItems": 64,
+            "minItems": 1,
+            "title": "Nodes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "root",
+          "nodes"
+        ],
+        "title": "TreeGraph"
+      },
+      "TreeNode": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^n(?:[0-9]|[1-5][0-9]|6[0-3])$",
+            "title": "Id"
+          },
+          "keys": {
+            "items": {
+              "type": "integer",
+              "maximum": 999999999.0,
+              "minimum": -999999999.0
+            },
+            "type": "array",
+            "maxItems": 8,
+            "minItems": 1,
+            "title": "Keys"
+          },
+          "children": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^n(?:[0-9]|[1-5][0-9]|6[0-3])$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "array",
+            "maxItems": 8,
+            "title": "Children"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "keys",
+          "children"
+        ],
+        "title": "TreeNode"
+      },
+      "TreeRotation": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "LL",
+              "RR",
+              "LR",
+              "RL"
+            ],
+            "title": "Kind"
+          },
+          "frames": {
+            "items": {
+              "$ref": "#/components/schemas/TreeFrame"
+            },
+            "type": "array",
+            "maxItems": 3,
+            "minItems": 2,
+            "title": "Frames"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "frames"
+        ],
+        "title": "TreeRotation"
+      },
       "UserEnvelope": {
         "properties": {
           "user": {
@@ -5783,6 +5925,69 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "VerifiedTreeVisualization": {
+        "properties": {
+          "version": {
+            "type": "integer",
+            "const": 1,
+            "title": "Version",
+            "default": 1
+          },
+          "origin": {
+            "type": "string",
+            "const": "server_verified_tree_v1",
+            "title": "Origin",
+            "default": "server_verified_tree_v1"
+          },
+          "family": {
+            "type": "string",
+            "enum": [
+              "AVL",
+              "BST",
+              "B",
+              "B+"
+            ],
+            "title": "Family"
+          },
+          "explanation": {
+            "type": "string",
+            "maxLength": 20000,
+            "minLength": 1,
+            "title": "Explanation"
+          },
+          "source_citations": {
+            "items": {
+              "type": "string",
+              "pattern": "^\\[S[1-9][0-9]?\\]$"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Source Citations"
+          },
+          "final": {
+            "$ref": "#/components/schemas/TreeGraph"
+          },
+          "rotations": {
+            "items": {
+              "$ref": "#/components/schemas/TreeRotation"
+            },
+            "type": "array",
+            "maxItems": 16,
+            "title": "Rotations"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "family",
+          "explanation",
+          "source_citations",
+          "final",
+          "rotations"
+        ],
+        "title": "VerifiedTreeVisualization"
       }
     }
   }

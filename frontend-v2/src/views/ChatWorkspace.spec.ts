@@ -10,7 +10,7 @@ import { mockAnswered, mockUser } from '@/mocks/fixtures'
 enableAutoUnmount(afterEach)
 const courseId = '11111111-1111-4111-8111-111111111111'
 vi.mock('@/stores/reset', () => ({logoutAndReset: vi.fn()}))
-beforeEach(() => { vi.unstubAllEnvs(); vi.stubEnv('VITE_COURSE_KB_ID', courseId); window.history.replaceState(null, '', '/'); HTMLElement.prototype.scrollTo = vi.fn(); setActivePinia(createPinia()); useAuthStore().user = mockUser; useAuthStore().status = 'authenticated'; useKnowledgeBaseStore().items = [{id: courseId, name: 'API 返回的真实课程名称', visibility: 'private'} as never]; vi.spyOn(useKnowledgeBaseStore(), 'load').mockResolvedValue(); vi.spyOn(useChatStore(), 'list').mockResolvedValue() })
+beforeEach(() => { vi.unstubAllEnvs(); vi.stubEnv('VITE_COURSE_KB_ID', courseId); window.history.replaceState(null, '', '/'); HTMLElement.prototype.scrollTo = vi.fn(); setActivePinia(createPinia()); useAuthStore().user = mockUser; useAuthStore().status = 'authenticated'; useKnowledgeBaseStore().items = [{id: courseId, name: 'API 返回的真实课程名称', visibility: 'private'} as never]; vi.spyOn(useKnowledgeBaseStore(), 'load').mockResolvedValue(); vi.spyOn(useChatStore(), 'list').mockResolvedValue(); vi.spyOn(useChatStore(), 'listProjects').mockResolvedValue() })
 it('welcomes students without advanced controls; Enter sends and Shift+Enter preserves a newline', async () => {
   const send = vi.spyOn(useChatStore(), 'send').mockResolvedValue()
   const w = mount(ChatWorkspace); await flushPromises()
@@ -111,7 +111,7 @@ it('retains conversation controls and restores a saved conversation URL', async 
   await w.find('.history-row form').trigger('submit'); await flushPromises()
   expect(rename).toHaveBeenCalledWith('saved', '改名')
   await w.find('.history-more').trigger('click')
-  await w.findAll('.history-actions button')[1]!.trigger('click'); expect(remove).toHaveBeenCalledWith('saved')
+  await w.findAll('.history-actions button')[2]!.trigger('click'); expect(remove).toHaveBeenCalledWith('saved')
   await w.find('.new-chat').trigger('click'); expect(newChat).toHaveBeenCalledOnce()
   vi.unstubAllGlobals()
 })
@@ -137,10 +137,10 @@ it('allows only one conversation menu, dismisses it outside or with Escape, and 
   expect(toggle.attributes('aria-expanded')).toBe('true')
   await toggle.trigger('click')
   expect(toggle.attributes('aria-expanded')).toBe('false')
-  expect((w.find('.history-list').element as HTMLElement).style.display).toBe('none')
+  expect((w.find('#history-conversations').element as HTMLElement).style.display).toBe('none')
   await toggle.trigger('click')
   expect(toggle.attributes('aria-expanded')).toBe('true')
-  expect((w.find('.history-list').element as HTMLElement).style.display).not.toBe('none')
+  expect((w.find('#history-conversations').element as HTMLElement).style.display).not.toBe('none')
 })
 
 it('positions an opened historical conversation at the bottom without smooth scrolling', async () => {
@@ -156,6 +156,42 @@ it('positions an opened historical conversation at the bottom without smooth scr
   await w.find('.history-title').trigger('click'); await flushPromises()
   expect(stream.scrollTo).toHaveBeenCalledWith({top: 3200, behavior: 'instant'})
   expect(w.text()).toContain('最后一条')
+})
+
+it('groups conversations by project while keeping ordinary history independent', async () => {
+  const chat = useChatStore()
+  chat.projects = [{id: 'trees', title: '二叉树', description: '', memory_source_ids: [], created_at: '', updated_at: ''}]
+  chat.items = [{id: 'inside', title: '树的遍历', project_id: 'trees', updated_at: ''}, {id: 'outside', title: '栈', project_id: null, updated_at: ''}]
+  const w = mount(ChatWorkspace); await flushPromises()
+  expect(w.find('#group-trees').text()).toContain('树的遍历')
+  expect(w.find('#group-trees').text()).not.toContain('栈')
+  expect(w.find('#history-conversations').text()).toContain('栈')
+  await w.find('button[aria-label="在二叉树中新建对话"]').trigger('click')
+  expect(chat.activeProject).toBe('trees')
+  await w.find('.new-chat').trigger('click')
+  expect(chat.activeProject).toBeNull()
+})
+
+it('creates a topic project and selects an explicit cross-project memory source', async () => {
+  const chat = useChatStore()
+  const base = {description: '', memory_source_ids: [] as string[], created_at: '', updated_at: ''}
+  chat.projects = [{id: 'trees', title: '二叉树', ...base}, {id: 'complexity', title: '复杂度', ...base}]
+  vi.spyOn(chat, 'projectMemories').mockResolvedValue([{id: 'memory-1', topic: 'BST', summary: '二叉搜索树性质', created_at: ''}])
+  const update = vi.spyOn(chat, 'updateProject').mockResolvedValue({...chat.projects[0]!, memory_source_ids: ['complexity']})
+  const create = vi.spyOn(chat, 'createProject').mockResolvedValue({...chat.projects[0]!, id: 'new'})
+  const forget = vi.spyOn(chat, 'forgetMemory').mockResolvedValue()
+  const w = mount(ChatWorkspace); await flushPromises()
+  await w.find('button[aria-label="新建项目"]').trigger('click')
+  await w.find('input[aria-label="项目名称"]').setValue('快速排序')
+  await w.find('.project-create').trigger('submit'); await flushPromises()
+  expect(create).toHaveBeenCalledWith('快速排序', '')
+  await w.find('button[aria-label="设置项目：二叉树"]').trigger('click'); await flushPromises()
+  expect(w.find('.memory-panel').text()).toContain('二叉搜索树性质')
+  await w.find('.memory-panel button').trigger('click'); await flushPromises()
+  expect(forget).toHaveBeenCalledWith('trees', 'memory-1')
+  await w.find('.source-choice input').setValue(true)
+  await w.find('.project-dialog form').trigger('submit'); await flushPromises()
+  expect(update).toHaveBeenCalledWith('trees', expect.objectContaining({memory_source_ids: ['complexity']}))
 })
 
 it('never rewrites a pending request from a hidden knowledge-base scope', async () => {

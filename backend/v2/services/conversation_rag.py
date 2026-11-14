@@ -13,6 +13,7 @@ from backend.v2.services import conversation_service as conversations
 from backend.v2.services.context_service import validate_evidence
 from backend.v2.services.rag_service import ask
 from backend.v2.services import conversation_context as history
+from backend.v2.services import project_service as projects
 
 
 def checked_result(session, user, result, settings, verify_session, kb_ids=None):
@@ -48,6 +49,8 @@ def run(factory, user_id, conversation_id, data, settings, verify_session, *, st
                     return checked_result(session, user, old.metadata_json['result'], settings, verify_session, old.metadata_json.get('knowledge_base_ids'))
                 recent = history.load_recent(session, user, conversation_id, data.knowledge_base_ids,
                                              settings, verify_session, checked_result)
+                memories = projects.load_notes(session, user, conversation_id, data.knowledge_base_ids,
+                                               settings, verify_session, checked_result)
             plan = history.plan(data.query, recent, min(2000, settings.retrieval_max_query_chars))
             def verified_with_history(session):
                 current = verify_session(session)
@@ -55,6 +58,8 @@ def run(factory, user_id, conversation_id, data, settings, verify_session, *, st
                     raise unauthorized()
                 if stream:conversations.get_owned(session,current,conversation_id)
                 history.revalidate(session, current, conversation_id, plan.turns, settings, verify_session, checked_result)
+                projects.revalidate_notes(session, current, conversation_id, memories, data.knowledge_base_ids,
+                                          settings, verify_session, checked_result)
                 return current
             payload = AskRequest.model_validate(data.model_dump(exclude={'request_id'}))
             if plan.reason:
@@ -66,7 +71,7 @@ def run(factory, user_id, conversation_id, data, settings, verify_session, *, st
                 stream_options={'stream':stream} if stream else {}
                 result = AskResponse.model_validate(ask(factory, SimpleNamespace(id=user_id), payload, settings,
                     verify_session=verified_with_history, retrieval_query=plan.query,
-                    conversation_history=plan.prompt_history(), **stream_options))
+                    conversation_history=plan.prompt_history(), project_memories=memories, **stream_options))
             if result.status not in {'answered', 'insufficient_evidence', 'out_of_scope'}:
                 return result  # Never save unvalidated drafts or invent assistant output on failure.
             with factory() as session:
@@ -88,17 +93,23 @@ def run(factory, user_id, conversation_id, data, settings, verify_session, *, st
                     return checked_result(session, user, existing.metadata_json['result'], settings,
                                           verify_session, existing.metadata_json.get('knowledge_base_ids'))
                 history.revalidate(session, user, conversation_id, plan.turns, settings, verify_session, checked_result)
+                projects.revalidate_notes(session, user, conversation_id, memories, data.knowledge_base_ids,
+                                          settings, verify_session, checked_result)
                 checked_result(session, user, result, settings, verify_session, data.knowledge_base_ids)
                 if len(result.answer or '') > 20000:
                     raise AuthError(422, 'answer_too_long', 'Answer exceeds history limit')
                 seq = session.scalar(select(func.coalesce(func.max(Message.seq), 0)).where(Message.conversation_id == conversation_id)) + 1
-                session.add_all([
-                    Message(conversation_id=conversation_id, seq=seq, role='user', content=data.query,
-                            metadata_json={'request_id': str(data.request_id)}),
-                    Message(conversation_id=conversation_id, seq=seq+1, role='assistant', content=result.answer or '根据当前授权资料无法确定。',
-                            metadata_json={'request_id': str(data.request_id), 'fingerprint': fingerprint, 'knowledge_base_ids': [str(k) for k in data.knowledge_base_ids],
-                                           'context': plan.audit(), 'result': result.model_dump(mode='json')}),
-                ])
+                question_message = Message(conversation_id=conversation_id, seq=seq, role='user', content=data.query,
+                                           metadata_json={'request_id': str(data.request_id)})
+                answer_message = Message(conversation_id=conversation_id, seq=seq+1, role='assistant',
+                                         content=result.answer or '根据当前授权资料无法确定。',
+                                         metadata_json={'request_id': str(data.request_id), 'fingerprint': fingerprint,
+                                                        'knowledge_base_ids': [str(k) for k in data.knowledge_base_ids],
+                                                        'context': {**plan.audit(), 'project_memory_candidate_ids': [m['id'] for m in memories]},
+                                                        'result': result.model_dump(mode='json')})
+                session.add_all([question_message, answer_message])
+                session.flush()
+                projects.remember(session, conv, data.query, answer_message)
                 conv.updated_at = session.scalar(select(func.clock_timestamp()))
                 if stream:stream.check()
                 session.commit()

@@ -193,6 +193,9 @@ it('folds the project section independently and keeps the centered chevron in pl
   chat.items = [{id: 'inside', title: '树的遍历', project_id: 'trees', updated_at: ''}, {id: 'outside', title: '栈', project_id: null, updated_at: ''}]
   const w = mount(ChatWorkspace); await flushPromises()
   const toggle = w.find('.project-toggle')
+  const historyToggle = w.find('.history-toggle')
+  expect(toggle.classes()).toContain('section-toggle')
+  expect(historyToggle.classes()).toContain('section-toggle')
   const icon = toggle.find('svg.fold-chevron')
   const projects = w.find('#project-section-trees').element as HTMLElement
   const ordinary = w.find('#history-conversations').element as HTMLElement

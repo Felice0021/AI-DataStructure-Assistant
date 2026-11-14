@@ -275,3 +275,7 @@ npm run test:browser
 
 - [桌面 1440px](docs/screenshots/math-rendering/desktop.png)
 - [手机 390px](docs/screenshots/math-rendering/mobile-390.png)
+
+### 聊天流式回答
+
+聊天使用鉴权 POST SSE，通过真实网络事件显示检索、生成、校验、保存阶段；临时稿明确标为未校验，取消或失败即清除。正式回答继续使用安全 Markdown、公式、来源及 SVG 树图。新建/切换会话、换课程、退出会停止旧流；重试保留 request_id，刷新只恢复服务端已保存历史。接口、Cloud Guard、背压和超时边界见 [STREAMING.md](../docs/v2/STREAMING.md)。`npm run test:browser` 在生产 preview 和真实 Chrome 1440px/390px 检查受控网络 SSE；截图在 `docs/screenshots/streaming/`，不代表线上部署或模型准确率。

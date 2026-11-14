@@ -3,6 +3,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Response, Request
 from sqlalchemy.orm import Session
+from fastapi.responses import StreamingResponse
 
 from backend.v2.dependencies.auth import require_active_user
 from backend.v2.dependencies.database import get_session
@@ -122,3 +123,44 @@ def ask_in_conversation(conversation_id: UUID, data: ConversationAskRequest,
                             content={**result.model_dump(mode='json'), 'error': {
                                 'code': result.reason, 'message': 'Answer unavailable'}})
     return result
+
+
+@router.post('/{conversation_id}/ask-stream', response_model=None, response_class=StreamingResponse, responses={
+    200: {'description': 'Authenticated POST SSE: status/reset/draft followed by one result or error. Drafts are unverified and never persisted.',
+          'content': {'text/event-stream': {'schema': {'type': 'string'},
+              'example': 'event: status\nid: 1\ndata: {"type":"status","seq":1,"request_id":"00000000-0000-4000-8000-000000000001","payload":{"stage":"accepted","preview":false}}\n\n'}}},
+})
+async def stream_in_conversation(conversation_id: UUID, data: ConversationAskRequest,
+                                 request: Request, user: CurrentUser, session: Database):
+    import asyncio
+    from starlette.concurrency import run_in_threadpool
+    from backend.v2.core.errors import AuthError
+    from backend.v2.dependencies.auth import lock_current_session
+    from backend.v2.services.conversation_rag import run
+    from backend.v2.services.conversation_stream import StreamControl,ConversationStreamResponse
+    from backend.v2.services import knowledge_base_service as knowledge
+    user_id=user.id
+    def preflight():
+        service.get_owned(session,user,conversation_id)
+        for kb_id in sorted(data.knowledge_base_ids,key=str):knowledge.get_readable(session,user,kb_id)
+        session.rollback()
+    await run_in_threadpool(preflight)
+    slots=request.app.state.rag_stream_slots
+    if not slots.acquire(blocking=False):raise AuthError(503,'service_busy','Service temporarily busy')
+    control=StreamControl(asyncio.get_running_loop(),data.request_id,request.app.state.settings.conversation_stream_timeout_seconds)
+    def produce(stream):
+        factory=request.app.state.session_factory
+        verify=lambda final:lock_current_session(request,final)
+        result=run(factory,user_id,conversation_id,data,request.app.state.settings,verify,stream=stream)
+        if result.status in {'answered','insufficient_evidence','out_of_scope'}:
+            from backend.v2.services.conversation_rag import checked_result
+            stream.check()
+            with factory() as final:
+                current=verify(final)
+                if current is None or current.id!=user_id:
+                    from backend.v2.core.errors import unauthorized
+                    raise unauthorized()
+                service.get_owned(final,current,conversation_id)
+                checked_result(final,current,result,request.app.state.settings,verify,data.knowledge_base_ids)
+        return result
+    return ConversationStreamResponse(control,produce,slots)

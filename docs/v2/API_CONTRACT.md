@@ -556,3 +556,7 @@ unverified_tree_prose；无有效答案/来源，不保存未通过结果。详�
 ### 可选的已校验树形图
 
 `AskResponse.tree_visualization` 默认为 `null`，仅对服务端参考算法及引用检查通过的树构造回答提供。其结构、安全限制、旋转中间状态和旧客户端兼容方式见 [VERIFIED_TREE_DISPLAY.md](VERIFIED_TREE_DISPLAY.md)。模型生成器不能提供该字段；旧 `answer` 文字及单轮接口继续有效。冻结 OpenAPI 已同步。会话历史保留此数据，并沿用原来源权限与代次复核。
+
+### 会话 POST SSE
+
+`POST /api/v2/conversations/{conversation_id}/ask-stream` 复用 `ConversationAskRequest`、Cookie、Origin 和 CSRF。返回 `text/event-stream`：`status/reset/draft` 加唯一 `result` 或 `error` 终态。HTTP 200 不表示回答已校验；草稿不携带可交互来源、不保存，错误必须撤回。终态结果仍是兼容的 `AskResponse`。事件格式、逻辑错误状态、幂等、取消提交边界和真实测试见 [STREAMING.md](STREAMING.md)。原两个 `/ask` 保持非流式兼容。

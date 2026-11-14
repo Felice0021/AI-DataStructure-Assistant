@@ -71,7 +71,8 @@ def ask(factory,user,data,settings,*,verify_session,provider=None,before_cloud_c
                     return publish('insufficient_evidence','tree_rule_unverified','课程资料的具体约定超出当前可核对范围，请明确规则依据；不会将其当作一致约定。')
                 if not any(s.usable for s in rule_support.values()):
                     return publish('insufficient_evidence','tree_rule_evidence_required','本轮未检索到足够的树操作规则，无法为构造结果提供可靠课程引用。')
-        messages=build_prompt(data.query,mode,context,settings,history=conversation_history,resolved_query=effective_query)
+        rule_citations=tuple(c for c,s in rule_support.items() if s.usable) if calculation and calculation.family=='AVL' and calculation.rotations else ()
+        messages=build_prompt(data.query,mode,context,settings,history=conversation_history,resolved_query=effective_query,rule_citations=rule_citations)
         if partition:partition.instruct(messages,settings.generation_max_input_bytes)
         # Recheck again immediately before any generator could receive evidence, then release locks.
         with factory() as session:validate_evidence(session,user,data.knowledge_base_ids,evidence,settings,verify_session=verify_session)
@@ -106,7 +107,7 @@ def ask(factory,user,data,settings,*,verify_session,provider=None,before_cloud_c
                     if attempt==settings.generation_validation_retries:
                         return publish('validation_failed',str(error),model=chosen.model)
                     # Do not feed unvalidated output back as control text, and do not strip bad citations.
-                    messages=build_prompt(data.query,mode,context,settings,feedback=str(error),history=conversation_history,resolved_query=effective_query)
+                    messages=build_prompt(data.query,mode,context,settings,feedback=str(error),history=conversation_history,resolved_query=effective_query,rule_citations=rule_citations)
                     if partition:partition.instruct(messages,settings.generation_max_input_bytes)
         except GenerationError as error:
             return publish('generation_unavailable',error.code)

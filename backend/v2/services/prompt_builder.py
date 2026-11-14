@@ -43,18 +43,25 @@ def model_evidence(context):
     return result
 
 
-def build_prompt(query,mode,context,settings,*,feedback=None,history=(),resolved_query=None):
+def build_prompt(query,mode,context,settings,*,feedback=None,history=(),resolved_query=None,rule_citations=()):
     from backend.v2.services.evidence_policy import task_kind
     rule='algorithm' if mode=='exercise' and task_kind(resolved_query or query)=='algorithm' else mode
     budget_rule=(f'\n本次完整JSON输出上限为{settings.generation_max_output_tokens} token。优先保留结论、必要步骤、有效引用和完整JSON，省略重复复述。'
                  '代码题只给一版最小修正代码；明确其输入契约和未覆盖风险，不列多种备选实现。路径用结点序列表示，不额外画含混的路径树。')
+    blocks=model_evidence(context)
+    if rule_citations:
+        # Model input admits only verified rule blocks for a bounded calculation.
+        # The caller still revalidates every original candidate and every used citation.
+        blocks=[b for b in blocks if b['citation_id'] in rule_citations]
     messages=[{'role':'system','content':BASE_RULES+'\n回答模式：'+mode+'。'+MODE_RULES[rule]+budget_rule},
         {'role':'user','content':json.dumps({'type':'user_question','text':query},ensure_ascii=False)},
-        {'role':'user','content':json.dumps({'type':'untrusted_evidence','blocks':model_evidence(context)},ensure_ascii=False)}]
+        {'role':'user','content':json.dumps({'type':'untrusted_evidence','blocks':blocks},ensure_ascii=False)}]
     if mode!='code' and tree_family(resolved_query or query):
         messages[0]['content'] += '\n树形结构由服务器的有界算法计算和校验。你只解释本轮课程证据支持的规则并引用，不自行画树、写代码围栏或编造带键值的节点关系。即使构造交由服务器，你仍须简短解释相关课程规则并在answer中实际标注[S编号]，不能只填写used_source_ids而省略正文引用。解释旋转时必须遵守BST全局有序性，不能只比较父子；AVL要求每个结点左右高度差不超过一。无法确定时拒答。'
         if tree_family(resolved_query or query)=='BST' and re.search(r'需要|必须',resolved_query or query) and '旋转' in (resolved_query or query):
             messages[0]['content'] += '\n本题主语是普通二叉搜索树，不是AVL。先核查并纠正“必须旋转”的前提：普通BST只要求有序，不强制平衡，旋转不是必须操作；可以说明可选自平衡变种的用途，但不能偷换当前主语。'
+    if rule_citations:
+        messages[0]['content']+='\n本次构造说明只能引用服务端已核验的规则来源：'+' '.join(rule_citations)+'。其他片段不能作为本次构造规则依据。请简短解释相关规则并实际引用；具体数值结构仍由服务端算法计算。'
     if history:
         # Same authority as other untrusted input; never replay old assistant-role instructions.
         # Old citations are removed by the server loader. Only this turn's blocks are evidence.

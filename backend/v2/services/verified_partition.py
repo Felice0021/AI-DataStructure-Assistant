@@ -191,12 +191,13 @@ def prepare(query,evidence,*,user_query=None):
     values=tuple(map(int,re.findall(r'[+-]?\d+',arrays[0])))
     if not 1<=len(values)<=LIMIT:return None,'partition_input_limit'
     pivot=re.search(r'(?:最后(?:一个)?|末(?:尾)?)元素\s*([+-]?\d{1,9})?\s*(?:为|作)(?:基准|pivot)',task,re.I)
-    if (not pivot or not re.search(r'(?:下标|索引)\s*\(?从0开始',task)):
+    indices=re.findall(r'(?:下标|索引)\s*\(?\s*从\s*([+-]?\d+)\s*开始',task)
+    if not pivot or '0' not in indices:
         return None,'partition_conditions_required'
     if pivot[1] is not None and int(pivot[1])!=values[-1]:return None,'partition_pivot_mismatch'
     boundary=re.search(r'(?:边界i|i)\s*(?:初始|初值)(?:为|是|=)?\s*([+-]?\d+)',task,re.I)
-    if ((boundary and int(boundary[1])!=0)
-            or re.search(r'首元素|第一个元素|随机|中间元素|降序|子区间|Hoare|(?:仅|只|严格)小于|下标从[1-9]',task,re.I)):
+    if (any(index!='0' for index in indices) or (boundary and int(boundary[1])!=0)
+            or re.search(r'首元素|第一个元素|随机|中间元素|降序|子区间|Hoare|(?:仅|只|严格)小于',task,re.I)):
         return None,'partition_convention_not_supported'
     support={e['citation_id']:source_support(e['content']) for e in evidence}
     if 'conflict' in support.values():return None,'partition_rule_conflict'

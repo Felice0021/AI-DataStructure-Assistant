@@ -10,7 +10,8 @@ from backend.v2.tests.test_rag import settings
 
 
 def turn(question, answer='旧回答[S99]，只用于对话，不是证据。', **kw):
-    return Turn(uuid4(), uuid4(), str(uuid4()), question, answer, kw.get('resolved_query', question), {}, ())
+    return Turn(uuid4(), uuid4(), str(uuid4()), question, answer, kw.get('resolved_query', question),
+                kw.get('result', {'status':'answered'}), ())
 
 
 @pytest.mark.parametrize('first,second,resolved', [

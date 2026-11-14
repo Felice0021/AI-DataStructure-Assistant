@@ -126,7 +126,7 @@ async function older() { const el = stream.value; const height = el?.scrollHeigh
       <div class="history">
         <div class="history-list">
           <div class="project-heading">
-            <button class="project-toggle eyebrow" type="button" :aria-expanded="projectsExpanded" :aria-controls="chat.projects.map(project => `project-section-${project.id}`).join(' ') || undefined" @click="projectsExpanded = !projectsExpanded">
+            <button class="project-toggle section-toggle eyebrow" type="button" :aria-expanded="projectsExpanded" :aria-controls="chat.projects.map(project => `project-section-${project.id}`).join(' ') || undefined" @click="projectsExpanded = !projectsExpanded">
               <span>项目</span><svg class="fold-chevron" :class="{ collapsed: !projectsExpanded }" viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4" /></svg>
             </button>
             <button type="button" aria-label="新建项目" :disabled="chat.sending" @click="toggleProjectCreation">＋ 新建项目</button>
@@ -145,7 +145,7 @@ async function older() { const el = stream.value; const height = el?.scrollHeigh
                 <svg class="fold-chevron" :class="{ collapsed: expandedProjects[group.id] === false }" viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4" /></svg>
               </button>
             </div>
-            <button v-else class="history-toggle eyebrow" type="button" aria-controls="history-conversations" :aria-expanded="historyExpanded" @click="toggleHistory">
+            <button v-else class="history-toggle section-toggle eyebrow" type="button" aria-controls="history-conversations" :aria-expanded="historyExpanded" @click="toggleHistory">
               <span>历史对话</span><svg class="fold-chevron" :class="{ collapsed: !historyExpanded }" viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4" /></svg>
             </button>
             <div :id="group.project ? `group-${group.id}` : 'history-conversations'" v-show="group.project ? expandedProjects[group.id] !== false : historyExpanded" class="group-conversations">
@@ -271,10 +271,10 @@ async function older() { const el = stream.value; const height = el?.scrollHeigh
 .knowledge { flex-shrink: 0; max-height: 30vh; overflow-y: auto; }
 .history { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .history-list { flex: 1; min-height: 0; overflow-y: auto; }
-.project-heading { display: flex; align-items: center; justify-content: space-between; padding: 0 10px 8px; }
+.project-heading { display: flex; align-items: center; justify-content: space-between; min-height: 24px; margin: 0 10px 20px; }
 .project-heading .eyebrow { margin: 0; }
-.project-heading button { color: #555; font-size: 12px; }
-.project-toggle { display: flex; align-items: center; gap: 6px; text-align: left; }
+.project-heading > button:last-child { padding: 0; color: #555; font-size: 12px; }
+.section-toggle { display: inline-flex; align-items: center; gap: 8px; min-height: 24px; padding: 0; font-size: 12px; font-weight: 400; line-height: 1.4; color: var(--muted); text-align: left; }
 .project-create { display: grid; gap: 6px; padding: 7px 10px 12px; }
 .project-create input, .project-create textarea { width: 100%; min-width: 0; border: 1px solid #dedede; border-radius: 6px; padding: 7px; font: inherit; font-size: 12px; resize: vertical; }
 .project-create div { display: flex; gap: 12px; font-size: 12px; }
@@ -287,7 +287,7 @@ async function older() { const el = stream.value; const height = el?.scrollHeigh
 .group-conversations { margin-left: 6px; }
 .more-chats { padding: 9px; font-size: 12px; color: #666; }
 .eyebrow { margin: 0 10px 8px; font-size: 12px; color: var(--muted); }
-.history-toggle { display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; padding: 2px 0; text-align: left; }
+.history-toggle { flex-shrink: 0; }
 .fold-chevron { display: block; width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; transform-origin: 50% 50%; transition: transform 150ms ease; }
 .fold-chevron.collapsed { transform: rotate(-90deg); }
 @media (prefers-reduced-motion: reduce) { .fold-chevron { transition: none; } }

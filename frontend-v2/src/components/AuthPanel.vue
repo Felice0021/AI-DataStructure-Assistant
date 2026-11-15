@@ -23,6 +23,7 @@ const submitting = ref(false)
 const localError = ref('')
 
 const isRegister = computed(() => mode.value === 'register')
+  const registrationEnabled = import.meta.env.VITE_REGISTRATION_ENABLED !== 'false'
 const errorText = computed(
   () => localError.value || (auth.errorCode ? errorMessage(auth.errorCode) : ''),
 )
@@ -126,6 +127,7 @@ async function submit(): Promise<void> {
         <button
           type="button"
           class="tab"
+          v-if="registrationEnabled"
           :class="{ 'is-active': isRegister }"
           @click="switchMode('register')"
         >
@@ -164,7 +166,7 @@ async function submit(): Promise<void> {
         </button>
       </form>
 
-      <p class="foot">
+      <p v-if="registrationEnabled" class="foot">
         注册不会自动登录，注册成功后请用同一邮箱密码登录。
       </p>
     </div>

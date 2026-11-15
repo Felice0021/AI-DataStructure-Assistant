@@ -12,5 +12,6 @@
   "error": {
     "code": "invalid_citations",
     "message": "Generated answer failed validation"
-  }
+  },
+  "tree_visualization": null
 }

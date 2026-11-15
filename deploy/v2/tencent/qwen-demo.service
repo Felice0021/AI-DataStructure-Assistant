@@ -1,0 +1,21 @@
+[Unit]
+Description=Isolated synthetic Qwen QA %i
+Requires=docker.service user@1002.service
+After=network-online.target docker.service user@1002.service
+
+[Service]
+Type=simple
+User=ds-v2-parser
+Group=ds-v2-parser
+Environment=HOME=/var/lib/ds-v2-parser
+EnvironmentFile=/etc/ds-v2-qa/database.env
+EnvironmentFile=/etc/ds-v2-qa/qwen-demo.env
+LoadCredential=dashscope:/etc/ds-v2-qa/dashscope-singapore.key
+WorkingDirectory=/opt/ds-v2-qa/qwen-demo
+ExecStart=/bin/bash /opt/ds-v2-qa/qwen-demo/deploy/v2/tencent/qwen-demo.sh %i
+Restart=on-failure
+RestartSec=5
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

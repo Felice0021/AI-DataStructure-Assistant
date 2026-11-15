@@ -499,3 +499,64 @@ PATCH知识库的name/description可省略但显式null为422，OpenAPI已移除
 向指定会话追加一条用户消息。
 请求体：`{ role: "user", content: string }`。
 系统会自动生成会话内递增的 `seq` 并更新会话的 `updated_at`。
+
+### 持久化课程对话
+
+`POST /api/v2/conversations/{id}/ask` 使用 AskRequest 字段，额外要求 UUID
+`request_id`。只允许当前会话所有者；复用 Cookie、Origin、CSRF 与全部 Cloud Guard。
+回答模式默认 auto，检索 hybrid。返回 AskResponse；502/503 保持原单轮 RAG 错误格式。
+成功回答或正常拒答在同一事务中追加 user/assistant 两条消息；失败草稿不保存。
+客户端不得通过 messages API 写入 assistant。原 `/rag/ask` 行为不变、不自动保存。
+
+同会话并发请求返回 409 conversation_busy；相同 request_id 和参数重试返回已保存结果，
+参数冲突返回 409 request_id_conflict。未保存的失败可以用原 ID 重试。
+完成前再次检查会话、登录态及来源版本。GET messages 返回服务端保存的完整结果元数据；
+来源删除、失去权限或代次变化后隐藏原回答和来源，返回重新提问提示。
+历史消息分页，按 seq 升序。没有新增数据库迁移，继续使用 0008_conversations。
+
+这提供持久化单轮问答历史，不会把历史问答发给模型，也不代表上下文追问能力。
+
+### 会话上下文追问（阶段 A）
+
+/conversations/{id}/ask 请求/响应字段不变。服务器读取最多 3 轮、相同知识库范围的有效问答，
+不接受客户端提交历史、assistant 内容或改写问题。无上文/歧义返回 HTTP 200 正常拒答，
+reason 为 conversation_context_required / conversation_context_ambiguous，sources 为空。
+历史在处理中失效则失败关闭，不返回旧内容。原 /rag/ask 保持单轮兼容。
+
+保存的 assistant.metadata_json.context 记录规则版本、resolved_query 和历史 request ID，
+用于当前用户的审计与调试；不包含密钥或完整模型 Prompt。不新增数据库迁移。
+
+### 专项解题提示（阶段 B）
+
+请求与响应结构不变，`answer_mode=auto` 增强题型识别，内部算法类别仍返回 exercise。
+检索到相关资料但树题缺条件时，HTTP 200、status=insufficient_evidence、sources=[]，
+reason 分别为 `missing_tree_order` 或 `missing_operation_sequence`；前端提示补充阶数、
+序列和采用规则，不把它作为模型故障。无证据仍为 no_evidence。
+`execution_performed` 始终为 false；回答中的代码是静态建议，不是执行结果。
+没有新增字段、枚举、端点或数据库迁移，冻结 OpenAPI 不变。
+
+构造条件相关澄清补充 reason：`ambiguous_tree_rules`（初始状态、阶数/容量或重复键规则）
+和 `ambiguous_tree_split`（相关分裂约定不足）。仍为 HTTP 200 insufficient_evidence、sources=[]，
+生成器不被调用。单键和无需分裂的原理/示例场景不要求无关条件；自拟示例需明确假设。
+
+### 已校验树构造结果
+
+请求与 AskResponse 结构不变。受支持的具体 BST/AVL/B/B+ 插入题，其 answer 由服务端
+参考算法校验并渲染，明确标注计算来源；generation_model 表示调用过的 Provider，不表示
+数值结构由模型独立算出。规则来源仍须通过原引用、权限及代次校验。
+
+200 insufficient_evidence 的新增 reason：tree_calculation_not_supported（当前输入/约定
+超出已验证范围）、tree_rule_evidence_required（本轮缺少支持规则）。502 validation_failed
+可能为 tree_invariant_failed、tree_rule_citation_required、tree_output_limit 或
+unverified_tree_prose；无有效答案/来源，不保存未通过结果。详见 VERIFIED_TREE_CONTEXT.md。
+构造规则与资料明确冲突时为 `200 insufficient_evidence / tree_rule_conflict`；
+相关约定超出有界来源语法时为 `tree_rule_unverified`。两者均为空来源、无数值构造，
+在调用生成器前澄清。成功回答区分教材原理、明确规定与用户题设假设，不把题设约定标成教材依据。
+
+### 可选的已校验树形图
+
+`AskResponse.tree_visualization` 默认为 `null`，仅对服务端参考算法及引用检查通过的树构造回答提供。其结构、安全限制、旋转中间状态和旧客户端兼容方式见 [VERIFIED_TREE_DISPLAY.md](VERIFIED_TREE_DISPLAY.md)。模型生成器不能提供该字段；旧 `answer` 文字及单轮接口继续有效。冻结 OpenAPI 已同步。会话历史保留此数据，并沿用原来源权限与代次复核。
+
+### 会话 POST SSE
+
+`POST /api/v2/conversations/{conversation_id}/ask-stream` 复用 `ConversationAskRequest`、Cookie、Origin 和 CSRF。返回 `text/event-stream`：`status/reset/draft` 加唯一 `result` 或 `error` 终态。HTTP 200 不表示回答已校验；草稿不携带可交互来源、不保存，错误必须撤回。终态结果仍是兼容的 `AskResponse`。事件格式、逻辑错误状态、幂等、取消提交边界和真实测试见 [STREAMING.md](STREAMING.md)。原两个 `/ask` 保持非流式兼容。

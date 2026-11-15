@@ -26,7 +26,9 @@ const CODE_MESSAGES: Record<string, string> = {
   csrf_rejected: '安全校验失败，已自动重试；若持续失败请刷新页面',
   https_required: '该环境要求 HTTPS',
   loopback_required: '该环境只允许本机访问',
-  cloud_consent_required: '该知识库未授予云端处理用途，本次请求被拒绝',
+  cloud_consent_required: '所选知识库尚未获得所需的处理授权，请联系管理员。',
+  generation_cloud_consent_required: '所选知识库尚未获得回答生成授权，请联系管理员。',
+  rerank_cloud_consent_required: '所选知识库尚未获得资料处理授权，请联系管理员。',
 
   // 资源
   not_found: '资源不存在或无权访问',
@@ -60,12 +62,18 @@ const STATUS_FALLBACK: Record<number, string> = {
 
 /** 拒答原因（AskResponse.reason）→ 中文 */
 const REASON_MESSAGES: Record<string, string> = {
+  conversation_context_required: '缺少可用的上文，请明确所指的数据结构或算法。',
+  conversation_context_ambiguous: '上文可能涉及多个对象，请说明本次要问哪一个。',
   no_evidence: '检索没有命中可依据的资料',
   no_lexical_support: '资料中缺少与问题关键词直接对应的内容',
   conflicting_assertions: '检索到的资料之间存在冲突表述',
   model_refusal: '模型认为现有资料不足以回答此问题',
   model_reported_conflict: '模型判断资料互相矛盾，无法给出确定结论',
   scope_not_verified: '问题超出所选资料的范围',
+  missing_tree_order: '请补充 B/B+ 树的阶数、操作序列及采用的分裂规则。',
+  missing_operation_sequence: '请补充插入/删除序列，或用于构造的遍历序列。',
+  ambiguous_tree_rules: '请明确初始树、阶数定义、容量及重复键处理规则。',
+  ambiguous_tree_split: '请补充分裂时机、左右分配和父节点规则；也可以明确要求自拟示例。',
 }
 
 export function errorMessage(code: string, status = 0): string {

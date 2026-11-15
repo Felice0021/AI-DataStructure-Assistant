@@ -1,0 +1,17 @@
+http://qa.dsassistant.cn:18900 {
+    bind 127.0.0.1
+    @api path /api/v2 /api/v2/*
+    handle @api {
+        reverse_proxy 127.0.0.1:8001 {
+            header_up X-Forwarded-Proto https
+            header_up X-Forwarded-For {http.request.header.CF-Connecting-IP}
+        }
+    }
+    handle {
+        root * /var/www/ds-v2-qa-login-stage
+        try_files {path} /index.html
+        file_server
+    }
+    header X-Content-Type-Options nosniff
+    header Cache-Control "no-store, private"
+}

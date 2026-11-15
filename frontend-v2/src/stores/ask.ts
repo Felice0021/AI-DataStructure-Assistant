@@ -22,6 +22,9 @@ export interface AskParams {
   knowledgeBaseIds: string[]
   answerMode: AnswerModeRequest
   retrievalMode: RetrievalMode
+  allowCloud?: boolean
+  allowCloudRerank?: boolean
+  allowCloudGeneration?: boolean
 }
 
 interface AskState {
@@ -97,6 +100,10 @@ export const useAskStore = defineStore('ask', {
           knowledge_base_ids: params.knowledgeBaseIds,
           answer_mode: params.answerMode,
           retrieval_mode: params.retrievalMode,
+          allow_cloud: params.allowCloud === true,
+          allow_cloud_rerank: params.allowCloudRerank === true,
+          allow_cloud_generation: params.allowCloudGeneration === true,
+          rerank: params.allowCloudRerank ? 'required' : 'off',
         })
         // 退出登录/切换账号/已发起新请求：旧结果绝不能再写回页面
         if (!isCurrent()) return

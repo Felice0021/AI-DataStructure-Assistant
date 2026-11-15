@@ -1,0 +1,16 @@
+[Unit]
+Description=Isolated synthetic Qwen demo loopback proxy
+After=network-online.target
+
+[Service]
+Type=simple
+User=ds-v2-parser
+Group=ds-v2-parser
+Environment=HOME=/var/lib/ds-v2-parser
+ExecStart=/usr/bin/caddy run --config /opt/ds-v2-qa/qwen-demo/deploy/v2/tencent/Caddyfile.qwen-demo --adapter caddyfile
+Restart=on-failure
+RestartSec=5
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

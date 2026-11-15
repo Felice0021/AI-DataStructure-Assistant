@@ -1,12 +1,15 @@
-"""Independent non-streaming Chat Completions adapter; durable purpose-specific consent required."""
+"""Chat Completions adapter; durable purpose-specific consent required."""
 from contextlib import nullcontext
 import asyncio
 from dataclasses import dataclass
 import json
+import logging
 import time
 from typing import Protocol
 
 import httpx2
+from backend.v2.services.answer_validation import SOURCE_PROSE
+from backend.v2.services.provider_error import safe_error_code
 from backend.v2.services.retrieval_service import capacity
 
 
@@ -50,15 +53,22 @@ class DeterministicProvider:
         mode='code' if '回答模式：code' in messages[0]['content'] else 'exercise' if '回答模式：exercise' in messages[0]['content'] else 'qa'
         prefix={'qa':'资料原文：','exercise':'题目分析：仅能根据所给资料说明。\n解题过程：引用原文，不补充未经证实的推导。\n最终答案：',
                 'code':'代码作用与问题分析：仅引用资料。\n修改建议、复杂度和边界条件需以原文为依据：'}[mode]
-        answer=prefix+'\n'+block['content']+' '+citation
+        # Preserve the evidence; omit source-like strings from the generated quote.
+        quote=SOURCE_PROSE.sub('[来源信息略]', block['content'])
+        answer=prefix+'\n'+quote+' '+citation
         return Completion(json.dumps({'status':'answered','answer':answer,'used_source_ids':[citation]},ensure_ascii=False))
 
 
 class QwenProvider:
-    def __init__(self,settings,engine=None,transport=None,cloud_guard=None):
+    def __init__(self,settings,engine=None,transport=None,cloud_guard=None,stream_transport=None):
         self.settings,self.engine,self.transport=settings,engine,transport
         self.cloud_guard=cloud_guard
         self.model=settings.generation_model
+        self.stream_transport=stream_transport
+
+    def generate_stream(self,messages,*,before_attempt,on_delta,check_cancel):
+        from backend.v2.services.generation_stream import generate
+        return generate(self,messages,before_attempt=before_attempt,on_delta=on_delta,check_cancel=check_cancel)
 
     async def _http_async(self,messages):
         s=self.settings
@@ -71,6 +81,7 @@ class QwenProvider:
                     'response_format':{'type':'json_object'}}) as response:
                     status=response.status_code
                     if status!=200:
+                        logging.getLogger(__name__).warning('Qwen generation HTTP status %d code %s',status,await safe_error_code(response))
                         code='generation_rate_limited' if status==429 else 'generation_model_unavailable' if status==404 else 'generation_parameter_error' if status in {400,422} else 'generation_http_error'
                         raise GenerationError(code,status in {408,429,500,502,503,504})
                     if response.headers.get('content-encoding','identity') not in {'','identity'}:raise GenerationError('generation_response_encoding')

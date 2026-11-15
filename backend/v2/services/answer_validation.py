@@ -7,7 +7,7 @@ from backend.v2.schemas.rag import AnswerDraft
 
 CITATION=re.compile(r'\[S[1-9][0-9]*\]')
 CITATION_LIKE=re.compile(r'\[[sS][^\]\n]*\]')
-UNSUPPORTED_ACTION=re.compile(r'我(?:已经|已)?(?:运行|执行|访问|联网|浏览|查阅外部)|\bI (?:have )?(?:executed|ran|visited|browsed|searched the web)\b',re.I)
+UNSUPPORTED_ACTION=re.compile(r'我(?:已经|已)?(?:运行|执行|编译|访问|联网|浏览|查阅外部)|\bI (?:have )?(?:executed|compiled|ran|visited|browsed|searched the web)\b',re.I)
 SOURCE_PROSE=re.compile(r'\b[\w.-]+\.(?:pdf|docx|txt)\b|第\s*\d+\s*页|\bpage\s+\d+\b',re.I)
 
 
@@ -47,6 +47,6 @@ def validate_answer(draft,evidence):
         raise AnswerValidationError('invalid_citation_format')
     if any(unicodedata.category(c) in {'Cc','Cf','Cs'} and c not in '\n\t' for c in draft.answer):raise AnswerValidationError('invalid_output_unicode')
     if re.search(r'\[[sS]\s*[-+]?\d',CITATION.sub('',draft.answer)):raise AnswerValidationError('invalid_citation_format')
-    if UNSUPPORTED_ACTION.search(draft.answer):raise AnswerValidationError('unsupported_execution_claim')
+    if UNSUPPORTED_ACTION.search(draft.answer) or re.search(r'(?:已经|已)(?:成功|通过)?(?:编译|运行|执行)',draft.answer):raise AnswerValidationError('unsupported_execution_claim')
     if SOURCE_PROSE.search(draft.answer):raise AnswerValidationError('unsupported_source_metadata')
     return list(dict.fromkeys(cited))  # Repeated inline citations are valid; metadata list must be unique.

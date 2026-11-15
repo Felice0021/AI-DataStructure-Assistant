@@ -13,6 +13,13 @@ const baseProps = {
 } as const
 
 describe('AnswerView 状态分发', () => {
+  it('keeps sources folded until a citation is clicked', async () => {
+    const wrapper = mount(AnswerView, { props: { ...baseProps, phase: 'answered', result: mockAnswered } })
+    expect(wrapper.find('details').attributes('open')).toBeUndefined()
+    await wrapper.find('button.cite').trigger('click')
+    expect(wrapper.find('details').attributes('open')).toBeDefined()
+    expect(wrapper.find('.source-item.is-active').exists()).toBe(true)
+  })
   it('answered 渲染成功卡片', () => {
     const wrapper = mount(AnswerView, {
       props: { ...baseProps, phase: 'answered', result: mockAnswered },
@@ -61,6 +68,12 @@ describe('AnswerView 状态分发', () => {
     expect(validation.find('[data-testid="answer-success"]').exists()).toBe(false)
   })
 
+  it('does not present missing cloud authorization as a model outage', () => {
+    const wrapper = mount(AnswerView, { props: { ...baseProps, phase: 'failed', errorCode: 'generation_cloud_consent_required', errorStatus: 503, errorMessage: '请联系管理员' } })
+    expect(wrapper.find('.badge').text()).toBe('需要处理授权')
+    expect(wrapper.text()).not.toContain('这是服务端出错')
+  })
+
   it('401 不提供重试按钮（应重新登录）', () => {
     const wrapper = mount(AnswerView, {
       props: {
@@ -98,4 +111,14 @@ describe('AnswerView 状态分发', () => {
     expect(loading.find('[data-testid="answer-success"]').exists()).toBe(false)
     expect(loading.find('[data-testid="answer-loading"]').exists()).toBe(true)
   })
+})
+
+it('omits student-facing diagnostics while retaining answer, sources and metadata', () => {
+  const w = mount(AnswerView, {props: {...baseProps, phase: 'answered', result: mockAnswered}})
+  expect(w.find('.answer-details').exists()).toBe(false)
+  expect(w.text()).not.toContain('回答信息')
+  expect(w.text()).not.toContain(mockAnswered.generation_model)
+  expect(w.find('.answer-text').exists()).toBe(true)
+  expect(w.find('.sources').exists()).toBe(true)
+  expect(mockAnswered.generation_model).toBeTruthy()
 })

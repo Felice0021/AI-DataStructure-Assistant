@@ -4,40 +4,42 @@ import type { AnswerSource } from '@/types/api'
 defineProps<{
   sources: AnswerSource[]
   highlight: string | null
+  open?: boolean
+  idPrefix?: string
 }>()
+const emit = defineEmits<{ (event: 'toggle', open: boolean): void }>()
 </script>
 
 <template>
-  <section v-if="sources.length > 0" class="sources">
-    <h3 class="sources-title">资料来源（{{ sources.length }}）</h3>
+  <details v-if="sources.length > 0" class="sources" :open="open" @toggle="emit('toggle', ($event.target as HTMLDetailsElement).open)">
+    <summary class="sources-title">资料来源（{{ sources.length }}）</summary>
     <ol class="source-list">
       <li
         v-for="source in sources"
-        :id="`source-${source.citation_id.replace(/[[\]]/g, '')}`"
+        :id="`${idPrefix ? idPrefix + '-' : ''}source-${source.citation_id.replace(/[[\]]/g, '')}`"
         :key="source.citation_id"
         class="source-item"
         :class="{ 'is-active': highlight === source.citation_id }"
       >
         <span class="source-cite">{{ source.citation_id }}</span>
         <div class="source-body">
-          <p class="source-name">{{ source.source_filename }}</p>
+          <p class="source-name">{{ /^v1-course-(?:chapter-)?\d+\.txt$/i.test(source.source_filename) ? '课程资料（来源待核实）' : source.source_filename }}</p>
           <p class="source-meta">
             <span v-if="source.page_number !== null">第 {{ source.page_number }} 页</span>
             <span v-else>页码未知</span>
-            <span v-if="source.section_title">· {{ source.section_title }}</span>
-            <span>· 片段 #{{ source.chunk_index }}</span>
+            <span v-if="source.section_title && !source.section_title.startsWith('V1:')">· {{ source.section_title }}</span>
           </p>
         </div>
       </li>
     </ol>
-  </section>
+  </details>
 </template>
 
 <style scoped>
 .sources {
   margin-top: 18px;
   padding-top: 14px;
-  border-top: 1px dashed var(--line);
+  border-top: 1px solid var(--line);
 }
 
 .sources-title {
@@ -45,6 +47,7 @@ defineProps<{
   font-size: 13px;
   font-weight: 500;
   color: var(--muted);
+  cursor: pointer;
 }
 
 .source-list {
@@ -62,12 +65,12 @@ defineProps<{
   padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #fbfcfd;
+  background: #FFFFFF;
 }
 
 .source-item.is-active {
-  border-color: var(--brand);
-  background: #f0f6fd;
+  border-color: #a3a3a3;
+  background: #f5f5f5;
 }
 
 .source-cite {
@@ -75,8 +78,8 @@ defineProps<{
   height: fit-content;
   padding: 1px 5px;
   border-radius: 4px;
-  background: #e8f0fb;
-  color: var(--brand);
+  background: #f1f1f1;
+  color: #404040;
   font-size: 12px;
   font-weight: 500;
 }

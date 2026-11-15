@@ -1,0 +1,879 @@
+{
+  "LL": {
+    "version": 1,
+    "origin": "server_verified_tree_v1",
+    "family": "AVL",
+    "explanation": "### 已校验的构造结果\n以下结构由服务端算法计算并校验；不是运行用户代码。\n从空树依次插入：30, 20, 10。\n课程资料支持的原理：AVL高度平衡、旋转与有序性规则 [S1]。\n输入键序列来自题设或明示的自拟示例；数值构造由服务端算法完成，引用不代表教材逐项给出了本题结果。\n\n| 插入键 | 调整 | 当前根 |\n|---|---|---|\n| 30 | 无需旋转 | 30 |\n| 20 | 无需旋转 | 30 |\n| 10 | LL | 20 |\n\n\n校验：键集合不变；中序严格有序；所有结点平衡因子绝对值不超过一。\n\n平衡因子（左高减右高）：10: 0, 30: 0, 20: 0。",
+    "source_citations": [
+      "[S1]"
+    ],
+    "final": {
+      "root": "n0",
+      "nodes": [
+        {
+          "id": "n0",
+          "keys": [
+            20
+          ],
+          "children": [
+            "n1",
+            "n2"
+          ]
+        },
+        {
+          "id": "n1",
+          "keys": [
+            10
+          ],
+          "children": [
+            null,
+            null
+          ]
+        },
+        {
+          "id": "n2",
+          "keys": [
+            30
+          ],
+          "children": [
+            null,
+            null
+          ]
+        }
+      ]
+    },
+    "rotations": [
+      {
+        "kind": "LL",
+        "frames": [
+          {
+            "stage": "before",
+            "graph": {
+              "root": "n0",
+              "nodes": [
+                {
+                  "id": "n0",
+                  "keys": [
+                    30
+                  ],
+                  "children": [
+                    "n1",
+                    null
+                  ]
+                },
+                {
+                  "id": "n1",
+                  "keys": [
+                    20
+                  ],
+                  "children": [
+                    "n2",
+                    null
+                  ]
+                },
+                {
+                  "id": "n2",
+                  "keys": [
+                    10
+                  ],
+                  "children": [
+                    null,
+                    null
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "stage": "after",
+            "graph": {
+              "root": "n0",
+              "nodes": [
+                {
+                  "id": "n0",
+                  "keys": [
+                    20
+                  ],
+                  "children": [
+                    "n1",
+                    "n2"
+                  ]
+                },
+                {
+                  "id": "n1",
+                  "keys": [
+                    10
+                  ],
+                  "children": [
+                    null,
+                    null
+                  ]
+                },
+                {
+                  "id": "n2",
+                  "keys": [
+                    30
+                  ],
+                  "children": [
+                    null,
+                    null
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "RR": {
+    "version": 1,
+    "origin": "server_verified_tree_v1",
+    "family": "AVL",
+    "explanation": "### 已校验的构造结果\n以下结构由服务端算法计算并校验；不是运行用户代码。\n从空树依次插入：10, 20, 30。\n课程资料支持的原理：AVL高度平衡、旋转与有序性规则 [S1]。\n输入键序列来自题设或明示的自拟示例；数值构造由服务端算法完成，引用不代表教材逐项给出了本题结果。\n\n| 插入键 | 调整 | 当前根 |\n|---|---|---|\n| 10 | 无需旋转 | 10 |\n| 20 | 无需旋转 | 10 |\n| 30 | RR | 20 |\n\n\n校验：键集合不变；中序严格有序；所有结点平衡因子绝对值不超过一。\n\n平衡因子（左高减右高）：10: 0, 30: 0, 20: 0。",
+    "source_citations": [
+      "[S1]"
+    ],
+    "final": {
+      "root": "n0",
+      "nodes": [
+        {
+          "id": "n0",
+          "keys": [
+            20
+          ],
+          "children": [
+            "n1",
+            "n2"
+          ]
+        },
+        {
+          "id": "n1",
+          "keys": [
+            10
+          ],
+          "children": [
+            null,
+            null
+          ]
+        },
+        {
+          "id": "n2",
+          "keys": [
+            30
+          ],
+          "children": [
+            null,
+            null
+          ]
+        }
+      ]
+    },
+    "rotations": [
+      {
+        "kind": "RR",
+        "frames": [
+          {
+            "stage": "before",
+            "graph": {
+              "root": "n0",
+              "nodes": [
+                {
+                  "id": "n0",
+                  "keys": [
+                    10
+                  ],
+                  "children": [
+                    null,
+                    "n1"
+                  ]
+                },
+                {
+                  "id": "n1",
+                  "keys": [
+                    20
+                  ],
+                  "children": [
+                    null,
+                    "n2"
+                  ]
+                },
+                {
+                  "id": "n2",
+                  "keys": [
+                    30
+                  ],
+                  "children": [
+                    null,
+                    null
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "stage": "after",
+            "graph": {
+              "root": "n0",
+              "nodes": [
+                {
+                  "id": "n0",
+                  "keys": [
+                    20
+                  ],
+                  "children": [
+                    "n1",
+                    "n2"
+                  ]
+                },
+                {
+                  "id": "n1",
+                  "keys": [
+                    10
+                  ],
+                  "children": [
+                    null,
+                    null
+                  ]
+                },
+                {
+                  "id": "n2",
+                  "keys": [
+                    30
+                  ],
+                  "children": [
+                    null,
+                    null
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "LR": {
+    "version": 1,
+    "origin": "server_verified_tree_v1",
+    "family": "AVL",
+    "explanation": "### 已校验的构造结果\n以下结构由服务端算法计算并校验；不是运行用户代码。\n从空树依次插入：30, 10, 20。\n课程资料支持的原理：AVL高度平衡、旋转与有序性规则 [S1]。\n输入键序列来自题设或明示的自拟示例；数值构造由服务端算法完成，引用不代表教材逐项给出了本题结果。\n\n| 插入键 | 调整 | 当前根 |\n|---|---|---|\n| 30 | 无需旋转 | 30 |\n| 10 | 无需旋转 | 30 |\n| 20 | LR | 20 |\n\n参考算法操作：先对结点10左旋，再对结点30右旋。\n\n校验：键集合不变；中序严格有序；所有结点平衡因子绝对值不超过一。\n\n平衡因子（左高减右高）：10: 0, 30: 0, 20: 0。",
+    "source_citations": [
+      "[S1]"
+    ],
+    "final": {
+      "root": "n0",
+      "nodes": [
+        {
+          "id": "n0",
+          "keys": [
+            20
+          ],
+          "children": [
+            "n1",
+            "n2"
+          ]
+        },
+        {
+          "id": "n1",
+          "keys": [
+            10
+          ],
+          "children": [
+            null,
+            null
+          ]
+        },
+        {
+          "id": "n2",
+          "keys": [
+            30
+          ],
+          "children": [
+            null,
+            null
+          ]
+        }
+      ]
+    },
+    "rotations": [
+      {
+        "kind": "LR",
+        "frames": [
+          {
+            "stage": "before",
+            "graph": {
+              "root": "n0",
+              "nodes": [
+                {
+                  "id": "n0",
+                  "keys": [
+                    30
+                  ],
+                  "children": [
+                    "n1",
+                    null
+                  ]
+                },
+                {
+                  "id": "n1",
+                  "keys": [
+                    10
+                  ],
+                  "children": [
+                    null,
+                    "n2"
+                  ]
+                },
+                {
+                  "id": "n2",
+                  "keys": [
+                    20
+                  ],
+                  "children": [
+                    null,
+                    null
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "stage": "intermediate",
+            "graph": {
+              "root": "n0",
+              "nodes": [
+                {
+                  "id": "n0",
+                  "keys": [
+                    30
+                  ],
+                  "children": [
+                    "n1",
+                    null
+                  ]
+                },
+                {
+                  "id": "n1",
+                  "keys": [
+                    20
+                  ],
+                  "children": [
+                    "n2",
+                    null
+                  ]
+                },
+                {
+                  "id": "n2",
+                  "keys": [
+                    10
+                  ],
+                  "children": [
+                    null,
+                    null
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "stage": "after",
+            "graph": {
+              "root": "n0",
+              "nodes": [
+                {
+                  "id": "n0",
+                  "keys": [
+                    20
+                  ],
+                  "children": [
+                    "n1",
+                    "n2"
+                  ]
+                },
+                {
+                  "id": "n1",
+                  "keys": [
+                    10
+                  ],
+                  "children": [
+                    null,
+                    null
+                  ]
+                },
+                {
+                  "id": "n2",
+                  "keys": [
+                    30
+                  ],
+                  "children": [
+                    null,
+                    null
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "RL": {
+    "version": 1,
+    "origin": "server_verified_tree_v1",
+    "family": "AVL",
+    "explanation": "### 已校验的构造结果\n以下结构由服务端算法计算并校验；不是运行用户代码。\n从空树依次插入：10, 30, 20。\n课程资料支持的原理：AVL高度平衡、旋转与有序性规则 [S1]。\n输入键序列来自题设或明示的自拟示例；数值构造由服务端算法完成，引用不代表教材逐项给出了本题结果。\n\n| 插入键 | 调整 | 当前根 |\n|---|---|---|\n| 10 | 无需旋转 | 10 |\n| 30 | 无需旋转 | 10 |\n| 20 | RL | 20 |\n\n参考算法操作：先对结点30右旋，再对结点10左旋。\n\n校验：键集合不变；中序严格有序；所有结点平衡因子绝对值不超过一。\n\n平衡因子（左高减右高）：10: 0, 30: 0, 20: 0。",
+    "source_citations": [
+      "[S1]"
+    ],
+    "final": {
+      "root": "n0",
+      "nodes": [
+        {
+          "id": "n0",
+          "keys": [
+            20
+          ],
+          "children": [
+            "n1",
+            "n2"
+          ]
+        },
+        {
+          "id": "n1",
+          "keys": [
+            10
+          ],
+          "children": [
+            null,
+            null
+          ]
+        },
+        {
+          "id": "n2",
+          "keys": [
+            30
+          ],
+          "children": [
+            null,
+            null
+          ]
+        }
+      ]
+    },
+    "rotations": [
+      {
+        "kind": "RL",
+        "frames": [
+          {
+            "stage": "before",
+            "graph": {
+              "root": "n0",
+              "nodes": [
+                {
+                  "id": "n0",
+                  "keys": [
+                    10
+                  ],
+                  "children": [
+                    null,
+                    "n1"
+                  ]
+                },
+                {
+                  "id": "n1",
+                  "keys": [
+                    30
+                  ],
+                  "children": [
+                    "n2",
+                    null
+                  ]
+                },
+                {
+                  "id": "n2",
+                  "keys": [
+                    20
+                  ],
+                  "children": [
+                    null,
+                    null
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "stage": "intermediate",
+            "graph": {
+              "root": "n0",
+              "nodes": [
+                {
+                  "id": "n0",
+                  "keys": [
+                    10
+                  ],
+                  "children": [
+                    null,
+                    "n1"
+                  ]
+                },
+                {
+                  "id": "n1",
+                  "keys": [
+                    20
+                  ],
+                  "children": [
+                    null,
+                    "n2"
+                  ]
+                },
+                {
+                  "id": "n2",
+                  "keys": [
+                    30
+                  ],
+                  "children": [
+                    null,
+                    null
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "stage": "after",
+            "graph": {
+              "root": "n0",
+              "nodes": [
+                {
+                  "id": "n0",
+                  "keys": [
+                    20
+                  ],
+                  "children": [
+                    "n1",
+                    "n2"
+                  ]
+                },
+                {
+                  "id": "n1",
+                  "keys": [
+                    10
+                  ],
+                  "children": [
+                    null,
+                    null
+                  ]
+                },
+                {
+                  "id": "n2",
+                  "keys": [
+                    30
+                  ],
+                  "children": [
+                    null,
+                    null
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "BST": {
+    "version": 1,
+    "origin": "server_verified_tree_v1",
+    "family": "BST",
+    "explanation": "### 已校验的构造结果\n以下结构由服务端算法计算并校验；不是运行用户代码。\n从空树依次插入：40, 20, 30, 70, 60。\n课程资料支持的原理：二叉搜索树有序性 [S1]。\n输入键序列来自题设或明示的自拟示例；数值构造由服务端算法完成，引用不代表教材逐项给出了本题结果。\n\n| 插入键 | 调整 | 当前根 |\n|---|---|---|\n| 40 | 无需旋转 | 40 |\n| 20 | 无需旋转 | 40 |\n| 30 | 无需旋转 | 40 |\n| 70 | 无需旋转 | 40 |\n| 60 | 无需旋转 | 40 |\n\n\n校验：键集合不变；中序严格有序。",
+    "source_citations": [
+      "[S1]"
+    ],
+    "final": {
+      "root": "n0",
+      "nodes": [
+        {
+          "id": "n0",
+          "keys": [
+            40
+          ],
+          "children": [
+            "n1",
+            "n3"
+          ]
+        },
+        {
+          "id": "n1",
+          "keys": [
+            20
+          ],
+          "children": [
+            null,
+            "n2"
+          ]
+        },
+        {
+          "id": "n2",
+          "keys": [
+            30
+          ],
+          "children": [
+            null,
+            null
+          ]
+        },
+        {
+          "id": "n3",
+          "keys": [
+            70
+          ],
+          "children": [
+            "n4",
+            null
+          ]
+        },
+        {
+          "id": "n4",
+          "keys": [
+            60
+          ],
+          "children": [
+            null,
+            null
+          ]
+        }
+      ]
+    },
+    "rotations": []
+  },
+  "B": {
+    "version": 1,
+    "origin": "server_verified_tree_v1",
+    "family": "B",
+    "explanation": "### 已校验的构造结果\n以下结构由服务端算法计算并校验；不是运行用户代码。\n从空树依次插入：1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15。\n课程资料支持的原理：孩子数与键数关系、父键分隔子树范围、按给定中位规则分裂 [S1]。\n以下构造假设来自用户题设（自拟示例则为明示假设），不宣称是教材规定：内部结点最大孩子数=3；内部结点最大键数=2；分裂时机=插入溢出后分裂；提升中位键=唯一中间键。\n输入键序列来自题设或明示的自拟示例；数值构造由服务端算法完成，引用不代表教材逐项给出了本题结果。\n结点最多 3 个孩子；按题中约定，溢出后提升中间键（偶数键取较大中间键）。\n\n校验：键集合不变；结点有序、容量和分隔范围正确，所有叶子同层。",
+    "source_citations": [
+      "[S1]"
+    ],
+    "final": {
+      "root": "n0",
+      "nodes": [
+        {
+          "id": "n0",
+          "keys": [
+            8
+          ],
+          "children": [
+            "n1",
+            "n8"
+          ]
+        },
+        {
+          "id": "n1",
+          "keys": [
+            4
+          ],
+          "children": [
+            "n2",
+            "n5"
+          ]
+        },
+        {
+          "id": "n2",
+          "keys": [
+            2
+          ],
+          "children": [
+            "n3",
+            "n4"
+          ]
+        },
+        {
+          "id": "n3",
+          "keys": [
+            1
+          ],
+          "children": []
+        },
+        {
+          "id": "n4",
+          "keys": [
+            3
+          ],
+          "children": []
+        },
+        {
+          "id": "n5",
+          "keys": [
+            6
+          ],
+          "children": [
+            "n6",
+            "n7"
+          ]
+        },
+        {
+          "id": "n6",
+          "keys": [
+            5
+          ],
+          "children": []
+        },
+        {
+          "id": "n7",
+          "keys": [
+            7
+          ],
+          "children": []
+        },
+        {
+          "id": "n8",
+          "keys": [
+            12
+          ],
+          "children": [
+            "n9",
+            "n12"
+          ]
+        },
+        {
+          "id": "n9",
+          "keys": [
+            10
+          ],
+          "children": [
+            "n10",
+            "n11"
+          ]
+        },
+        {
+          "id": "n10",
+          "keys": [
+            9
+          ],
+          "children": []
+        },
+        {
+          "id": "n11",
+          "keys": [
+            11
+          ],
+          "children": []
+        },
+        {
+          "id": "n12",
+          "keys": [
+            14
+          ],
+          "children": [
+            "n13",
+            "n14"
+          ]
+        },
+        {
+          "id": "n13",
+          "keys": [
+            13
+          ],
+          "children": []
+        },
+        {
+          "id": "n14",
+          "keys": [
+            15
+          ],
+          "children": []
+        }
+      ]
+    },
+    "rotations": []
+  },
+  "B+": {
+    "version": 1,
+    "origin": "server_verified_tree_v1",
+    "family": "B+",
+    "explanation": "### 已校验的构造结果\n以下结构由服务端算法计算并校验；不是运行用户代码。\n从空树依次插入：1, 2, 3, 4, 5, 6, 7, 8, 9, 10。\n课程资料支持的原理：记录键存于叶、内部键用于导航、按给定左右键数分裂、父键复制右叶最小键、叶中保留分隔记录键、按给定内部中位规则分裂、叶子同层、分裂容量与时机需明确 [S1]。\n课程资料明确给出的约定：父分隔键=复制右叶最小键 [S1]。\n以下构造假设来自用户题设（自拟示例则为明示假设），不宣称是教材规定：内部结点最大孩子数=3；内部结点最大键数=2；叶最大键数=2；分裂时机=插入溢出后分裂；分裂左叶键数=2；分裂右叶键数=1；提升中位键=唯一中间键。\n输入键序列来自题设或明示的自拟示例；数值构造由服务端算法完成，引用不代表教材逐项给出了本题结果。\n结点最多 3 个孩子；叶最多 2 键，溢出左叶保留 2 键、右叶保留 1 键，复制右叶最小键到父。\n\n校验：键集合不变；结点有序、容量和分隔范围正确，所有叶子同层。",
+    "source_citations": [
+      "[S1]"
+    ],
+    "final": {
+      "root": "n0",
+      "nodes": [
+        {
+          "id": "n0",
+          "keys": [
+            5
+          ],
+          "children": [
+            "n1",
+            "n4"
+          ]
+        },
+        {
+          "id": "n1",
+          "keys": [
+            3
+          ],
+          "children": [
+            "n2",
+            "n3"
+          ]
+        },
+        {
+          "id": "n2",
+          "keys": [
+            1,
+            2
+          ],
+          "children": []
+        },
+        {
+          "id": "n3",
+          "keys": [
+            3,
+            4
+          ],
+          "children": []
+        },
+        {
+          "id": "n4",
+          "keys": [
+            7,
+            9
+          ],
+          "children": [
+            "n5",
+            "n6",
+            "n7"
+          ]
+        },
+        {
+          "id": "n5",
+          "keys": [
+            5,
+            6
+          ],
+          "children": []
+        },
+        {
+          "id": "n6",
+          "keys": [
+            7,
+            8
+          ],
+          "children": []
+        },
+        {
+          "id": "n7",
+          "keys": [
+            9,
+            10
+          ],
+          "children": []
+        }
+      ]
+    },
+    "rotations": []
+  }
+}

@@ -18,6 +18,7 @@ def test_liveness_and_openapi(app):
     with TestClient(app) as client:
         response = client.get("/api/v2/health")
         assert response.status_code == 200
+        assert response.headers["X-DS-Health"] == "v2"
         assert response.json() == {
             "status": "ok", "service": "ds-assistant-v2", "version": "2.0.0",
         }
@@ -26,6 +27,7 @@ def test_liveness_and_openapi(app):
             "/api/v2/rag/ask",
             "/api/v2/knowledge-bases/{kb_id}/cloud-consents",
             "/api/v2/knowledge-bases/{kb_id}/cloud-consents/audit",
+            "/api/v2/knowledge-bases/{kb_id}/cloud-consents/targets",
             "/api/v2/knowledge-bases/{kb_id}/cloud-consents/{purpose}",
             "/api/v2/retrieval/search", "/api/v2/retrieval/prepare-context",
             "/api/v2/health", "/api/v2/health/db", "/api/v2/auth/csrf",
@@ -41,7 +43,16 @@ def test_liveness_and_openapi(app):
             "/api/v2/conversations",
             "/api/v2/conversations/{conversation_id}",
             "/api/v2/conversations/{conversation_id}/messages",
+            "/api/v2/conversations/{conversation_id}/ask",
+            "/api/v2/conversations/{conversation_id}/ask-stream",
+            "/api/v2/projects",
+            "/api/v2/projects/{project_id}",
+            "/api/v2/projects/{project_id}/memories",
+            "/api/v2/projects/{project_id}/memories/{note_id}",
         }
+        stream=paths["/api/v2/conversations/{conversation_id}/ask-stream"]["post"]
+        assert set(stream['responses']['200']['content'])=={'text/event-stream'}
+        assert stream['requestBody']['content']['application/json']['schema']['$ref'].endswith('/ConversationAskRequest')
         assert "503" in paths["/api/v2/health/db"]["get"]["responses"]
 
 def test_database_error_is_sanitized(app, caplog):

@@ -1,0 +1,9 @@
+{
+  "provenance": "Team-authored reference facts for controlled engineering tests; not human-scored Qwen results.",
+  "cases": [
+    {"id":"avl", "lesson":"AVL树是平衡二叉搜索树。AVL树通过旋转恢复平衡。", "questions":["AVL树是什么？","它为什么需要旋转？"], "resolved":["AVL树是什么？","AVL 树为什么需要旋转？"], "answers":["AVL树是平衡二叉搜索树。","AVL树通过旋转恢复平衡。"]},
+    {"id":"quicksort", "lesson":"快速排序通过分区处理子问题。快速排序最坏时间复杂度为O(n²)。", "questions":["快速排序的原理是什么？","最坏情况下呢？"], "resolved":["快速排序的原理是什么？","快速排序：最坏情况下呢？"], "answers":["快速排序通过分区处理子问题。","快速排序最坏时间复杂度为O(n²)。"]},
+    {"id":"bfs-dfs", "lesson":"BFS使用队列逐层遍历。BFS使用队列，DFS使用栈或递归深入遍历。", "questions":["解释BFS","那DFS有什么不同？"], "resolved":["解释BFS","比较 BFS 与 DFS：DFS有什么不同？"], "answers":["BFS使用队列逐层遍历。","BFS使用队列，DFS使用栈或递归深入遍历。"]},
+    {"id":"dijkstra", "lesson":"Dijkstra要求边权非负。Dijkstra不适用于含负权边的一般图。", "questions":["Dijkstra适用于哪些图？","它适用于负权边吗？"], "resolved":["Dijkstra适用于哪些图？","Dijkstra适用于负权边吗？"], "answers":["Dijkstra要求边权非负。","Dijkstra不适用于含负权边的一般图。"]}
+  ]
+}

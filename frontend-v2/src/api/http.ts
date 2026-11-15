@@ -79,7 +79,7 @@ function parseRetryAfter(response: Response): number | null {
   return Number.isFinite(seconds) && seconds >= 0 ? seconds : null
 }
 
-async function parseErrorBody(response: Response): Promise<ParsedError> {
+export async function parseErrorBody(response: Response): Promise<ParsedError> {
   let body: unknown = null
   const raw = await response.text()
   if (raw) {
@@ -121,6 +121,11 @@ async function parseErrorBody(response: Response): Promise<ParsedError> {
     message: '',
     body,
   }
+}
+
+/** Shared by JSON and SSE clients; a previous account's 401 must not clear a new session. */
+export function handleUnauthorized(epochAtStart: number, skipHandler = false): void {
+  if (epochAtStart === currentEpoch()) { invalidateCsrf(); if (!skipHandler) unauthorizedHandler?.() }
 }
 
 async function send(
@@ -183,11 +188,7 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   if (response.status === 401) {
     // 会话已失效，旧 token 必然无效。
     // 但若期间已换账号（epoch 变化），这个 401 属于上一个会话，不能再清理当前状态。
-    const sameSession = epochAtStart === currentEpoch()
-    if (sameSession) {
-      invalidateCsrf()
-      if (!options.skipAuthHandler) unauthorizedHandler?.()
-    }
+    handleUnauthorized(epochAtStart, options.skipAuthHandler)
   }
 
   if (response.status === 204) {

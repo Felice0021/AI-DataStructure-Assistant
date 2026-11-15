@@ -14,7 +14,8 @@ logger = logging.getLogger(__name__)
 
 
 @router.get("", response_model=HealthResponse)
-def health() -> HealthResponse:
+def health(response: Response) -> HealthResponse:
+    response.headers["X-DS-Health"] = "v2"
     return HealthResponse()
 
 

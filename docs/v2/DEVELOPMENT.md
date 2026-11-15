@@ -991,12 +991,12 @@ HTTP冒烟会创建随机测试数据库/临时目录，启动双进程FastAPI�
 |GENERATION_MODEL / GENERATION_MODEL_VERIFIED|qwen3.7-flash / false，真实账户/地域可用性未验证|
 |GENERATION_ENDPOINT|官方HTTPS compatible-mode/v1/chat/completions路径，允许官方workspace.maas域名|
 |GENERATION_TEMPERATURE|0.2，范围0–1|
-|GENERATION_TIMEOUT_SECONDS|20，单次绝对超时，范围0.1–60|
+|GENERATION_TIMEOUT_SECONDS|60，单次绝对超时，范围0.1–60|
 |GENERATION_RETRIES / GENERATION_BACKOFF_SECONDS|2 / 0.5，临时网络/429/5xx有限退避|
 |GENERATION_MAX_CALLS|3，总生成尝试预算，最高4；与校验重试共享|
 |GENERATION_VALIDATION_RETRIES|0，可选1；不对坏答案做引用删除式修复|
 |GENERATION_MAX_INPUT_BYTES|24000，完整Prompt JSON的UTF-8字节上限，非精确Token|
-|GENERATION_MAX_OUTPUT_TOKENS / GENERATION_MAX_OUTPUT_BYTES|1024 / 12000，协议输出参数及服务端字节双重限制|
+|GENERATION_MAX_OUTPUT_TOKENS / GENERATION_MAX_OUTPUT_BYTES|3072 / 24000，协议输出参数及服务端字节双重限制；部署环境显式配置优先于默认值|
 |GENERATION_CONCURRENCY|2，流程槽和云适配槽分开命名，跨API进程；所有进程应统一配置|
 
 测试Provider只引用第一条授权证据，不执行算法、代码或网络操作；模式标题用于验证接口组织，不代表具备推理或语义质量。
@@ -1115,3 +1115,59 @@ dry-run默认只读预览，已检查真实V1共1010条，导出UTF8共383572字
 ### 最终测试与保护
 
 最终结果见INTEGRATION_REPORT.md。开发库原业务表、V1未提交文件与0001–0006历史迁移做前后SHA256核对，根.env仅检查stat不读取内容，V2.env检查hash/0600/ignore，无覆盖。只新增0007并推进版本。Git只审查提交V2，不加入V1脏资产。
+
+### 聊天界面与持久化历史验收
+
+前端采用侧边历史、独立消息流、底部输入框；Enter 发送，Shift+Enter 换行。
+默认 auto/hybrid，逐用途权限仍来自有效授权，服务端 Guard 始终检查。
+每条回答的引用使用独立 DOM 前缀，点击只展开该回答的来源。390px 使用抽屉导航。
+会话保存在 PostgreSQL，浏览器只保留当前内存状态；退出后清空，重新登录可读取。
+并发期间禁止切换，超时重试复用 request_id，避免重复保存。
+没有上下文理解功能；多条历史仅用于阅读。旧版回滚可忽略新增元数据，无 schema 变更。
+
+测试：`DS_V2_RUN_DB_TESTS=1 python -m pytest backend/v2/tests/test_conversation_rag.py backend/v2/tests/test_conversations.py backend/v2/tests/test_rag.py backend/v2/tests/test_auth.py`
+及 `npm run test`、`npm run build`（frontend-v2）。全部 DB 测试创建随机隔离库。
+PR 合并并自动部署后，需在 HTTPS Qwen 课程库上完成三次提问、刷新、重新登录、
+历史切换/重命名/删除、引用、拒答和账号隔离验收；本地 deterministic 预览不算 Qwen 质量验证。
+
+### 阶段 A：多轮上下文测试
+
+- `DS_V2_CONVERSATION_MAX_TURNS` 默认 3，范围 0–3。
+- `DS_V2_CONVERSATION_HISTORY_MAX_BYTES` 默认 4096，上限 8192；单轮问题/回答分别最多 512/768 UTF-8 bytes。
+- 问题改写不能超过现有 retrieval_max_query_chars；不增加云模型请求。
+- 最近最多 3 轮是有界上下文，不保证理解任意话题或缺失条件的追问。
+
+隔离回归：
+`DS_V2_RUN_DB_TESTS=1 python -m pytest backend/v2/tests/test_context_turns.py backend/v2/tests/test_conversation_context.py`
+
+真实 Qwen（显式授权，使用既有 V2 私有配置，输出目录须在仓库外）：
+`python -m backend.v2.tools.context_smoke --v2-env-file <private-v2-env> --output-dir <private-output-directory>`
+
+该工具只创建随机测试库和原创短资料，通过 API 建立 generation 同意，执行 4 组/8 次问答。
+BM25 检索；隔离库中的 deterministic 向量仅用于满足现有 ready 基础，不宣称真实语义向量。
+每题单次生成、无模型重试、10 秒超时，失败停止；输入、回答、来源和耗时保存为 0600 JSON。
+正常退出清理测试库/临时文件，保留仓库外记录。不会修改线上库、已有索引或云模型配置。
+引用结构检查不等同于语义忠实性或人工正确率。
+
+### 专项题型回归（阶段 B）
+
+```sh
+DS_V2_RUN_DB_TESTS=1 python -m pytest backend/v2/tests/test_problem_solving.py backend/v2/tests/test_problem_http.py -q
+# 仅经授权、使用现有 V2 私有配置中的 Generation Key，显式触发真实模型：
+python -m backend.v2.tools.problem_smoke --v2-env-file deploy/v2/.env --output-dir /absolute/private/output
+# 定向复测可重复指定 --case，例如 --case recursive-code --case array-code
+```
+
+普通 pytest 不调用付费模型。固定 17 题含参考答案；HTTP 集成测试使用受控参考生成器，
+精确检查答案、拒答、真实 Chunk/来源对应关系，不计为模型正确率。
+显式 smoke 用随机隔离数据库、临时文件和 API generation 授权，真实 Qwen 只收到原创算法
+规则，不收到计算题的预置答案。输出完整输入/回答/证据/参考答案/耗时，0600，目录须在仓库外；
+人工质量字段留空，待组员审核。每题最多一次生成、无自动重试，认证/限流/服务故障停止。
+所有测试资源退出时清理，原课程库、QA 与向量均不变。结果和已发现问题见
+[PROBLEM_SOLVING_ACCEPTANCE.md](PROBLEM_SOLVING_ACCEPTANCE.md)。
+
+### 多主题与已校验树算法（PR 1）
+
+回归：`DS_V2_RUN_DB_TESTS=1 python -m pytest backend/v2/tests/test_verified_trees.py backend/v2/tests/test_verified_tree_http.py`。
+完整规则、真实 Qwen 的显式测试命令、支持范围、失败记录和不部署边界见
+[VERIFIED_TREE_CONTEXT.md](VERIFIED_TREE_CONTEXT.md)。没有新增依赖、迁移或课程索引任务。

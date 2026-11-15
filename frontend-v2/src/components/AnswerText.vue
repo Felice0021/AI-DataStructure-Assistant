@@ -1,140 +1,96 @@
-<script setup lang="ts">
-import { computed } from 'vue'
-
+<script lang="ts">
+import MarkdownIt from 'markdown-it'
+import { defineComponent, h, type PropType, type VNodeChild } from 'vue'
 import type { AnswerSource } from '@/types/api'
+import { answerMath, renderMath } from '@/utils/answerMath'
 
-/**
- * 安全渲染回答正文。
- *
- * 绝不使用 v-html：模型输出属于不可信内容，直接塞进 DOM 等于把 XSS 面交给模型。
- * 这里把正文按 [S1] 标记切成片段，文本片段走 {{ }} 插值（Vue 自动转义），
- * 只有能在本次 sources 里找到对应 citation_id 的标记才渲染成可点击按钮，
- * 编造的引用（例如 [S9]）降级为灰色纯文本。
- */
+// Model output is untrusted. Markdown tokens are rendered as Vue nodes, never HTML.
+const markdown = new MarkdownIt({ html: false, linkify: false, breaks: false }).use(answerMath)
+type Token = ReturnType<typeof markdown.parse>[number]
+const tags = new Set(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'ul', 'ol', 'li', 'strong', 'em', 's', 'a', 'table', 'thead', 'tbody', 'tr', 'th', 'td'])
 
-const props = defineProps<{
-  text: string
-  sources: AnswerSource[]
-}>()
-
-const emit = defineEmits<{
-  (event: 'cite', citationId: string): void
-}>()
-
-interface Segment {
-  key: string
-  type: 'text' | 'cite'
-  value: string
-  known: boolean
-}
-
-const knownCitations = computed(() => new Set(props.sources.map((source) => source.citation_id)))
-
-const segments = computed<Segment[]>(() => {
-  const result: Segment[] = []
-  const pattern = /\[S(\d+)\]/g
-  let cursor = 0
-  let index = 0
-  let match: RegExpExecArray | null
-
-  while ((match = pattern.exec(props.text)) !== null) {
-    if (match.index > cursor) {
-      result.push({
-        key: `t${index++}`,
-        type: 'text',
-        value: props.text.slice(cursor, match.index),
-        known: true,
-      })
+export default defineComponent({
+  props: {
+    text: { type: String, required: true },
+    sources: { type: Array as PropType<AnswerSource[]>, required: true },
+    // A streamed draft is not a validated answer. Formatting is display-only:
+    // never create interactive citations or links before the final result.
+    preview: { type: Boolean, default: false },
+  },
+  emits: ['cite'],
+  setup(props, { emit }) {
+    function renderTokens(tokens: Token[], known: Set<string>): VNodeChild[] {
+      const root: VNodeChild[] = []
+      const stack: { children: VNodeChild[]; tag: string }[] = [{ children: root, tag: '' }]
+      const append = (node: VNodeChild) => stack[stack.length - 1]!.children.push(node)
+      for (const token of tokens) {
+        if (token.type === 'inline') { renderTokens(token.children ?? [], known).forEach(append); continue }
+        if (token.nesting === 1 && tags.has(token.tag)) {
+          const children: VNodeChild[] = []
+          const attrs: Record<string, string> = {}
+          if (token.tag === 'a' && !props.preview) {
+            const href = token.attrGet('href') ?? ''
+            if (/^(https?:|mailto:)/i.test(String(href)) && markdown.validateLink(String(href))) { attrs.href = String(href); attrs.rel = 'noopener noreferrer nofollow' }
+          }
+          if (token.tag === 'ol' && token.attrGet('start')) attrs.start = String(token.attrGet('start'))
+          const node = h(props.preview && token.tag === 'a' ? 'span' : token.tag, attrs, children)
+          append(token.tag === 'table' ? h('div', { class: 'answer-table-scroll', tabindex: 0, role: 'region', 'aria-label': '回答表格，可横向滚动' }, [node]) : node)
+          stack.push({ children, tag: token.tag }); continue
+        }
+        if (token.nesting === -1 && tags.has(token.tag)) { if (stack.length > 1) stack.pop(); continue }
+        if (token.type === 'text') {
+          // Inline code and fenced code are separate token types and never enter this branch.
+          const inLink = stack.some((item) => item.tag === 'a')
+          const parts = token.content.split(/(\[S[1-9]\d*\])/g)
+          for (const part of parts) {
+            if (!part) continue
+            if (!props.preview && !inLink && /^\[S[1-9]\d*\]$/.test(part)) {
+              append(known.has(part)
+                ? h('button', { type: 'button', class: 'cite', title: `查看来源 ${part}`, onClick: () => emit('cite', part) }, part)
+                : h('span', { class: 'cite-unknown', title: '本次回答未返回该来源' }, part))
+            } else append(part)
+          }
+        } else if (token.type === 'math_inline' || token.type === 'math_display' || token.type === 'math_block') {
+          append(renderMath(token.content, token.type !== 'math_inline', token.markup, token.type === 'math_block'))
+        } else if (token.type === 'code_inline') append(h('code', token.content))
+        else if (token.type === 'fence' || token.type === 'code_block') {
+          const language = token.info.trim().split(/\s+/)[0] ?? ''
+          append(h('pre', [h('code', { class: /^[\w+-]{1,40}$/.test(language) ? `language-${language}` : undefined }, token.content)]))
+        } else if (token.type === 'softbreak') append('\n')
+        else if (token.type === 'hardbreak') append(h('br'))
+        else if (token.type === 'hr') append(h('hr'))
+        else if (token.type === 'image') append(token.content)
+      }
+      return root
     }
-    result.push({
-      key: `c${index++}`,
-      type: 'cite',
-      value: match[0],
-      known: knownCitations.value.has(match[0]),
-    })
-    cursor = match.index + match[0].length
-  }
-
-  if (cursor < props.text.length) {
-    result.push({
-      key: `t${index++}`,
-      type: 'text',
-      value: props.text.slice(cursor),
-      known: true,
-    })
-  }
-
-  return result
+    return () => h('div', { class: 'answer-text' }, renderTokens(markdown.parse(props.text, {}), new Set(props.sources.map((s) => s.citation_id))))
+  },
 })
-
-function handleCite(citationId: string): void {
-  emit('cite', citationId)
-}
 </script>
 
-<template>
-  <p class="answer-text">
-    <template v-for="segment in segments" :key="segment.key">
-      <button
-        v-if="segment.type === 'cite' && segment.known"
-        type="button"
-        class="cite"
-        :title="`查看来源 ${segment.value}`"
-        @click="handleCite(segment.value)"
-      >
-        {{ segment.value }}
-      </button>
-      <span v-else-if="segment.type === 'cite'" class="cite-unknown" :title="'本次回答未返回该来源'">
-        {{ segment.value }}
-      </span>
-      <span v-else>{{ segment.value }}</span>
-    </template>
-  </p>
-</template>
-
 <style scoped>
-.answer-text {
-  margin: 0;
-  white-space: pre-wrap;
-  word-break: break-word;
-  font-size: 15px;
-  line-height: 1.85;
-  color: var(--ink);
-}
-
-.cite {
-  display: inline;
-  padding: 0 3px;
-  margin: 0 1px;
-  border: 0;
-  border-radius: 4px;
-  background: #e8f0fb;
-  color: var(--brand);
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 1.4;
-  vertical-align: 1px;
-  cursor: pointer;
-}
-
-.cite:hover {
-  background: #d3e3f8;
-}
-
-.cite:focus-visible {
-  outline: 2px solid var(--brand);
-  outline-offset: 1px;
-}
-
-.cite-unknown {
-  display: inline;
-  padding: 0 3px;
-  margin: 0 1px;
-  border-radius: 4px;
-  background: #f0f1f3;
-  color: #98a0aa;
-  font-size: 12px;
-  vertical-align: 1px;
-}
+.answer-text { min-width: 0; max-width: 100%; font-size: 15px; line-height: 1.8; color: var(--ink); overflow-wrap: anywhere; }
+.answer-text :deep(p) { margin: 0 0 0.9em; white-space: pre-wrap; }
+.answer-text :deep(h1), .answer-text :deep(h2), .answer-text :deep(h3), .answer-text :deep(h4) { margin: 1em 0 0.45em; line-height: 1.35; }
+.answer-text :deep(ul), .answer-text :deep(ol) { padding-left: 1.5em; margin: 0.5em 0 1em; }
+.answer-text :deep(blockquote) { margin: 1em 0; padding-left: 1em; border-left: 3px solid var(--line); color: var(--muted); }
+.answer-text :deep(pre), .answer-text :deep(.answer-table-scroll) { max-width: 100%; overflow-x: auto; }
+.answer-text :deep(.answer-table-scroll) { margin: 1em 0; }
+.answer-text :deep(.answer-table-scroll:focus-visible) { outline: 2px solid var(--brand); outline-offset: 1px; }
+.answer-text :deep(pre) { padding: 12px; background: #f5f5f5; border-radius: 8px; line-height: 1.5; }
+.answer-text :deep(code) { font-family: ui-monospace, monospace; }
+.answer-text :deep(table) { border-collapse: collapse; width: max-content; min-width: 100%; table-layout: auto; }
+.answer-text :deep(th), .answer-text :deep(td) { border: 1px solid var(--line); padding: 6px 10px; overflow-wrap: normal; word-break: normal; }
+.answer-text :deep(th) { white-space: nowrap; }
+.answer-text :deep(td) { min-width: 4em; max-width: 28em; }
+.answer-text :deep(.answer-math) { max-width: 100%; overflow-x: auto; overflow-y: hidden; overflow-wrap: normal; white-space: nowrap; }
+.answer-text :deep(.math-inline) { display: inline-block; vertical-align: middle; }
+.answer-text :deep(.math-display) { display: block; margin: 1em 0; }
+.answer-text :deep(.katex-display) { margin: 0; }
+.answer-text :deep(td .answer-math), .answer-text :deep(th .answer-math) { max-width: none; }
+.answer-text :deep(.math-fallback) { white-space: pre-wrap; overflow-wrap: anywhere; }
+.answer-text :deep(.cite), .answer-text :deep(.cite-unknown) { display: inline; padding: 0 3px; margin: 0 1px; border: 0; border-radius: 4px; font-size: 12px; vertical-align: 1px; }
+.answer-text :deep(.cite) { background: #f1f1f1; color: #404040; cursor: pointer; }
+.answer-text :deep(.cite-unknown) { background: #f1f1f1; color: #737373; }
+.answer-text :deep(.cite:focus-visible) { outline: 2px solid var(--brand); outline-offset: 1px; }
 </style>

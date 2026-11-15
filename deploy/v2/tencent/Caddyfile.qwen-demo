@@ -1,0 +1,21 @@
+{
+    auto_https off
+    admin off
+}
+http://qwen.dsassistant.cn:18080 {
+    bind 127.0.0.1
+    header Cache-Control "no-store"
+    @api path /api/v2/*
+    handle @api {
+        reverse_proxy 127.0.0.1:18001 {
+            header_up X-Forwarded-For 127.0.0.1
+            header_up X-Real-IP 127.0.0.1
+            header_up X-Forwarded-Proto https
+        }
+    }
+    handle {
+        root * /opt/ds-v2-qa/qwen-demo/frontend-v2/dist
+        try_files {path} /index.html
+        file_server
+    }
+}

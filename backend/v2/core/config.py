@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     environment: Literal["production", "development"] = "production"
     allow_insecure_loopback: bool = False
     allowed_origins: list[str] = []
+    registration_enabled: bool = True
     session_ttl_seconds: int = Field(default=28800, ge=60, le=604800)
     login_max_failures: int = Field(default=5, ge=1, le=100)
     login_ip_max_failures: int = Field(default=20, ge=1, le=1000)
@@ -108,6 +109,9 @@ class Settings(BaseSettings):
     context_max_chunk_chars: int = Field(default=8000, ge=1, le=8000)
     context_max_chars: int = Field(default=16000, ge=1, le=64000)
     context_token_budget: int = Field(default=6000, ge=1, le=24000)
+    course_source_mapping_path: Path | None = None
+    conversation_max_turns: int = Field(default=3, ge=0, le=3)
+    conversation_history_max_bytes: int = Field(default=4096, ge=0, le=8192)
 
     generation_provider: Literal["disabled", "deterministic", "qwen"] = "disabled"
     generation_cloud_enabled: bool = False
@@ -117,15 +121,16 @@ class Settings(BaseSettings):
     generation_model_verified: bool = False
     generation_endpoint: str = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
     generation_temperature: float = Field(default=0.2, ge=0, le=1, allow_inf_nan=False)
-    generation_timeout_seconds: float = Field(default=20, ge=0.1, le=60)
+    generation_timeout_seconds: float = Field(default=60, ge=0.1, le=60)
     generation_retries: int = Field(default=2, ge=0, le=3)
     generation_backoff_seconds: float = Field(default=0.5, ge=0, le=5)
     generation_max_calls: int = Field(default=3, ge=1, le=4)
     generation_validation_retries: int = Field(default=0, ge=0, le=1)
     generation_max_input_bytes: int = Field(default=24000, ge=1, le=64000)
-    generation_max_output_tokens: int = Field(default=1024, ge=64, le=4096)
-    generation_max_output_bytes: int = Field(default=12000, ge=64, le=32000)
+    generation_max_output_tokens: int = Field(default=3072, ge=64, le=4096)
+    generation_max_output_bytes: int = Field(default=24000, ge=64, le=32000)
     generation_concurrency: int = Field(default=2, ge=1, le=8)
+    conversation_stream_timeout_seconds: float = Field(default=120, ge=1, le=300)
 
     @classmethod
     def settings_customise_sources(cls,settings_cls,init_settings,env_settings,dotenv_settings,file_secret_settings):

@@ -1,0 +1,158 @@
+{
+  "provenance": "Team-authored explicit reference facts; human model scoring not supplied.",
+  "cases": [
+    {
+      "id": "stack",
+      "query": "给定空栈，依次push(1),push(2),pop(),push(3),pop(),pop()，弹出序列是什么？",
+      "lesson": "栈采用LIFO。空栈依次push(1),push(2),pop(),push(3),pop(),pop()，弹出序列为2,3,1。",
+      "reference_answer": "弹出序列为2,3,1。",
+      "mode": "exercise",
+      "expected_reason": null,
+      "rules": "栈采用后进先出。push把元素放在栈顶，pop删除并返回当前栈顶。每次操作须先核对栈的状态；空栈不能pop。"
+    },
+    {
+      "id": "queue",
+      "query": "给定空队列，依次入队1,2，出队一次，再入队3，最后连续出队两次，求出总出队序列。",
+      "lesson": "队列采用FIFO。空队列入队1,2，先出队1，再入队3，随后出队2,3。总出队序列为1,2,3。",
+      "reference_answer": "总出队序列为1,2,3。",
+      "mode": "exercise",
+      "expected_reason": null,
+      "rules": "队列采用先进先出。入队添加在队尾，出队删除并返回队首。跟踪每次操作后的队列状态；空队列不能出队。"
+    },
+    {
+      "id": "binary-tree",
+      "query": "给定前序A,B,D,C,E，中序D,B,A,E,C，画出二叉树。",
+      "lesson": "二叉树前序先根后左右，中序先左后根后右。前序A,B,D,C,E和中序D,B,A,E,C确定根A，左子B且B的左子为D，右子C且C的左子为E。",
+      "reference_answer": "根A；左子B且B的左子D；右子C且C的左子E。",
+      "mode": "exercise",
+      "expected_reason": null,
+      "rules": "结点值互异时，前序序列首元素是根。在中序序列找到根，左侧为左子树结点，右侧为右子树结点；据其规模拆分前序并递归构造。必须检查两序列结点集合一致。"
+    },
+    {
+      "id": "avl",
+      "query": "给定空AVL树，模拟插入30,20,10并画出最终树。",
+      "lesson": "AVL平衡因子为左高减右高，绝对值至多1。依次插入30,20,10形成LL失衡，应对30右旋，最终根20、左子10、右子30。",
+      "reference_answer": "对30右旋；最终根20、左子10、右子30。",
+      "mode": "exercise",
+      "expected_reason": null,
+      "rules": "AVL树是二叉搜索树，每个结点左右高度差绝对值至多1。LL型失衡对失衡根右旋，RR型左旋，LR型先左子左旋再根右旋，RL型先右子右旋再根左旋。旋转须保持中序顺序。"
+    },
+    {
+      "id": "bplus",
+      "query": "构造3阶B+树，依次插入10,20,30。约定最多3孩子、2键；溢出左叶保留前2键，右叶后1键，父节点复制右叶最小键。画出结果。",
+      "lesson": "本例3阶B+树内部节点最多3孩子2键，叶最多2键；3键溢出按左2右1分裂，复制右叶最小键到父节点。插入10,20,30后，根分隔键30；左叶10,20；右叶30；叶链左到右。",
+      "reference_answer": "根分隔键30；左叶10,20；右叶30。",
+      "mode": "exercise",
+      "expected_reason": null,
+      "rules": "B+树全部记录键在叶结点，内部键用于导航。阶数、最大键数、重复键及分裂策略必须按题目约定；叶分裂将右叶最小键复制到父结点，并保持叶链有序。内部结点的键可以在叶中重复出现。"
+    },
+    {
+      "id": "bfs",
+      "query": "解释BFS算法过程和复杂度。邻接表A:[B,C],B:[D],C:[D],D:[]，从A开始，字母顺序，入队时标记。",
+      "lesson": "BFS使用队列并在入队时标记。邻接表A:[B,C],B:[D],C:[D],D:[]，从A按字母顺序访问得A,B,C,D；D只入队一次。邻接表时间O(V+E)，辅助空间O(V)。",
+      "reference_answer": "访问顺序A,B,C,D；时间O(V+E)，辅助空间O(V)。",
+      "mode": "exercise",
+      "expected_reason": null,
+      "rules": "BFS从起点开始使用FIFO队列。结点入队时标记，出队访问并按规定邻接顺序把未标记邻居入队。邻接表时间O(V+E)，辅助空间O(V)。必须避免共享邻居重复入队。"
+    },
+    {
+      "id": "dfs",
+      "query": "解释DFS算法过程和复杂度。邻接表A:[B,C],B:[D],C:[D],D:[]，从A开始，字母顺序递归。",
+      "lesson": "DFS递归或使用显式栈。邻接表A:[B,C],B:[D],C:[D],D:[]，从A按字母顺序递归首次访问顺序A,B,D,C。邻接表时间O(V+E)，辅助空间O(V)。",
+      "reference_answer": "首次访问顺序A,B,D,C；时间O(V+E)，辅助空间O(V)。",
+      "mode": "exercise",
+      "expected_reason": null,
+      "rules": "DFS首次遇到结点时标记和访问，再按规定顺序递归处理未标记邻居。已经访问的结点跳过。邻接表时间O(V+E)，递归或显式栈辅助空间O(V)。"
+    },
+    {
+      "id": "dijkstra",
+      "query": "Dijkstra算法从A开始计算距离：有向边A到B权1、A到C权4、B到C权2。说明过程与最终结果。",
+      "lesson": "Dijkstra要求非负边权。本例有向边A到B为1，A到C为4，B到C为2；源A初始距离0，无穷大，无穷大，松弛A后为0,1,4，再松弛B后为0,1,3。到C最短路A-B-C。",
+      "reference_answer": "最终距离A=0,B=1,C=3；到C最短路A-B-C。",
+      "mode": "exercise",
+      "expected_reason": null,
+      "rules": "Dijkstra要求边权非负。源点距离0，其余无穷大；每轮选取未确定的最小距离点u，再用dist[u]+w(u,v)尝试降低邻居v的距离，并更新前驱。距离确定过程可逐轮列表。"
+    },
+    {
+      "id": "quicksort",
+      "query": "给定数组3,1,2，以最后元素2为pivot，按Lomuto规则模拟一次快速排序分区，给出数组及pivot下标（从0开始）。",
+      "lesson": "Lomuto分区以末元素为pivot，从左到右把小于等于pivot的元素交换到前部，再把pivot交换到分界位置。数组3,1,2一次分区后为1,2,3，pivot下标1。",
+      "reference_answer": "数组为1,2,3；pivot下标1。",
+      "mode": "exercise",
+      "expected_reason": null,
+      "rules": "Lomuto分区以最后元素作pivot，i初始为区间左端；j从左端扫描到pivot前一位置，若a[j]<=pivot则交换a[i],a[j]并i加1，最后交换a[i]和pivot；i是pivot的最终下标。"
+    },
+    {
+      "id": "linked-code",
+      "query": "代码纠错：C++链表反转 while(p){p->next=prev; prev=p; p=p->next;} 的问题及修正是什么？",
+      "lesson": "反转链表时必须先保存原next，再修改p->next；否则会丢失未处理链。正确迭代步骤Node* next=p->next; p->next=prev; prev=p; p=next;。时间O(n)，辅助空间O(1)，空链直接返回空。",
+      "reference_answer": "先保存原next，再重连：Node* next=p->next; p->next=prev; prev=p; p=next;。时间O(n)，空间O(1)。",
+      "mode": "code",
+      "expected_reason": null,
+      "rules": "单链表反转须在改变p->next前保存原next。然后让当前结点指向prev，prev前移到当前结点，p前移到保存的原next。空链返回空。遍历每结点一次，时间O(n)，辅助空间O(1)。"
+    },
+    {
+      "id": "tree-code",
+      "query": "分析C++中序遍历代码：void f(Node* r){if(r==nullptr) visit(r->val); else {f(r->left);f(r->right);}}，指出问题并修正。",
+      "lesson": "二叉树中序遍历空结点应立即返回，不可解引用空指针；非空时先左子树、访问当前值、再右子树。正确结构if(!r)return; f(r->left); visit(r->val); f(r->right);。时间O(n)，递归空间O(h)。",
+      "reference_answer": "空结点立即返回；非空执行左、根、右。时间O(n)，递归空间O(h)。",
+      "mode": "code",
+      "expected_reason": null,
+      "rules": "二叉树中序遍历空结点应立即返回，不可解引用空指针；非空时先左子树、访问当前值、再右子树。时间O(n)，递归空间O(h)。"
+    },
+    {
+      "id": "recursive-code",
+      "query": "递归终止条件：int f(int n){return n*f(n-1);} 作为非负整数阶乘有什么错误？",
+      "lesson": "非负整数阶乘定义0!=1，n>=1时n!=n*(n-1)!。递归必须在n==0或n==1返回1，负数输入需拒绝；常见32位有符号int从13!起溢出。时间O(n)，调用栈O(n)。",
+      "reference_answer": "缺少基本情形；n为0或1时返回1，拒绝负数并检查整数溢出。",
+      "mode": "code",
+      "expected_reason": null,
+      "rules": "非负整数阶乘定义0!=1，n>=1时n!=n*(n-1)!。递归必须在n==0或n==1返回1，负数需拒绝；常见32位有符号int从13!起溢出。时间O(n)，调用栈O(n)。"
+    },
+    {
+      "id": "array-code",
+      "query": "代码分析：int sum(int a[],int n){int s=0;for(int i=0;i<=n;i++)s+=a[i];return s;}，数组长度n，找出越界并给修正。",
+      "lesson": "C/C++长度n的数组合法下标为0到n-1。遍历条件i<=n会读取a[n]越界，应改i<n；n=0不能读取元素，n<0输入应拒绝，求和还需考虑整数溢出。时间O(n)，辅助空间O(1)。",
+      "reference_answer": "i<=n会读取a[n]；改为i<n，并检查n和累加溢出。",
+      "mode": "code",
+      "expected_reason": null,
+      "rules": "C/C++长度n的数组合法下标是0到n-1。n=0时不能读取元素；n<0需拒绝。求和还需考虑累加类型溢出。遍历时间O(n)，辅助空间O(1)。"
+    },
+    {
+      "id": "missing-order",
+      "query": "画出B+树依次插入10,20,30后的树。",
+      "lesson": "B+树构造依赖阶数及分裂约定。必须明确阶数和操作序列，不能擅自假定。",
+      "reference_answer": "需要补充阶数与分裂约定。",
+      "mode": "exercise",
+      "expected_reason": "missing_tree_order",
+      "rules": "B+树构造依赖阶数及分裂约定。必须明确阶数和操作序列，不能擅自假定。"
+    },
+    {
+      "id": "missing-sequence",
+      "query": "画出AVL树。",
+      "lesson": "AVL树构造依赖待插入的键序列；不知道序列无法确定唯一形状。",
+      "reference_answer": "需要补充插入序列。",
+      "mode": "exercise",
+      "expected_reason": "missing_operation_sequence",
+      "rules": "AVL树构造依赖待插入的键序列；不知道序列无法确定唯一形状。"
+    },
+    {
+      "id": "no-evidence",
+      "query": "unmatchedzzzzz",
+      "lesson": "本段只讨论栈的LIFO，不讨论任何不相关问题。",
+      "reference_answer": "应拒答且不包含来源。",
+      "mode": "qa",
+      "expected_reason": "no_evidence",
+      "rules": "本段只讨论栈的LIFO，不讨论任何不相关问题。"
+    },
+    {
+      "id": "pointer-concept",
+      "query": "指针是什么？",
+      "lesson": "C/C++指针保存对象或函数的地址；解引用需要指针有效，空指针不可解引用。",
+      "reference_answer": "指针保存对象或函数的地址。",
+      "mode": "qa",
+      "expected_reason": null,
+      "rules": "C/C++指针保存对象或函数的地址；解引用需要指针有效，空指针不可解引用。"
+    }
+  ]
+}

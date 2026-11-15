@@ -101,3 +101,42 @@ describe('知识库选择上限与分页', () => {
     expect(kb.truncated).toBe(false)
   })
 })
+
+const courseId = '11111111-1111-4111-8111-111111111111'
+const syntheticId = '22222222-2222-4222-8222-222222222222'
+describe('configured course presentation is authorization-bound and fail-closed', () => {
+  beforeEach(() => { setActivePinia(createPinia()); vi.clearAllMocks(); vi.unstubAllEnvs(); vi.stubEnv('VITE_COURSE_KB_ID', courseId) })
+  const course = () => ({...makeKb(0), id: courseId, name: '任意名称均可重命名'})
+  const synthetic = () => ({...makeKb(1), id: syntheticId, name: '课程知识库'})
+  const page = (items: KnowledgeBase[]) => ({items, total: items.length, limit: 100, offset: 0})
+
+  it('matches the configured resource, not a name, and selects it without checkboxes', async () => {
+    vi.mocked(knowledgeBaseApi.list).mockResolvedValue(page([synthetic(),course()]))
+    const kb = useKnowledgeBaseStore(); await kb.load()
+    expect(kb.course?.id).toBe(courseId); expect(kb.selectedIds).toEqual([courseId]); expect(kb.courseSelected).toBe(true)
+    expect(kb.items).toHaveLength(2)
+  })
+  it('does not fall back to the only available or similarly named synthetic KB', async () => {
+    vi.mocked(knowledgeBaseApi.list).mockResolvedValue(page([synthetic()]))
+    const kb = useKnowledgeBaseStore(); kb.selectedIds = [courseId]; await kb.load()
+    expect(kb.course).toBeNull(); expect(kb.selectedIds).toEqual([]); expect(kb.courseIssue).toContain('当前账号')
+  })
+  it.each(['', 'not-a-uuid'])('requires explicit valid public configuration: %s', async value => {
+    vi.stubEnv('VITE_COURSE_KB_ID', value)
+    vi.mocked(knowledgeBaseApi.list).mockResolvedValue(page([course()]))
+    const kb = useKnowledgeBaseStore(); await kb.load()
+    expect(kb.selectedIds).toEqual([]); expect(kb.courseIssue).toContain('未正确配置')
+  })
+  it('clears a previous account selection and cannot recover it in a new account catalog', async () => {
+    const kb = useKnowledgeBaseStore()
+    vi.mocked(knowledgeBaseApi.list).mockResolvedValueOnce(page([course()])).mockResolvedValueOnce(page([synthetic()]))
+    await kb.load(); expect(kb.selectedIds).toEqual([courseId])
+    kb.clear(); await kb.load()
+    expect(kb.course).toBeNull(); expect(kb.selectedIds).toEqual([])
+  })
+  it('refuses ambiguous duplicate API entries instead of choosing one', async () => {
+    vi.mocked(knowledgeBaseApi.list).mockResolvedValue(page([course(),course()]))
+    const kb = useKnowledgeBaseStore(); await kb.load()
+    expect(kb.course).toBeNull(); expect(kb.selectedIds).toEqual([])
+  })
+})

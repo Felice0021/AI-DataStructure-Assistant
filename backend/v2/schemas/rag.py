@@ -1,6 +1,7 @@
 from typing import Literal
 from uuid import UUID
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from backend.v2.schemas.tree import VerifiedTreeVisualization
 
 
 class AskRequest(BaseModel):
@@ -63,3 +64,11 @@ class AskResponse(BaseModel):
     generation_model: str | None
     execution_performed: Literal[False] = False
     latency_ms: float
+    tree_visualization: VerifiedTreeVisualization | None = None
+
+    @model_validator(mode='after')
+    def tree_sources(self):
+        if self.tree_visualization is not None:
+            if self.status!='answered' or self.tree_visualization.source_citations != [s.citation_id for s in self.sources]:
+                raise ValueError('invalid_tree_sources')
+        return self

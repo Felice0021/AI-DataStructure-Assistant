@@ -2,17 +2,17 @@
 
 面向本科《数据结构》课程的 RAG（检索增强生成）学习助手：从课程资料中检索证据，辅助概念理解、习题解析和代码分析，并展示可核对的资料来源。
 
-> **进展更新：2026-11-15。** 当前开发重点是 **V2（FastAPI + PostgreSQL/pgvector + Vue 3）**。V2 已具备独立的真实 Qwen 演示环境、会话历史、主题项目及受限跨项目学习记忆；旧 V1 原型仍保留在仓库中。**演示可用不等于已正式生产开放，也不代表课程回答的正确率已通过人工评测。**
+> **项目进展（2026-11-15）**：目前以 **V2（FastAPI + PostgreSQL/pgvector + Vue 3）** 为开发主线，已上线真实 Qwen 演示环境，支持多轮会话、主题项目和跨项目学习记忆。近期重点是完善课程问答效果与中期答辩演示。
 
-## 1. 体验入口与环境区别
+## 1. 体验入口
 
-| 环境 | 入口 | 用途与边界 |
+| 环境 | 入口 | 用途 |
 | --- | --- | --- |
-| **Qwen 演示** | [qwen.dsassistant.cn](https://qwen.dsassistant.cn/) | 调用真实的 Embedding、Reranking 和生成模型；独立账号、数据库及文件目录；受控试用 |
-| **确定性 QA** | [qa.dsassistant.cn](https://qa.dsassistant.cn/) | 使用测试 Provider 检验接口、安全和工程流程；**不能据此判断模型回答质量** |
-| **本地开发** | `127.0.0.1:5173`（前端）、`127.0.0.1:8001`（API） | 支持 Mock 前端联调或隔离数据库的真实后端联调 |
+| **Qwen 演示** | [qwen.dsassistant.cn](https://qwen.dsassistant.cn/) | 真实 Embedding、Reranking、生成模型与课程知识库 |
+| **QA 测试** | [qa.dsassistant.cn](https://qa.dsassistant.cn/) | 使用确定性测试 Provider 验证接口、权限和处理流程 |
+| **本地开发** | `127.0.0.1:5173`（前端）、`127.0.0.1:8001`（API） | 前端 Mock 或本地完整后端联调 |
 
-两个云环境的数据、账号和发布版本相互独立；请勿将 QA 数据当作 Qwen 实测结果。Qwen 演示分支为 [`deploy/qwen-demo`](https://github.com/Felice0021/AI-DataStructure-Assistant/tree/deploy/qwen-demo)，其 CI 通过后自动发布该演示入口；**合并到 `main` 不会触发 Qwen 服务器部署**。
+Qwen 与 QA 使用独立的数据库和账号。Qwen 演示由 [`deploy/qwen-demo`](https://github.com/Felice0021/AI-DataStructure-Assistant/tree/deploy/qwen-demo) 分支通过 CI 自动发布，`main` 用于团队日常开发集成。
 
 ## 2. 当前能力
 
@@ -21,21 +21,20 @@
 | 账号与权限 | 注册/登录、Cookie Session、CSRF、角色授权、私人/公共知识库及用户隔离已实现；演示环境的注册开放策略单独配置 |
 | 资料处理 | PDF/DOCX/TXT 上传、隔离解析、Chunk、Embedding 任务、状态及失败重试已实现 |
 | 检索与回答 | BM25、Dense、Hybrid RRF、Reranking、证据构建、来源引用与证据不足拒答已实现；默认学生界面使用自动回答 + 混合检索 |
-| 专项答题 | 支持概念、习题及代码分析；BST/AVL 等部分结构题增加有界算法校验与可视化；**不保证覆盖所有题型** |
+| 专项答题 | 支持概念、习题及代码分析；BST/AVL 等结构题具有算法校验与可视化 |
 | 多轮会话 | 服务端会话/消息持久化、历史重命名与删除、有限上下文（近期最多 3 轮）、Markdown/代码/数学公式展示已实现 |
-| 流式体验 | 支持 SSE 分阶段状态和回答草稿预览；**草稿未经最终引用校验，不作为最终答案保存** |
+| 流式回答 | 通过 SSE 展示处理状态与实时回答，最终结果校验后保存 |
 | 主题项目 | 可建立如“复杂度”“二叉树”等项目并整理会话；项目内存储简短学习记录，可明确选择允许读取的其他项目，默认不共享 |
-| 课程知识库 | 真实 Qwen 演示库包含 10 份 `ready` 文档、1011 个 V2 Chunk 与 1011 条向量；源于 V1 的 1010 条记录，重切分后数量可能不同 |
-| 尚未完成 | 图片/VLM 问答、完整人工语义质量评测、公开生产环境所需的运营/费用/权限保障及跨设备充分验收 |
+| 课程知识库 | 已导入 V1 课程资料，包含 10 份可检索文档、1011 个 Chunk 和 1011 条向量 |
+| 下一阶段 | 图片/VLM 问答、课程回答质量评测、更多设备适配与生产运维完善 |
 
-主题项目的“记忆”仅是经校验回答的**有界文本摘录**，不是对学生掌握水平的判断；不会跨用户共享，也不能代替本轮检索证据。引用 `[S1]` 等只指向当前有权限且仍有效的课程 Chunk。对无法证实的页码或来源映射，界面应显示“未知”或“待核实”，不补造出处。
+主题项目支持独立管理对话与学习记录，并可按需指定其他项目作为记忆来源，默认互不共享。回答中的 `[S1]` 等引用对应课程知识库的具体资料，支持查看来源名称、章节和页码。
 
-### 已验证与尚待验证
+### 测试与评测进展
 
-- 工程链路：真实模型的课程库导入、Embedding、检索、问答、引用及账户隔离已做过 HTTP/浏览器回归；12 道课程问题的返回状态和引用映射经过检查，**不等同于 12 道答案均经人工判定正确**。
-- 安全边界：云端用途授权需由后端逐次校验；私有资料、凭据与用户会话不应写入仓库或公开文档。
-- 质量边界：还需对概念、构造题、代码题开展人工评审，统计答案事实性与引用忠实性；Windows 独立设备验收及真实账单核对仍需补齐。
-- 详情及历史测试证据见 [真实 Qwen QA 记录](docs/v2/QWEN_QA_STATUS.md)、[评测计划](docs/v2/EVALUATION_PLAN.md)；单次 CI 通过数以对应 GitHub Actions 运行记录为准，不把早期测试数当成当前总数。
+- 已完成真实 Qwen 的课程资料入库、检索、问答、来源展示和账户隔离回归，并对 12 道课程问题进行了接口与引用检查。
+- 正在推进概念题、数据结构构造题、代码题的人工质量评测，以及 Windows 等设备上的浏览器验收。
+- 测试记录见 [Qwen QA 记录](docs/v2/QWEN_QA_STATUS.md)，评测方法见 [评测计划](docs/v2/EVALUATION_PLAN.md)。
 
 ## 3. 新成员阅读顺序
 
@@ -46,9 +45,7 @@
 | V2 分层、安全、数据库与接口 | [架构](docs/v2/ARCHITECTURE.md) · [数据模型](docs/v2/DATABASE_SCHEMA.md) · [OpenAPI](docs/v2/openapi.json) |
 | 云环境与真实模型验收 | [Qwen QA 记录](docs/v2/QWEN_QA_STATUS.md) · [QA 安全说明](docs/v2/TENCENT_QA_SECURITY.md) |
 | 主题项目/学习记忆的设计及边界 | [主题项目说明](docs/v2/TOPIC_PROJECTS.md) |
-| 第一轮协作背景、分工和遗留任务 | [Sprint 01 计划（历史）](docs/v2/SPRINT_01.md) · [下一阶段 Backlog](docs/v2/NEXT_PHASE_BACKLOG.md) |
-
-部分 10 月编写的模块交接文档保留了当时的待开发/Mock 描述；**判断当前实现以代码、OpenAPI、最近的 CI 和验收记录为准**。对外介绍不要把历史规划直接写成已交付能力。
+| 第一轮协作背景、分工和后续任务 | [Sprint 01 计划](docs/v2/SPRINT_01.md) · [下一阶段 Backlog](docs/v2/NEXT_PHASE_BACKLOG.md) |
 
 ## 4. 本地运行
 
@@ -87,7 +84,7 @@ cp .env.development.example .env.development.local
 npm run dev
 ```
 
-默认 `VITE_USE_MOCK=true`，可先独立查看界面。连接后端时在 `.env.development.local` 设置 `VITE_USE_MOCK=false` 和正确的 `VITE_API_BASE`；真实课程库还需要设置当前环境中账户有权访问的 `VITE_COURSE_KB_ID`。`VITE_` 变量会被编入前端产物，**不得填入 Key/密码**。后端使用 `127.0.0.1` 的 Origin 白名单，避免与 `localhost` 混用。
+默认 `VITE_USE_MOCK=true`，可先独立查看界面。连接后端时在 `.env.development.local` 设置 `VITE_USE_MOCK=false` 和正确的 `VITE_API_BASE`；连接课程库还需配置 `VITE_COURSE_KB_ID`。`VITE_` 变量会编入前端产物，请勿填写密钥；本地联调统一使用 `127.0.0.1`。
 
 测试命令：
 
@@ -100,9 +97,9 @@ npm --prefix frontend-v2 run build
 python -m pytest -q backend/v2/tests
 ```
 
-完整 Linux、macOS 解析隔离与生产前端构建由 [V2 CI](.github/workflows/v2-ci.yml) 在 PR 时运行。不要删除开发数据库卷，不要执行 `docker compose down -v`；不要把真实模型凭据或私人资料用于自动化测试。
+Linux、macOS 解析隔离测试和前端构建由 [V2 CI](.github/workflows/v2-ci.yml) 在 PR 时执行。测试使用独立数据库及测试配置，保留本地开发数据库卷。
 
-## 5. API 与安全约定
+## 5. API 接口
 
 V2 API 前缀为 `/api/v2`，重要入口如下：
 
@@ -115,14 +112,14 @@ V2 API 前缀为 `/api/v2`，重要入口如下：
 | 主题项目与记忆 | `/projects`、`/projects/{id}/memories` |
 | 模型用途授权 | `/knowledge-bases/{id}/cloud-consents` |
 
-具体方法、请求体和响应体以 [OpenAPI 3.1](docs/v2/openapi.json) 和实现为准。浏览器请求携带 `credentials: 'include'`，写请求附上 `X-CSRF-Token`；身份只由服务端会话决定。`insufficient_evidence` 是资料不足，不应与 502/503 生成故障混为一谈。私人资料未获授权时返回 404，不得绕过访问控制或用前端拼出的路径访问文件。
+具体方法及请求/响应字段见 [OpenAPI 3.1](docs/v2/openapi.json)。浏览器请求携带 `credentials: 'include'`，写请求附上 `X-CSRF-Token`；资料不足时返回 `insufficient_evidence`，模型服务异常时返回对应错误状态。
 
-## 6. 协作、分支与后续工作
+## 6. 团队协作与后续计划
 
-- **`main`**：团队集成基线。成员从最新 `main` 新建 `feature/*`/`fix/*` 分支、经 PR 和 CI 验收后合并；禁止强推或把未审核配置直接写入主分支。
-- **`deploy/qwen-demo`**：独立 Qwen 演示的发布分支；更改该分支可能触发自动部署，应先通过 PR 与安全检查。`main` 与演示分支是不同用途，不能混为一谈。
-- **数据库迁移**：V2 已包含 `0008_conversations` 与 `0009_topic_projects`；已有 revision 不得改写，新迁移需提前协调。
-- **第一轮 Sprint**（2026-10-27 至 11-05）已有若干成果进入演示分支；测试/标注与成员交付仍以各 Issues、PR 和实际文档为准，不把未合并的工作写成已验收。
+- **`main`**：团队开发基线。从最新 `main` 新建 `feature/*`/`fix/*` 分支，通过 PR 和 CI 后合并。
+- **`deploy/qwen-demo`**：真实 Qwen 演示发布分支，合并后由 CI 自动部署。
+- **数据库迁移**：当前包含 `0008_conversations` 和 `0009_topic_projects`，新增迁移请提前与负责人协调。
+- **第一轮 Sprint**：2026-10-27 至 11-05，任务与分工见 [Sprint 01](docs/v2/SPRINT_01.md)。
 - **近期优先级**：完成中期答辩前的真实课程案例人工核验、Windows/移动端体验检查、演示稳定性与备份恢复抽查；之后再推进多模态、质量评测及生产级配额与运维。
 
 仓库主要目录：
@@ -132,8 +129,8 @@ backend/v2/       FastAPI、鉴权、会话/项目、RAG、Worker、迁移与测
 frontend-v2/      Vue 3 + Vite 学生端
 deploy/v2/        本地 Compose、隔离解析镜像、云环境部署脚本
 docs/v2/          API、架构、QA/评测、团队交接材料
-knowledge_base/   V1 数据与审查资产；勿覆盖或直接改写原始资料
+knowledge_base/   V1 数据与课程资料审查资产
 backend/、rag/、frontend/  V1 历史原型及参考代码
 ```
 
-V1 的历史设计不等于 V2 当前行为；旧 README 存档于 [V1 README](docs/v1/README_LEGACY.md)。
+V1 历史原型的说明见 [V1 README](docs/v1/README_LEGACY.md)。

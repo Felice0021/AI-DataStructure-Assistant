@@ -1,3 +1,4 @@
+import { nextTick } from 'vue'
 import { mount, flushPromises, enableAutoUnmount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
@@ -245,13 +246,13 @@ it('creates a topic project and selects an explicit cross-project memory source'
 
 it('never rewrites a pending request from a hidden knowledge-base scope', async () => {
   const chat = useChatStore()
-  chat.pending = {id: 'old', payload: {query: '旧问题', knowledge_base_ids: ['hidden'], request_id: 'request'} as never}
+  chat.pending = {id: 'old', ready: true, payload: {query: '旧问题', knowledge_base_ids: ['hidden'], request_id: 'request'} as never}
   chat.error = '尚未完成'
   const send = vi.spyOn(chat, 'send').mockResolvedValue()
   const w = mount(ChatWorkspace); await flushPromises()
   await w.find('.error button').trigger('click')
   expect(send).not.toHaveBeenCalled()
-  expect(chat.pending.payload.knowledge_base_ids).toEqual(['hidden'])
+  expect(chat.pending!.payload.knowledge_base_ids).toEqual(['hidden'])
   expect(w.find('.notice').text()).toContain('不会自动更换')
 })
 
@@ -279,4 +280,24 @@ it('changing the configured course cancels an in-flight draft instead of keeping
   const kb=useKnowledgeBaseStore();kb.items=[{id:'22222222-2222-4222-8222-222222222222',name:'new course',visibility:'private'} as never]
   await flushPromises()
   expect(cancel).toHaveBeenCalled();expect(chat.draft).toBe('')
+})
+
+it('says the network is slow when the stream never advances past accepted', async () => {
+  const w = mount(ChatWorkspace); await flushPromises()
+  const chat = useChatStore()
+  vi.useFakeTimers()
+  try {
+    chat.sending = true; chat.streamStage = 'accepted'
+    await nextTick()
+    expect(w.find('.thinking').text()).toContain('正在发送问题')
+    expect(w.find('.thinking').text()).not.toContain('仍在等待')
+    vi.advanceTimersByTime(8000)
+    await nextTick()
+    expect(w.find('.thinking').text()).toContain('仍在等待服务端响应')
+    // A real stage change must replace the hint without waiting for the timer.
+    chat.streamStage = 'retrieving'
+    await nextTick()
+    expect(w.find('.thinking').text()).toContain('正在检索课程资料')
+    expect(w.find('.thinking').text()).not.toContain('仍在等待')
+  } finally { vi.useRealTimers() }
 })

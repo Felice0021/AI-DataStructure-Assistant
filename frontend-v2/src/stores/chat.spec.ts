@@ -139,3 +139,62 @@ it('switching conversation cancels old generation and late events cannot fill th
   resolve(mockAnswered);await job
   expect(chat.active).toBe('new-conversation');expect(chat.draft).toBe('');expect(chat.messages).toEqual([])
 })
+
+it('keeps the question retryable when consent lookup fails before the stream starts', async () => {
+  vi.mocked(cloudConsentApi.list).mockRejectedValueOnce(new Error('offline'))
+  const chat = useChatStore()
+  await chat.send('归并排序', ['kb'])
+  expect(chat.pending).not.toBeNull()
+  expect(chat.pending!.payload.query).toBe('归并排序')
+  expect(chat.error).toBeTruthy()
+  expect(chat.sending).toBe(false)
+  expect(conversationsApi.askStream).not.toHaveBeenCalled()
+})
+
+it('keeps the pending question when cancelled before the first event arrives', async () => {
+  let release!: (value: never) => void
+  vi.mocked(cloudConsentApi.list).mockImplementationOnce(() => new Promise(r => { release = r as never }))
+  const chat = useChatStore()
+  const job = chat.send('快速排序', ['kb'])
+  await vi.waitFor(() => expect(chat.pending).not.toBeNull())
+  chat.cancel()
+  expect(chat.pending!.payload.query).toBe('快速排序')
+  expect(chat.error).toContain('已停止生成')
+  expect(chat.sending).toBe(false)
+  release(grants as never); await job
+  expect(conversationsApi.create).not.toHaveBeenCalled()
+})
+
+it('adopts an answer the server committed just before the stop request', async () => {
+  vi.mocked(conversationsApi.askStream).mockImplementation((_id, _payload, _event, current) => new Promise((_r, reject) => {
+    current.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')))
+  }))
+  const chat = useChatStore()
+  const job = chat.send('AVL', ['kb'])
+  await vi.waitFor(() => expect(conversationsApi.askStream).toHaveBeenCalled())
+  vi.mocked(conversationsApi.messages).mockResolvedValue({items: [
+    {id:'u1', seq:1, role:'user', content:'AVL', metadata_json:{}},
+    {id:'a1', seq:2, role:'assistant', content:'答案', metadata_json:{result:mockAnswered}},
+  ], total: 2})
+  chat.cancel()
+  await job
+  await vi.waitFor(() => expect(chat.messages.map(m => m.id)).toEqual(['u1','a1']))
+  expect(chat.pending).toBeNull()
+  expect(chat.error).toBe('')
+  expect(chat.streamStage).toBe('completed')
+})
+
+it('keeps the streamed draft until the persisted message replaces it', async () => {
+  let emit!: Parameters<typeof conversationsApi.askStream>[2], settle!: (r: typeof mockAnswered) => void
+  vi.mocked(conversationsApi.askStream).mockImplementation((_id,_payload,onEvent) => { emit = onEvent; return new Promise(r => { settle = r }) })
+  const chat = useChatStore(), job = chat.send('AVL', ['kb'])
+  await vi.waitFor(() => expect(emit).toBeDefined())
+  const id = chat.pending!.payload.request_id
+  emit({type:'draft',seq:1,request_id:id,payload:{text:'## 标题'}})
+  emit({type:'result',seq:2,request_id:id,payload:{result:mockAnswered}})
+  expect(chat.draft).toBe('## 标题')
+  vi.mocked(conversationsApi.messages).mockResolvedValue({items: [{id:'a1', seq:1, role:'assistant', content:'答案', metadata_json:{result:mockAnswered}}], total: 1})
+  settle(mockAnswered); await job
+  expect(chat.draft).toBe('')
+  expect(chat.messages).toHaveLength(1)
+})

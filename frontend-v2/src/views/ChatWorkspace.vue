@@ -49,7 +49,24 @@ watch(() => chat.active, id => { const url = new URL(window.location.href); if (
 function onScroll() { const el = stream.value; if (el) nearBottom.value = el.scrollHeight - el.scrollTop - el.clientHeight < 100 }
 async function bottom(force = false) { await nextTick(); if (force || nearBottom.value) stream.value?.scrollTo({top: stream.value.scrollHeight, behavior: 'smooth'}) }
 watch(() => [chat.messages.length, chat.sending, chat.draft.length, chat.streamStage], () => { void bottom() })
-const progress = computed(() => ({accepted:'正在发送问题…',retrieving:'正在检索课程资料…',generating:'正在生成回答…',validating:'正在校验回答与资料来源…',saving:'正在保存已校验的回答…',completed:'回答已完成',failed:'回答未完成',cancelled:'已停止生成'}[chat.streamStage ?? 'accepted']))
+/**
+ * The server emits no further stage until retrieval finishes, so on a slow link the
+ * first byte can look like a frozen UI for 20s+. After 8s in `accepted` we say so
+ * instead of leaving the user to guess whether the request died.
+ */
+const slowHint = ref(false)
+let slowTimer: ReturnType<typeof setTimeout> | undefined
+watch([() => chat.sending, () => chat.streamStage], ([sending, stage]) => {
+  if (slowTimer) { clearTimeout(slowTimer); slowTimer = undefined }
+  slowHint.value = false
+  if (sending && stage === 'accepted') slowTimer = setTimeout(() => { slowHint.value = true }, 8000)
+}, { immediate: true })
+onUnmounted(() => { if (slowTimer) clearTimeout(slowTimer) })
+const progress = computed(() => {
+  const stage = chat.streamStage ?? 'accepted'
+  if (stage === 'accepted' && slowHint.value) return '正在发送问题…网络较慢，仍在等待服务端响应'
+  return {accepted:'正在发送问题…',retrieving:'正在检索课程资料…',generating:'正在生成回答…',validating:'正在校验回答与资料来源…',saving:'正在保存已校验的回答…',completed:'回答已完成',failed:'回答未完成',cancelled:'已停止生成'}[stage]
+})
 async function send() { if (!canSend.value) return; const text = query.value; query.value = ''; nearBottom.value = true; await chat.send(text, [...kb.selectedIds]); await bottom() }
 async function retry() { if (chat.pending) {
   const ids = chat.pending.payload.knowledge_base_ids

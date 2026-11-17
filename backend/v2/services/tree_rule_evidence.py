@@ -15,7 +15,20 @@ LABELS={
 VALUES={'right_min':'复制右叶最小键','left_max':'复制左叶最大键',
     'after':'插入溢出后分裂','before':'插入前分裂满结点',
     'middle':'唯一中间键','lower':'较小中间键','upper':'较大中间键'}
+RULE_SEARCH={
+    'AVL':'AVL 树 平衡因子 左右子树 高度差 旋转 插入',
+    'BST':'BST 二叉排序树 左子树 右子树 关键字 查找 插入',
+}
 FAMILY=r'AVL(?:树)?|平衡二叉树|红黑树|red-?blacktree|RBtree|普通二叉搜索树|二叉搜索树|二叉排序树|BST|B\+(?:树)?|B树'
+
+
+def focused_rule_query(query,calculation):
+    """For an actual binary-tree construction, retrieve teaching rules, not exercise filler.
+
+    The user's complete question remains the calculation and answer input. This
+    query is used only inside the same authorized knowledge-base retrieval scope.
+    """
+    return RULE_SEARCH.get(calculation.family,query) if calculation else query
 
 
 def _family(name):
@@ -198,13 +211,12 @@ def attribution(calculation,supports):
     lines=[];matched=set()
     for citation,support in supports.items():
         if not support.usable:raise ValueError('unsupported_tree_rule_citation')
-        if support.principles:lines.append('课程资料支持的原理：'+'、'.join(support.principles)+' '+citation+'。')
+        if support.principles:lines.append('**相关知识点**：'+'、'.join(support.principles)+' '+citation+'。')
         if support.matched:
             matched.update(support.matched)
-            prefix='课程资料在相同输入示例中给出的约定：' if support.scope=='same_input_example' else '课程资料明确给出的约定：'
+            prefix='**资料示例中的约定**：' if support.scope=='same_input_example' else '**课程构造规则**：'
             lines.append(prefix+'；'.join(LABELS[k]+'='+str(VALUES.get(calculation.conventions[k],calculation.conventions[k])) for k in support.matched)+' '+citation+'。')
     assumptions=[k for k in calculation.conventions if k not in matched]
     if assumptions:
-        lines.append('以下构造假设来自用户题设（自拟示例则为明示假设），不宣称是教材规定：'+'；'.join(LABELS[k]+'='+str(VALUES.get(calculation.conventions[k],calculation.conventions[k])) for k in assumptions)+'。')
-    lines.append('输入键序列来自题设或明示的自拟示例；数值构造由服务端算法完成，引用不代表教材逐项给出了本题结果。')
+        lines.append('**本题采用的条件**：'+'；'.join(LABELS[k]+'='+str(VALUES.get(calculation.conventions[k],calculation.conventions[k])) for k in assumptions)+'。')
     return lines

@@ -98,7 +98,8 @@ def test_concrete_result_comes_from_verified_algorithm_not_bad_draft(tree_env):
     body=r.json();result,_=calculate(query)
     assert result.final=={'key':20,'left':{'key':10,'left':None,'right':None},'right':{'key':30,'left':None,'right':None}}
     assert body['answer']==result.render(body['sources'][0]['citation_id'],supports={body['sources'][0]['citation_id']:rule_supported(result,RULES)})
-    assert '根 2，' not in body['answer'] and '服务端算法' in body['answer']
+    assert '根 2，' not in body['answer'] and '服务端算法' not in body['answer']
+    assert '**插入过程**' in body['answer']
     assert body['sources'][0]['document_id']==e['document']['id']
     assert e['client'].get(url+'/messages').json()['items'][-1]['content']==body['answer']
 

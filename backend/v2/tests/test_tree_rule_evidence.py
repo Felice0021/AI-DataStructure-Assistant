@@ -35,9 +35,9 @@ def test_partial_course_rule_is_not_claimed_as_full_textbook_convention():
     support=rule_supported(result,GENERAL+'父结点复制右叶最小键。')
     assert support.kind=='principle_only' and support.matched==('separator',)
     answer=result.render('[S1]',supports={'[S1]':support})
-    assert '课程资料支持的原理：' in answer
-    assert '课程资料明确给出的约定：父分隔键=复制右叶最小键 [S1]' in answer
-    assert '构造假设来自用户题设' in answer and '分裂左叶键数=2' in answer
+    assert '**相关知识点**：' in answer
+    assert '**课程构造规则**：父分隔键=复制右叶最小键 [S1]' in answer
+    assert '**本题采用的条件**：' in answer and '分裂左叶键数=2' in answer
     assert '规则依据 [S1]' not in answer
 
 
@@ -55,9 +55,9 @@ def test_explicit_agreement_has_precise_attribution_and_conflicts_cannot_render(
     support=rule_supported(result,EXPLICIT)
     assert set(support.matched)==set(result.conventions)
     answer=result.render('[S1]',supports={'[S1]':support})
-    assert '课程资料明确给出的约定：' in answer and '分裂左叶键数=2' in answer
-    assert '构造假设来自用户题设' not in answer
-    assert '引用不代表教材逐项给出了本题结果' in answer
+    assert '**课程构造规则**：' in answer and '分裂左叶键数=2' in answer
+    assert '**本题采用的条件**：' not in answer
+    assert '服务端算法' not in answer and '已校验的构造结果' not in answer
     conflict=rule_supported(result,EXPLICIT.replace('左叶保留2键','左叶保留1键'))
     with pytest.raises(ValueError,match='unsupported_tree_rule_citation'):
         result.render('[S1]',supports={'[S1]':conflict})
@@ -89,7 +89,7 @@ def test_existing_reference_example_is_bound_to_input_and_checked_shape():
     result,_=calculate(case['query']);source=case['lesson']
     support=rule_supported(result,source)
     assert support.kind=='explicit' and support.scope=='same_input_example'
-    assert '相同输入示例中给出的约定' in result.render('[S1]',supports={'[S1]':support})
+    assert '**资料示例中的约定**' in result.render('[S1]',supports={'[S1]':support})
     assert rule_supported(result,source.replace('根分隔键30','根分隔键20')).kind=='unrecognized'
     assert rule_supported(result,source.replace('左2右1','左1右2')).kind=='conflict'
     assert rule_supported(result,source.replace('插入10,20,30','插入10,20,40')).kind=='unrecognized'

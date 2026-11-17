@@ -12,7 +12,7 @@ from backend.v2.services.generation_provider import build_provider,RequestBudget
 from backend.v2.services.retrieval_service import capacity
 from backend.v2.services.course_source_labels import read_mapping,source_label
 from backend.v2.services.verified_trees import calculate,TreeError,tree_family,unverified_tree_prose
-from backend.v2.services.tree_rule_evidence import rule_supported
+from backend.v2.services.tree_rule_evidence import rule_supported,focused_rule_query
 
 REFUSAL='根据当前授权资料无法确定。'
 
@@ -26,8 +26,12 @@ def ask(factory,user,data,settings,*,verify_session,provider=None,before_cloud_c
             if original_before_call:original_before_call(purpose)
     started=time.monotonic();mode=resolve_mode(data.query,data.answer_mode)
     effective_query=retrieval_query or data.query
+    calculation=None;calculation_reason=None;calculation_error=False
+    if mode!='code':
+        try:calculation,calculation_reason=calculate(effective_query)
+        except TreeError:calculation_error=True
     partition=None
-    request=PrepareRequest(query=effective_query,knowledge_base_ids=data.knowledge_base_ids,mode=data.retrieval_mode,
+    request=PrepareRequest(query=focused_rule_query(effective_query,calculation),knowledge_base_ids=data.knowledge_base_ids,mode=data.retrieval_mode,
         top_k=data.top_k,rerank=data.rerank,allow_cloud=data.allow_cloud,allow_cloud_rerank=data.allow_cloud_rerank)
     with capacity(factory.kw['bind'],settings.generation_concurrency,namespace=174928):
         if stream:stream.stage('retrieving')
@@ -67,19 +71,17 @@ def ask(factory,user,data,settings,*,verify_session,provider=None,before_cloud_c
                     'tree_visualization':tree}
         reason=preflight(effective_query,evidence) or partition_reason
         if reason:return publish('insufficient_evidence',reason,REFUSAL)
-        calculation=None
         if mode!='code':
-            try:calculation,reason=calculate(effective_query)
-            except TreeError:return publish('validation_failed','tree_invariant_failed')
-            if reason:return publish('insufficient_evidence',reason,'当前构造不在已校验范围内。请提供从空树开始的整数插入序列及明确规则；不会猜测或替换原题条件。')
+            if calculation_error:return publish('validation_failed','tree_invariant_failed')
+            if calculation_reason:return publish('insufficient_evidence',calculation_reason,'请说明树的初始状态和整数插入序列；B/B+ 树还需要明确阶数及分裂规则。')
             if calculation:
                 rule_support={e['citation_id']:rule_supported(calculation,e['content']) for e in evidence}
                 if any(s.kind=='conflict' for s in rule_support.values()):
-                    return publish('insufficient_evidence','tree_rule_conflict','课程资料中识别到的构造约定与本题条件冲突。请确认采用哪套规则；未修改输入或生成构造结果。')
+                    return publish('insufficient_evidence','tree_rule_conflict','课程资料中的构造约定与题目条件不一致，请确认应采用哪套规则。')
                 if any(s.kind=='unrecognized' for s in rule_support.values()):
-                    return publish('insufficient_evidence','tree_rule_unverified','课程资料的具体约定超出当前可核对范围，请明确规则依据；不会将其当作一致约定。')
+                    return publish('insufficient_evidence','tree_rule_unverified','暂时无法确认课程资料中的构造约定，请补充明确的规则。')
                 if not any(s.usable for s in rule_support.values()):
-                    return publish('insufficient_evidence','tree_rule_evidence_required','本轮未检索到足够的树操作规则，无法为构造结果提供可靠课程引用。')
+                    return publish('insufficient_evidence','tree_rule_evidence_required','当前检索结果缺少对应的树操作规则，请核对所选课程资料。')
         # For bounded binary-tree constructions, model explanations may only
         # cite rule chunks already checked against the reference calculation.
         # Keep every original candidate subject to final freshness checks.

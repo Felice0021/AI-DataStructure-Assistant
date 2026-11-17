@@ -103,6 +103,10 @@ def test_followup_chain_and_new_rotation_are_bounded_to_current_key():
     '再插入 25.5，画出新的 AVL 树。',
     '再插入 25 到 BST 中，画出结果。',
     '如果换一棵树再插入 25，结果呢？',
+    '如果不再插入 25，树会有什么变化？',
+    '先删除根节点，再插入 25，画出新树。',
+    '先旋转一下，再插入 25，画出新树。',
+    '将根节点改为 30，再插入 25，画出新树。',
 ])
 def test_followup_rejects_ambiguous_or_cross_family_inputs(follow):
     initial=turn('从空AVL树开始，依次插入30,10,20，画出最终树。')
@@ -125,11 +129,14 @@ def test_followup_rejects_unanswered_or_nonempty_or_unbounded_history():
 
 
 def test_independent_new_empty_tree_is_not_mistaken_for_followup():
-    question='从一棵空 AVL 树开始，再插入 25，画出最终树形图。'
-    resolved=plan(question,(),2000)
-    assert resolved.query==question and resolved.reason is None
-    calculation,reason=calculate(resolved.query)
-    assert reason is None and calculation.keys==(25,)
+    for question,expected in (
+        ('从一棵空 AVL 树开始，再插入 25，画出最终树形图。',(25,)),
+        ('空 AVL 树，依次插入 30、10、20，再插入 25，画出最终树形图。',(30,10,20,25)),
+    ):
+        resolved=plan(question,(),2000)
+        assert resolved.query==question and resolved.reason is None
+        calculation,reason=calculate(resolved.query)
+        assert reason is None and calculation.keys==expected
 
 
 def test_calculator_rejects_untrusted_forged_followup_envelopes():

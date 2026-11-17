@@ -44,6 +44,9 @@ NEXT_INSERT = re.compile(r'^(?:请)?继续(?:展示|演示)?下(?:一)?次插入
 # A newly supplied key is different from advancing a staged sequence. This
 # resolver only works with an independently reproducible, answered empty tree.
 APPEND_INSERT = re.compile(r'(?:再|继续|接着|随后|然后)\s*插入\s*([+-]?\d+)(?![\dA-Za-z_])')
+# An insertion follow-up must not silently discard a requested state mutation,
+# or turn a negated operation into a positive insertion.
+OTHER_TREE_CHANGE = re.compile(r'删除|移除|替换|交换|清空|重建|改成|改为|先\s*旋转|再\s*旋转|不\s*(?:再|继续|接着|随后|然后)\s*插入')
 STEP = re.compile(r'第([0-9]+|[一二三四五六七八九十])步')
 FUNCTION = re.compile(r'\b(?:int|void|bool|char|float|double|Node|TreeNode|ListNode)\b\s*[*&]?\s*(\w+)\s*\([^)]*\)\s*\{|\bdef\s+(\w+)\s*\(')
 
@@ -254,7 +257,7 @@ def focused_plan(query, turns, limit):
     appended = APPEND_INSERT.findall(query)
     if not (is_code or step or continuation or appended):
         return None
-    if appended and re.search(r'从\s*(?:一棵\s*)?空\s*(?:的\s*)?(?:AVL|BST|二叉(?:搜索|排序)?|平衡二叉)?\s*树|初始为空',query,re.I):
+    if appended and re.search(r'从\s*(?:一棵\s*)?空\s*(?:的\s*)?(?:AVL|BST|二叉(?:搜索|排序)?|平衡二叉)?\s*树|初始为空|空\s*(?:的\s*)?(?:AVL|BST|二叉(?:搜索|排序)?|平衡二叉)?\s*树\s*[,，]\s*(?:依次|先)\s*插入',query,re.I):
         return None  # A newly stated empty tree is an independent construction.
     if is_code and FUNCTION.search(query):
         return Plan(query)  # A newly pasted function is explicit input, not a historical referent.
@@ -272,7 +275,7 @@ def focused_plan(query, turns, limit):
         # exercise: replay the original user-defined empty-tree sequence plus
         # bounded newly supplied keys. Never read a tree from assistant prose.
         if (len(appended) != 1 or len(re.findall(r'(?<![A-Za-z0-9_])[+-]?\d+(?![A-Za-z0-9_])', query)) != 1
-                or continuation or is_code or step or TOPIC_SWITCH.search(query)
+                or continuation or is_code or step or TOPIC_SWITCH.search(query) or OTHER_TREE_CHANGE.search(query)
                 or re.search(r'另一棵|新(?:的)?一棵|其它树|其他树|换一棵|重新从|从空树|从一棵空|非空|已有',query)):
             return Plan(query, reason='conversation_context_ambiguous')
         previous = turns[-1]

@@ -135,7 +135,7 @@ def test_standalone_lr_rule_upload_parse_index_and_verified_http_answer(setup,mo
     assert body['sources'][0]['document_id']==doc['id']
     assert '根: 20\n  左: 10\n  右: 30' in body['answer']
     assert '先对结点10左旋，再对结点30右旋' in body['answer']
-    assert '课程资料支持的原理' in body['answer'] and '服务端算法计算并校验' in body['answer']
+    assert '**相关知识点**' in body['answer'] and '服务端算法计算并校验' not in body['answer']
 
 
 def test_kb_tombstone_after_refusal_still_rejects_access(tree_env):

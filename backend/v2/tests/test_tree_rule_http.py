@@ -51,7 +51,7 @@ def test_http_convention_basis_and_pre_generation_refusals(setup,monkeypatch,sou
         assert b['status']=='answered' and len(e['calls'])==1
         assert len(b['sources'])==1 and b['sources'][0]['citation_id'] in b['answer']
         assert '规则依据 [S1]' not in b['answer']
-        assert '构造假设来自用户题设' in b['answer'] if source==GENERAL else '课程资料明确给出的约定：' in b['answer']
+        assert '**本题采用的条件**：' in b['answer'] if source==GENERAL else '**课程构造规则**：' in b['answer']
         result,_=calculate(QUERY)
         assert result.final=={'keys':[30],'children':[{'keys':[10,20],'children':[]},{'keys':[30],'children':[]}]}
         assert '根: [30]' in b['answer'] and '孩子1: [10, 20]' in b['answer'] and '孩子2: [30]' in b['answer']

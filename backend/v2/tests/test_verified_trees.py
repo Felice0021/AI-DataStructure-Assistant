@@ -43,6 +43,40 @@ def test_four_rotation_reference_shapes_and_preserved_keys(kind,keys):
     assert example.example and example.final==expected
 
 
+def test_student_wording_from_online_avl_refusal_is_supported():
+    question=('从一棵空 AVL 树开始，依次插入 30、10、20。请根据课程知识库中的 AVL 树规则，'
+              '画出最终树形图，并说明是否发生旋转、旋转类型及过程。')
+    result,reason=calculate(question)
+    assert reason is None and result is not None
+    assert result.keys==(30,10,20) and [r['rotation'] for r in result.rotations]==['LR']
+    assert result.final['key']==20
+    for wording in ('从一棵空的 AVL 树开始，依次插入 30、10、20，画出最终树。',
+                    '从空 AVL 树开始，依次插入 30、10、20，画出最终树。'):
+        alternate,reason=calculate(wording)
+        assert reason is None and alternate is not None and alternate.final==result.final
+    for nonempty in ('从一棵非空 AVL 树开始', '从一棵不为空的 AVL 树开始', '从一棵不是空的 AVL 树开始'):
+        unsupported,reason=calculate(nonempty+'，依次插入 30、10、20，画出最终树。')
+        assert unsupported is None and reason=='tree_calculation_not_supported'
+
+
+def test_tree_answers_use_student_facing_explanations_and_keep_citations():
+    from backend.v2.services.tree_rule_evidence import rule_supported
+    avl,_=calculate('空AVL树，依次插入30,10,20，画出最终树。')
+    support=rule_supported(avl,'AVL树平衡因子：左子树高度减右子树高度，合法值为-1,0,1。')
+    answer=avl.render('[S1]',supports={'[S1]':support},include_tree_text=False)
+    assert 'AVL 平衡二叉树构造过程' in answer and '[S1]' in answer
+    assert '**插入过程**' in answer and 'LR 双旋' in answer
+    assert '先对结点10左旋，再对结点30右旋' in answer
+    assert all(text not in answer for text in ('已校验的构造结果','服务端算法','不是运行用户代码','输入键序列来自题设','校验：'))
+
+    bst,_=calculate('构造空BST树，依次插入40,20,30,70,60，画出最终树。')
+    answer=bst.render('[S1]',include_tree_text=False)
+    assert '2. 插入 20：成为 40 的左孩子。' in answer
+    assert '3. 插入 30：成为 20 的右孩子。' in answer
+    assert '5. 插入 60：成为 70 的左孩子。' in answer
+    assert '旋转' not in answer and '服务端' not in answer
+
+
 def test_reported_lr_counterexample_violates_global_bst_order():
     invalid=Node(2,Node(1,None,Node(3)))
     with pytest.raises(TreeError,match='invalid_bst'):inspect_binary(invalid)

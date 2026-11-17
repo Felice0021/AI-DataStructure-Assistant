@@ -15,8 +15,8 @@ def test_standalone_complete_rule_has_typed_support_without_an_avl_sentence_subj
     assert support.kind=='principle_only' and support.usable
     assert support.matched==() and support.scope=='general'
     rendered=calc.render('[S1]',supports={'[S1]':support})
-    assert '课程资料支持的原理' in rendered and '[S1]' in rendered
-    assert '服务端算法' in rendered and '不是运行用户代码' in rendered
+    assert '**相关知识点**' in rendered and '[S1]' in rendered
+    assert '服务端算法' not in rendered and '不是运行用户代码' not in rendered
 
 
 @pytest.mark.parametrize('bad',[

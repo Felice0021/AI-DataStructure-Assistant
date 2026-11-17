@@ -73,7 +73,6 @@ async function onCite(citationId: string): Promise<void> {
     <section v-else-if="phase === 'refused'" class="card card-warn" data-testid="answer-refused">
       <header class="card-head">
         <span class="badge badge-warn">资料不足</span>
-        <span class="head-meta">这不是系统故障，而是当前资料无法支撑回答</span>
       </header>
       <p class="refusal-reason">{{ refusalDetail }}</p>
       <p class="hint">可以尝试换用更具体的问法，或请管理员核对课程资料。</p>

@@ -15,8 +15,8 @@ def test_standalone_complete_rule_has_typed_support_without_an_avl_sentence_subj
     assert support.kind=='principle_only' and support.usable
     assert support.matched==() and support.scope=='general'
     rendered=calc.render('[S1]',supports={'[S1]':support})
-    assert '课程资料支持的原理' in rendered and '[S1]' in rendered
-    assert '服务端算法' in rendered and '不是运行用户代码' in rendered
+    assert '**相关知识点**' in rendered and '[S1]' in rendered
+    assert '服务端算法' not in rendered and '不是运行用户代码' not in rendered
 
 
 @pytest.mark.parametrize('bad',[
@@ -55,7 +55,7 @@ def test_lr_exact_shape_global_order_balance_and_set_are_verified():
     assert calc.checks['inorder']==[10,20,30]
     assert all(abs(v)<=1 for v in calc.checks['balance_factors'].values())
     rendered=calc.render('[S1]',supports={'[S1]':rule_supported(calc,LR)})
-    assert '先对结点10左旋，再对结点30右旋' in rendered
+    assert '先对结点 10 左旋，再对结点 30 右旋' in rendered
 
 
 def test_rule_citation_guidance_filters_model_input_only_and_respects_budget():

@@ -153,33 +153,41 @@ class Calculation:
     conventions: dict = field(default_factory=dict)
 
     def render(self,citation,*,supports=None,include_tree_text=True):
-        lines=['### 已校验的'+('示例' if self.example else '构造结果'),
-            '以下结构由服务端算法计算并校验；不是运行用户代码。',
+        title={'AVL':'AVL 平衡二叉树','BST':'二叉排序树（BST）','B':'B 树','B+':'B+ 树'}[self.family]
+        lines=['### '+title+('构造示例' if self.example else '构造过程'),
             '从空树依次插入：'+', '.join(map(str,self.keys))+'。']
         if supports is not None:
             from backend.v2.services.tree_rule_evidence import attribution
             lines+=attribution(self,supports)
-        else:
-            lines+=['课程资料仅作为相关原理的来源 '+citation+'；具体输入与约定来自题设或明示的自拟示例，不宣称由教材规定。']
-        if self.example:lines.append('这是明确自拟的演示输入，不是替换题目条件。')
+        elif citation:
+            lines+=['相关课程资料：'+citation+'。']
         if self.checks.get('rotation_mismatch'):lines.append(self.checks['rotation_mismatch'])
         if self.family in {'B','B+'}:
             lines.append(self.checks.get('rules','单键结果不依赖阶数或分裂策略。'))
         if self.steps:
-            lines+=['','| 插入键 | 调整 | 当前根 |','|---|---|---|']
-            lines += [f"| {s['key']} | {s['rotation'] or '无需旋转'} | {s['root']} |" for s in self.steps]
-            lines.append('')
+            lines+=['','**插入过程**']
+            if self.family=='BST':
+                for index,step in enumerate(self.steps,1):
+                    node=self.final;parent=None;direction=None
+                    while node['key']!=step['key']:
+                        parent=node['key'];direction='left' if step['key']<parent else 'right';node=node[direction]
+                    action='作为根节点' if parent is None else f"成为 {parent} 的{'左' if direction=='left' else '右'}孩子"
+                    lines.append(f"{index}. 插入 {step['key']}：{action}。")
+            else:
+                for index,step in enumerate(self.steps,1):
+                    adjustment=f"发生 {step['rotation']} 旋转" if step['rotation'] else '不需要旋转'
+                    lines.append(f"{index}. 插入 {step['key']}：{adjustment}，当前根为 {step['root']}。")
         for event in self.rotations:
             if event['rotation'] in {'LR','RL'}:
                 side,first,second=('left','左','右') if event['rotation']=='LR' else ('right','右','左')
-                lines.append(f"参考算法操作：先对结点{event['before'][side]['key']}{first}旋，再对结点{event['before']['key']}{second}旋。")
+                lines.append(f"{event['rotation']} 双旋：先对结点 {event['before'][side]['key']} {first}旋，再对结点 {event['before']['key']} {second}旋。")
+            elif event['rotation'] in {'LL','RR'}:
+                action='右旋' if event['rotation']=='LL' else '左旋'
+                lines.append(f"{event['rotation']} 旋转：对结点 {event['before']['key']} {action}。")
             if include_tree_text:
                 for stage,label in [('before','旋转前'),('intermediate','第一次旋转后'),('after','旋转后')]:
                     if stage in event:lines+=['',event['rotation']+'：'+label,'```text',*binary_lines(event[stage]),'```']
-        if include_tree_text:lines+=['','最终结构','```text',*(binary_lines(self.final) if self.family in {'AVL','BST'} else multi_lines(self.final)),'```']
-        lines+=['','校验：键集合不变；'+('中序严格有序；所有结点平衡因子绝对值不超过一。' if self.family=='AVL' else '中序严格有序。' if self.family=='BST' else '结点有序、容量和分隔范围正确，所有叶子同层。')]
-        if self.checks.get('root_only'):lines[-1]='校验：根叶键有序、键集合一致；本次没有分裂。'
-        if self.family=='AVL':lines+=['','平衡因子（左高减右高）：'+', '.join(f'{k}: {v}' for k,v in self.checks['balance_factors'].items())+'。']
+        if include_tree_text:lines+=['','**最终树形图**','```text',*(binary_lines(self.final) if self.family in {'AVL','BST'} else multi_lines(self.final)),'```']
         return '\n'.join(lines)
 
 
@@ -237,7 +245,7 @@ def calculate(query):
     if reason:return None,reason
     kinds=sum(bool(re.search(pattern,query,re.I)) for pattern in (r'AVL|平衡二叉树',r'BST|二叉搜索树|二叉排序树',r'B\s*\+\s*树',r'B\s*树'))
     if kinds>1:return None,'tree_calculation_not_supported'
-    if re.search(r'删除|已有|非空|原树|当前树',query):return None,'tree_calculation_not_supported'
+    if re.search(r'删除|已有|非空|不为空|不是空|原树|当前树',query):return None,'tree_calculation_not_supported'
     values=operation_sequence(query)
     if not values and unverified_tree_prose(query):return None,'tree_calculation_not_supported'
     own_example=bool(illustration and not values)
@@ -264,7 +272,10 @@ def calculate(query):
     if len(set(keys))!=len(keys):
         if re.search(r'重复键(?:全部)?忽略|忽略重复键',query):keys=tuple(dict.fromkeys(keys))
         else:return None,'tree_calculation_not_supported'
-    if not illustration and not re.search(r'构造|从空|初始为空|空(?:AVL|BST|B\s*\+?|二叉(?:搜索|排序)?)?树',query,re.I):
+    empty_tree=r'空\s*(?:的\s*)?(?:AVL|BST|B\s*\+?|平衡二叉|二叉(?:搜索|排序))?\s*树'
+    if not illustration and not (re.search(r'构造|初始为空',query)
+            or re.search(r'从\s*(?:一棵\s*)?'+empty_tree,query,re.I)
+            or re.search(empty_tree,query,re.I)):
         return None,'tree_calculation_not_supported'
     if family in {'AVL','BST'}:
         root=None;events=[];steps=[]

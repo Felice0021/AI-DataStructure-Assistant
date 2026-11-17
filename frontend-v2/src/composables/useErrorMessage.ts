@@ -72,6 +72,10 @@ const REASON_MESSAGES: Record<string, string> = {
   scope_not_verified: '问题超出所选资料的范围',
   missing_tree_order: '请补充 B/B+ 树的阶数、操作序列及采用的分裂规则。',
   missing_operation_sequence: '请补充插入/删除序列，或用于构造的遍历序列。',
+  tree_calculation_not_supported: '请从空树开始，给出明确的整数插入序列和构造条件。',
+  tree_rule_evidence_required: '当前课程资料缺少对应的树操作规则，请核对知识库内容。',
+  tree_rule_conflict: '课程资料的规则与题目条件不一致，请确认采用哪一套规则。',
+  tree_rule_unverified: '暂时无法确认课程资料中的构造约定，请补充明确的规则。',
   ambiguous_tree_rules: '请明确初始树、阶数定义、容量及重复键处理规则。',
   ambiguous_tree_split: '请补充分裂时机、左右分配和父节点规则；也可以明确要求自拟示例。',
 }

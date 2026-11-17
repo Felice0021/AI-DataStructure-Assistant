@@ -18,6 +18,8 @@ describe('verified SVG display', () => {
     expect(new Set(ids).size).toBe(ids.length)
     expect(wrapper.text()).toContain('局部子树')
     expect(wrapper.text()).toContain('最终完整树')
+    expect(wrapper.text()).not.toContain('服务端参考算法计算并校验')
+    expect(wrapper.attributes('aria-label')).toBe('树形图')
     expect(wrapper.findAll('[role="region"]').every(n=>n.attributes('tabindex')==='0')).toBe(true)
     expect(wrapper.find('script, foreignObject, image, a').exists()).toBe(false)
   })
@@ -52,6 +54,15 @@ describe('verified SVG display', () => {
       expect(wrapper.find('.tree-svg').exists()).toBe(false)
       expect(wrapper.find('pre').text()).toContain('根: 20')
       expect(wrapper.find('script, [onload]').exists()).toBe(false)
+    }
+  })
+  it('renders student-facing construction notes without exposing internal verification labels', () => {
+    for (const name of ['BST','LR'] as const) {
+      const wrapper=mount(AnswerView,{props:{...props,result:result(cases[name])}})
+      expect(wrapper.text()).toContain('插入过程')
+      expect(wrapper.text()).not.toContain('已校验的构造结果')
+      expect(wrapper.text()).not.toContain('服务端算法')
+      expect(wrapper.text()).not.toContain('不是运行用户代码')
     }
   })
   it('does not display graphics on refusal or error', () => {

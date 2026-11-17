@@ -38,6 +38,15 @@ describe('AnswerView 状态分发', () => {
     expect(wrapper.find('[data-testid="answer-refused"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="answer-success"]').exists()).toBe(false)
     expect(wrapper.text()).toContain('资料不足')
+    expect(wrapper.text()).not.toContain('这不是系统故障')
+  })
+
+  it('shows a useful student-facing explanation for unsupported tree conditions', () => {
+    const wrapper = mount(AnswerView, {
+      props: { ...baseProps, phase: 'refused', result: { ...mockRefused, reason: 'tree_calculation_not_supported' } },
+    })
+    expect(wrapper.text()).toContain('请从空树开始，给出明确的整数插入序列')
+    expect(wrapper.text()).not.toContain('tree_calculation_not_supported')
   })
 
   it('503 与 502 的提示不同，且都不显示为成功', () => {

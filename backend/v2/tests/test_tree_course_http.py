@@ -19,6 +19,9 @@ pytestmark=[pytest.mark.integration,pytest.mark.skipif(os.getenv('DS_V2_RUN_DB_T
 @pytest.mark.parametrize('query,lesson',[
     ('空AVL树，依次插入30,10,20，画出最终树。',
      '平衡二叉树AVL：左右子树高度差绝对值不超过1，且左右子树都是AVL树。'),
+    ('从一棵空 AVL 树开始，依次插入 30、10、20。请根据课程知识库中的 AVL 树规则，'
+     '画出最终树形图，并说明是否发生旋转、旋转类型及过程。',
+     '平衡二叉树AVL：左右子树高度差绝对值不超过1，且左右子树都是AVL树。'),
     ('构造空BST树，依次插入40,20,30,70,60，画出最终树。',
      '二叉排序树BST定义：左子树所有节点关键字<根关键字；右子树所有节点关键字>根关键字；左右子树仍是BST。'),
 ])

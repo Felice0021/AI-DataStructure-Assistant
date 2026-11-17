@@ -51,12 +51,17 @@ export const useChatStore = defineStore('chat', {
      */
     async reconcileCancelled(id: string) {
       const rev = this.revision; const epoch = currentEpoch()
-      const current = () => rev === this.revision && epoch === currentEpoch() && this.active === id && !!this.pending
+      const requestId = this.pending?.payload.request_id
+      if (!requestId) return
+      const current = () => rev === this.revision && epoch === currentEpoch() && this.active === id
+        && this.pending?.id === id && this.pending.payload.request_id === requestId
       const pull = () => conversationsApi.messages(id, this.messageOffset + this.messages.length)
+      const committed = (items: ChatMessage[]) => items.some(message =>
+        message.role === 'assistant' && message.metadata_json?.request_id === requestId)
       try {
         let page = await pull()
         if (!current()) return
-        if (!page.items.some(message => message.role === 'assistant')) {
+        if (!committed(page.items)) {
           // A commit that raced the disconnect lands shortly after; allow one short retry window.
           await new Promise(done => setTimeout(done, 1200))
           if (!current()) return
@@ -64,8 +69,9 @@ export const useChatStore = defineStore('chat', {
         }
         const known = new Set(this.messages.map(message => message.id))
         const fresh = page.items.filter(message => !known.has(message.id))
-        // Only adopt a committed answer: adopting the user turn alone would duplicate the bubble.
-        if (!fresh.some(message => message.role === 'assistant')) return
+        // Another tab may save an unrelated answer in this conversation; only the
+        // matching request may clear this question's retry state.
+        if (!committed(fresh)) return
         this.messages.push(...fresh); this.messageTotal = page.total
         this.pending = null; this.error = ''; this.streamStage = 'completed'
       } catch { /* keep the cancel notice; the unverified draft is already withdrawn */ }

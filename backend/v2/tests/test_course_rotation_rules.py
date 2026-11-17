@@ -55,7 +55,7 @@ def test_lr_exact_shape_global_order_balance_and_set_are_verified():
     assert calc.checks['inorder']==[10,20,30]
     assert all(abs(v)<=1 for v in calc.checks['balance_factors'].values())
     rendered=calc.render('[S1]',supports={'[S1]':rule_supported(calc,LR)})
-    assert '先对结点 10 左旋，再对结点 30 右旋' in rendered
+    assert '先对结点10左旋，再对结点30右旋' in rendered
 
 
 def test_rule_citation_guidance_filters_model_input_only_and_respects_budget():

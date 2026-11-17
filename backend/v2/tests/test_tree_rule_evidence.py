@@ -98,3 +98,36 @@ def test_existing_reference_example_is_bound_to_input_and_checked_shape():
 def test_bplus_leaf_conventions_cannot_be_misattributed_to_btree():
     result,_=calculate('构造3阶B树，最多3孩子，插入1,2,3；溢出后提升中间键。')
     assert rule_supported(result,'B树非叶孩子数比键数多一。左叶保留2键，右叶保留1键。').kind=='unrecognized'
+
+
+@pytest.mark.parametrize('query,course_text,expected',[
+    ('空AVL树，依次插入30,10,20，画出最终树。',
+     '平衡二叉树AVL：左右子树高度差绝对值不超过1，且左右子树都是AVL树。','AVL高度平衡'),
+    ('空AVL树，依次插入30,10,20，画出最终树。',
+     'AVL树平衡因子：左子树高度减右子树高度，合法值为-1,0,1。','AVL平衡因子定义及界限'),
+    ('构造空BST树，依次插入40,20,30,70,60，画出最终树。',
+     '二叉排序树BST定义：左子树所有节点关键字<根关键字；右子树所有节点关键字>根关键字；左右子树仍是BST。',
+     '左子树关键字小于根'),
+    ('构造空BST树，依次插入40,20,30,70,60，画出最终树。',
+     'BST插入算法：新结点一定作为叶子插入。从根查找，若key<当前则走左子树，若key>当前走右子树。',
+     '新结点按叶结点方式插入'),
+])
+def test_existing_course_binary_rule_wording_is_usable(query,course_text,expected):
+    result,_=calculate(query)
+    # Exercise the same V1 import wrapper found in the Qwen course library.
+    source='# V1:legacy\n{"section":"import metadata"}\n'+course_text
+    support=rule_supported(result,source)
+    assert support.kind=='principle_only' and expected in support.principles
+
+
+@pytest.mark.parametrize('text',[
+    '二叉排序树BST定义。',
+    'BST定义：左子树所有节点关键字<根关键字。',
+    'BST定义：右子树所有节点关键字>根关键字。',
+    'BST不要求左子树所有节点关键字<根关键字。',
+    'BST如果左子树所有节点关键字<根关键字，可以插入。',
+    '{"section":"BST插入算法：新结点一定作为叶子插入"}',
+])
+def test_binary_tree_titles_negation_and_import_metadata_are_not_rules(text):
+    result,_=calculate('构造空BST树，依次插入40,20,30,70,60，画出最终树。')
+    assert not rule_supported(result,text).usable

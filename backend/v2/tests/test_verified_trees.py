@@ -66,7 +66,7 @@ def test_tree_answers_use_student_facing_explanations_and_keep_citations():
     answer=avl.render('[S1]',supports={'[S1]':support},include_tree_text=False)
     assert 'AVL 平衡二叉树构造过程' in answer and '[S1]' in answer
     assert '**插入过程**' in answer and 'LR 双旋' in answer
-    assert '先对结点 10 左旋，再对结点 30 右旋' in answer
+    assert '先对结点10左旋，再对结点30右旋' in answer
     assert all(text not in answer for text in ('已校验的构造结果','服务端算法','不是运行用户代码','输入键序列来自题设','校验：'))
 
     bst,_=calculate('构造空BST树，依次插入40,20,30,70,60，画出最终树。')

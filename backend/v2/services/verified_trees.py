@@ -180,7 +180,7 @@ class Calculation:
         for event in self.rotations:
             if event['rotation'] in {'LR','RL'}:
                 side,first,second=('left','左','右') if event['rotation']=='LR' else ('right','右','左')
-                lines.append(f"{event['rotation']} 双旋：先对结点 {event['before'][side]['key']} {first}旋，再对结点 {event['before']['key']} {second}旋。")
+                lines.append(f"{event['rotation']} 双旋：先对结点{event['before'][side]['key']}{first}旋，再对结点{event['before']['key']}{second}旋。")
             elif event['rotation'] in {'LL','RR'}:
                 action='右旋' if event['rotation']=='LL' else '左旋'
                 lines.append(f"{event['rotation']} 旋转：对结点 {event['before']['key']} {action}。")

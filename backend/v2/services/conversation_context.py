@@ -41,6 +41,12 @@ COMPARISON = re.compile(r'不同|区别|相比|比较')
 CITATION = re.compile(r'\[S\d+\]')
 MODIFICATION = re.compile(r'^(?:那|那么)?(?:应该|应当|要)?怎么(?:修改|修正)|^(?:那|那么)?(?:应该|应当|要)?如何(?:修改|修正)')
 NEXT_INSERT = re.compile(r'^(?:请)?继续(?:展示|演示)?下(?:一)?次插入[。？！?！\s]*$')
+# A newly supplied key is different from advancing a staged sequence. This
+# resolver only works with an independently reproducible, answered empty tree.
+APPEND_INSERT = re.compile(r'(?:再|继续|接着|随后|然后)\s*插入\s*([+-]?\d+)(?![\dA-Za-z_])')
+# An insertion follow-up must not silently discard a requested state mutation,
+# or turn a negated operation into a positive insertion.
+OTHER_TREE_CHANGE = re.compile(r'删除|移除|替换|交换|清空|重建|改成|改为|先\s*旋转|再\s*旋转|不\s*(?:再|继续|接着|随后|然后)\s*插入')
 STEP = re.compile(r'第([0-9]+|[一二三四五六七八九十])步')
 FUNCTION = re.compile(r'\b(?:int|void|bool|char|float|double|Node|TreeNode|ListNode)\b\s*[*&]?\s*(\w+)\s*\([^)]*\)\s*\{|\bdef\s+(\w+)\s*\(')
 
@@ -248,8 +254,11 @@ def focused_plan(query, turns, limit):
     is_code = bool(re.search(r'这个函数|该函数|这段代码', query) or MODIFICATION.search(query))
     step = STEP.search(query)
     continuation = NEXT_INSERT.fullmatch(query)
-    if not (is_code or step or continuation):
+    appended = APPEND_INSERT.findall(query)
+    if not (is_code or step or continuation or appended):
         return None
+    if appended and re.search(r'从\s*(?:一棵\s*)?空\s*(?:的\s*)?(?:AVL|BST|二叉(?:搜索|排序)?|平衡二叉)?\s*树|初始为空|空\s*(?:的\s*)?(?:AVL|BST|二叉(?:搜索|排序)?|平衡二叉)?\s*树\s*[,，]\s*(?:依次|先)\s*插入',query,re.I):
+        return None  # A newly stated empty tree is an independent construction.
     if is_code and FUNCTION.search(query):
         return Plan(query)  # A newly pasted function is explicit input, not a historical referent.
     if not turns:
@@ -260,6 +269,52 @@ def focused_plan(query, turns, limit):
         if len(rewritten) > limit:
             return Plan(query, reason='conversation_context_ambiguous')
         return Plan(rewritten, turns)
+
+    if appended:
+        # A follow-up to a tree calculation is not an arbitrary nonempty-tree
+        # exercise: replay the original user-defined empty-tree sequence plus
+        # bounded newly supplied keys. Never read a tree from assistant prose.
+        if (len(appended) != 1 or len(re.findall(r'(?<![A-Za-z0-9_])[+-]?\d+(?![A-Za-z0-9_])', query)) != 1
+                or continuation or is_code or step or TOPIC_SWITCH.search(query) or OTHER_TREE_CHANGE.search(query)
+                or re.search(r'另一棵|新(?:的)?一棵|其它树|其他树|换一棵|重新从|从空树|从一棵空|非空|已有',query)):
+            return Plan(query, reason='conversation_context_ambiguous')
+        previous = turns[-1]
+        if previous.result.get('status') != 'answered':
+            return Plan(query, reason='conversation_context_ambiguous')
+        from backend.v2.services.verified_trees import calculate
+        try:
+            earlier, reason = calculate(previous.resolved_query)
+        except ValueError:
+            earlier, reason = None, 'invalid_tree'
+        if reason or earlier is None or earlier.family not in {'AVL', 'BST'} or len(earlier.keys)>=16:
+            return Plan(query, reason='conversation_context_ambiguous')
+        stated = topics(query)
+        if stated and (len(stated) != 1 or stated[0] != ('AVL 树' if earlier.family == 'AVL' else '二叉搜索树')):
+            return Plan(query, reason='conversation_context_ambiguous')
+        # Reuse only our narrowly structured prior continuation, otherwise an
+        # explicit initial construction supplied by the user themselves.
+        task = previous.question
+        previous_keys = []
+        if previous.resolved_query != previous.question:
+            if not APPEND_INSERT.search(previous.question):
+                return Plan(query, reason='conversation_context_ambiguous')
+            try:
+                header, encoded = re.split(r'[:：]', previous.resolved_query, maxsplit=1)
+                prior = json.loads(encoded)
+                if (header != earlier.family + ' 树插入' or not isinstance(prior, dict)):
+                    return Plan(query, reason='conversation_context_ambiguous')
+                task = prior['untrusted_user_task']
+                previous_keys = prior['additional_keys']
+            except (ValueError, KeyError, TypeError):
+                return Plan(query, reason='conversation_context_ambiguous')
+        if (not isinstance(task, str) or not isinstance(previous_keys, list)
+                or any(type(k) is not int for k in previous_keys)
+                or len(previous_keys) >= 16):
+            return Plan(query, reason='conversation_context_ambiguous')
+        return finish(earlier.family + ' 树插入', {
+            'untrusted_user_task': task,
+            'additional_keys': [*previous_keys, int(appended[0])],
+        })
 
     if continuation:
         # Advance only a user-defined, explicitly staged sequence; no cursor inferred from model prose.

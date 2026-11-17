@@ -104,6 +104,32 @@ def test_concrete_result_comes_from_verified_algorithm_not_bad_draft(tree_env):
     assert e['client'].get(url+'/messages').json()['items'][-1]['content']==body['answer']
 
 
+def test_answered_avl_tree_can_accept_new_key_in_same_conversation(tree_env):
+    e=tree_env;url=conversation(e)
+    first=('从一棵空 AVL 树开始，依次插入 30、10、20。请根据课程知识库中的 AVL 树规则，'
+           '画出最终树形图，并说明是否发生旋转、旋转类型及过程。')
+    initial,_=send(e,url,first)
+    assert initial.status_code==200 and initial.json()['status']=='answered'
+    follow='如果再插入 25，树形结构会发生什么变化？请画出新的 AVL 树，并说明是否需要旋转。'
+    response,payload=send(e,url,follow)
+    assert response.status_code==200,response.text
+    body=response.json()
+    assert body['status']=='answered' and body['reason'] is None
+    assert '4. 插入 25：不需要旋转' in body['answer']
+    assert 'LR 双旋' not in body['answer']
+    graph=body['tree_visualization']['final']
+    assert sorted(node['keys'][0] for node in graph['nodes'])==[10,20,25,30]
+    assert body['tree_visualization']['rotations']==[]
+    messages=e['client'].get(url+'/messages').json()['items']
+    assert len(messages)==4
+    resolved=messages[-1]['metadata_json']['context']['resolved_query']
+    calc,reason=calculate(resolved)
+    assert reason is None and calc.keys==(30,10,20,25)
+    assert e['client'].post(url+'/ask',json=payload,headers=csrf_headers(e['client'])).json()==body
+    alone,_=send(e,conversation(e),follow)
+    assert alone.json()['reason']=='conversation_context_required'
+
+
 def test_verified_math_does_not_launder_bad_citations_or_lost_permissions(tree_env):
     e=tree_env;url=conversation(e);query='空AVL树，依次插入30,10,20，画出最终树。'
     e['citation']='[S99]';r,data=send(e,url,query)

@@ -151,11 +151,16 @@ class Calculation:
     rotations: tuple[dict,...] = ()
     example: bool = False
     conventions: dict = field(default_factory=dict)
+    followup_start: int = 0
 
     def render(self,citation,*,supports=None,include_tree_text=True):
         title={'AVL':'AVL 平衡二叉树','BST':'二叉排序树（BST）','B':'B 树','B+':'B+ 树'}[self.family]
-        lines=['### '+title+('构造示例' if self.example else '构造过程'),
-            '从空树依次插入：'+', '.join(map(str,self.keys))+'。']
+        lines=['### '+title+('构造示例' if self.example else '构造过程')]
+        if self.followup_start:
+            lines += ['此前已插入：'+', '.join(map(str,self.keys[:self.followup_start]))+'。',
+                '本次继续插入：'+', '.join(map(str,self.keys[self.followup_start:]))+'。']
+        else:
+            lines.append('从空树依次插入：'+', '.join(map(str,self.keys))+'。')
         if supports is not None:
             from backend.v2.services.tree_rule_evidence import attribution
             lines+=attribution(self,supports)
@@ -167,14 +172,14 @@ class Calculation:
         if self.steps:
             lines+=['','**插入过程**']
             if self.family=='BST':
-                for index,step in enumerate(self.steps,1):
+                for index,step in enumerate(self.steps,self.followup_start+1):
                     node=self.final;parent=None;direction=None
                     while node['key']!=step['key']:
                         parent=node['key'];direction='left' if step['key']<parent else 'right';node=node[direction]
                     action='作为根节点' if parent is None else f"成为 {parent} 的{'左' if direction=='left' else '右'}孩子"
                     lines.append(f"{index}. 插入 {step['key']}：{action}。")
             else:
-                for index,step in enumerate(self.steps,1):
+                for index,step in enumerate(self.steps,self.followup_start+1):
                     adjustment=f"发生 {step['rotation']} 旋转" if step['rotation'] else '不需要旋转'
                     lines.append(f"{index}. 插入 {step['key']}：{adjustment}，当前根为 {step['root']}。")
         for event in self.rotations:
@@ -221,7 +226,7 @@ def stated_order(query):
 
 def calculate(query):
     """Return (result, refusal). Unknown conventions never become implicit algorithm defaults."""
-    query=normalized(query);prefix_count=None
+    query=normalized(query);prefix_count=None;additional_keys=();followup_family=None
     # These fields describe a requested calculation, never an authoritative historical state.
     if '：' in query or ':' in query:
         try:reference=json.loads(re.split(r'[:：]',query,maxsplit=1)[1])
@@ -234,8 +239,19 @@ def calculate(query):
                     or reference.get('next_key')!=operation_sequence(task)[count-1]):
                 return None,'tree_calculation_not_supported'
             query=task;prefix_count=count
+        elif isinstance(reference,dict) and 'additional_keys' in reference:
+            task=reference.get('untrusted_user_task');values=reference['additional_keys']
+            header=re.split(r'[:：]',query,maxsplit=1)[0]
+            if (header not in {'AVL 树插入','BST 树插入'} or not isinstance(task,str)
+                    or len(task)>1024 or 'additional_keys' in task or 'requested_prefix_count' in task
+                    or not isinstance(values,list) or not 1<=len(values)<=16
+                    or any(type(k) is not int or abs(k)>999999999 for k in values)):
+                return None,'tree_calculation_not_supported'
+            query=normalized(task);additional_keys=tuple(values)
+            followup_family='AVL' if header.startswith('AVL') else 'BST'
     family=tree_family(query)
     if not family:return None,None
+    if additional_keys and family!=followup_family:return None,'tree_calculation_not_supported'
     rotation_names=re.findall(r'(?<![A-Za-z0-9_])(LL|RR|LR|RL)(?![A-Za-z0-9_])',query,re.I)
     illustration=family=='AVL' and re.search(r'示例|例子|举例',query) and (rotation_names or '旋转' in query)
     concrete=bool(re.search(r'构造|画出|模拟插入|依次插入|空.*插入',query))
@@ -263,10 +279,17 @@ def calculate(query):
         kind=rotation_names[0].upper() if rotation_names else 'LR'
         values={'LL':('30','20','10'),'RR':('10','20','30'),'LR':('30','10','20'),'RL':('10','30','20')}[kind]
     if not values:return None,None  # Existing condition preflight explains missing inputs.
+    if additional_keys and (illustration or first_insert_count(query) is not None
+            or family not in {'AVL','BST'}):
+        return None,'tree_calculation_not_supported'
     requested=prefix_count or first_insert_count(query)
     if requested is not None:
         if not 1<=requested<=len(values):return None,'tree_calculation_not_supported'
         values=values[:requested]
+    # All earlier additions have already been shown in prior answered turns;
+    # this response should describe only the newest insertion and its rotations.
+    followup_start=len(values)+len(additional_keys)-1 if additional_keys else 0
+    values=(*values, *(str(key) for key in additional_keys))
     if len(values)>16 or any(not re.fullmatch(r'[+-]?\d{1,9}',k) for k in values):return None,'tree_calculation_not_supported'
     keys=tuple(map(int,values))
     if len(set(keys))!=len(keys):
@@ -278,8 +301,9 @@ def calculate(query):
             or re.search(empty_tree,query,re.I)):
         return None,'tree_calculation_not_supported'
     if family in {'AVL','BST'}:
-        root=None;events=[];steps=[]
+        root=None;events=[];steps=[];prefix_rotations=0
         for i,key in enumerate(keys):
+            if i==followup_start:prefix_rotations=len(events)
             start=len(events);root=binary_insert(root,key,family=='AVL',events)
             checks=inspect_binary(root,balanced=family=='AVL')
             if checks['inorder']!=sorted(keys[:i+1]):raise TreeError('insertion_changed_keys')
@@ -288,7 +312,8 @@ def calculate(query):
             requested_case=rotation_names[0].upper();actual_cases=[e['rotation'] for e in events]
             if requested_case not in actual_cases:
                 checks['rotation_mismatch']='所给输入实际触发 '+('/'.join(actual_cases) or '无需旋转')+'，不是请求的 '+requested_case+'；未更换输入。'
-        return Calculation(family,keys,snapshot(root),checks,tuple(steps),tuple(events),own_example),None
+        return Calculation(family,keys,snapshot(root),checks,tuple(steps[followup_start:]),
+                           tuple(events[prefix_rotations:]),own_example,followup_start=followup_start),None
     child=re.search(r'(?:最多|至多)\s*(\d+)\s*个?孩子',query)
     if len(keys)==1:return Calculation(family,keys,{'keys':list(keys),'children':[]},{'keys':list(keys),'root_only':True}),None
     if not child:

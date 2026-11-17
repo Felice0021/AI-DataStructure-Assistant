@@ -89,7 +89,7 @@ def test_existing_reference_example_is_bound_to_input_and_checked_shape():
     result,_=calculate(case['query']);source=case['lesson']
     support=rule_supported(result,source)
     assert support.kind=='explicit' and support.scope=='same_input_example'
-    assert '**教材示例中的约定**' in result.render('[S1]',supports={'[S1]':support})
+    assert '**资料示例中的约定**' in result.render('[S1]',supports={'[S1]':support})
     assert rule_supported(result,source.replace('根分隔键30','根分隔键20')).kind=='unrecognized'
     assert rule_supported(result,source.replace('左2右1','左1右2')).kind=='conflict'
     assert rule_supported(result,source.replace('插入10,20,30','插入10,20,40')).kind=='unrecognized'

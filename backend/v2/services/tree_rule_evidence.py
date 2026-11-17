@@ -214,7 +214,7 @@ def attribution(calculation,supports):
         if support.principles:lines.append('**相关知识点**：'+'、'.join(support.principles)+' '+citation+'。')
         if support.matched:
             matched.update(support.matched)
-            prefix='**教材示例中的约定**：' if support.scope=='same_input_example' else '**课程构造规则**：'
+            prefix='**资料示例中的约定**：' if support.scope=='same_input_example' else '**课程构造规则**：'
             lines.append(prefix+'；'.join(LABELS[k]+'='+str(VALUES.get(calculation.conventions[k],calculation.conventions[k])) for k in support.matched)+' '+citation+'。')
     assumptions=[k for k in calculation.conventions if k not in matched]
     if assumptions:

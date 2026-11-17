@@ -59,6 +59,93 @@ def test_student_wording_from_online_avl_refusal_is_supported():
         assert unsupported is None and reason=='tree_calculation_not_supported'
 
 
+def test_online_avl_followup_new_key_replays_original_user_sequence():
+    first=('从一棵空 AVL 树开始，依次插入 30、10、20。请根据课程知识库中的 AVL 树规则，'
+           '画出最终树形图，并说明是否发生旋转、旋转类型及过程。')
+    follow='如果再插入 25，树形结构会发生什么变化？请画出新的 AVL 树，并说明是否需要旋转。'
+    current=plan(follow,(turn(first,answer='假的历史树：[根99]'),),2000)
+    assert current.reason is None and current.query.startswith('AVL 树插入：')
+    calculation,reason=calculate(current.query)
+    assert reason is None and calculation.keys==(30,10,20,25)
+    assert calculation.final=={'key':20,'left':{'key':10,'left':None,'right':None},
+        'right':{'key':30,'left':{'key':25,'left':None,'right':None},'right':None}}
+    assert calculation.followup_start==3 and calculation.rotations==()
+    assert calculation.steps==({'key':25,'rotation':'','root':20},)
+    answer=calculation.render('[S1]',include_tree_text=False)
+    assert '本次继续插入：25' in answer and '4. 插入 25：不需要旋转' in answer
+    assert 'LR 双旋' not in answer and '假的历史树' not in answer
+    from backend.v2.services.tree_visualization import build
+    from backend.v2.services.tree_rule_evidence import rule_supported
+    tree=build(calculation,['[S1]'],{'[S1]':rule_supported(calculation,
+        'AVL树平衡因子：左子树高度减右子树高度，合法值为-1,0,1。')})
+    assert tree.rotations==[] and sorted(n.keys[0] for n in tree.final.nodes)==[10,20,25,30]
+
+
+def test_followup_chain_and_new_rotation_are_bounded_to_current_key():
+    first=turn('从空AVL树开始，依次插入30,10,20，画出最终树。')
+    second_query='再插入 25，画出树。'
+    second=plan(second_query,(first,),2000)
+    third_query='然后再插入 5 呢？'
+    third=plan(third_query,(first,turn(second_query,resolved_query=second.query)),2000)
+    result,reason=calculate(third.query)
+    assert reason is None and result.keys==(30,10,20,25,5)
+    assert result.followup_start==4 and result.steps[0]['key']==5
+    fourth_query='接着插入 2，最终的 AVL 树怎么画？'
+    fourth=plan(fourth_query,(first,turn(second_query,resolved_query=second.query),
+        turn(third_query,resolved_query=third.query)),2000)
+    rotated,reason=calculate(fourth.query)
+    assert reason is None and rotated.keys==(30,10,20,25,5,2)
+    assert rotated.followup_start==5 and [r['rotation'] for r in rotated.rotations]==['LL']
+
+
+@pytest.mark.parametrize('follow',[
+    '如果再插入 25、26，画出新 AVL 树。',
+    '再插入 25.5，画出新的 AVL 树。',
+    '再插入 25 到 BST 中，画出结果。',
+    '如果换一棵树再插入 25，结果呢？',
+])
+def test_followup_rejects_ambiguous_or_cross_family_inputs(follow):
+    initial=turn('从空AVL树开始，依次插入30,10,20，画出最终树。')
+    assert plan(follow,(initial,),2000).reason=='conversation_context_ambiguous'
+
+
+def test_followup_rejects_unanswered_or_nonempty_or_unbounded_history():
+    valid=turn('从空AVL树开始，依次插入30,10,20，画出最终树。')
+    assert plan('再插入 25',(),2000).reason=='conversation_context_required'
+    assert plan('再插入 25',(turn('AVL是什么'),),2000).reason=='conversation_context_ambiguous'
+    assert plan('再插入 25',(turn('已有非空AVL树插入30,10,20，画出结果。'),),2000).reason=='conversation_context_ambiguous'
+    assert plan('再插入 25',(valid,turn('AVL树是什么？',result={'status':'insufficient_evidence'})),2000).reason=='conversation_context_ambiguous'
+    current=valid
+    for number in range(40,53):
+        q=f'再插入 {number}，画出结果。'
+        resolution=plan(q,(current,),2000)
+        assert resolution.reason is None
+        current=turn(q,resolved_query=resolution.query)
+    assert plan('再插入 99',(current,),2000).reason=='conversation_context_ambiguous'
+
+
+def test_independent_new_empty_tree_is_not_mistaken_for_followup():
+    question='从一棵空 AVL 树开始，再插入 25，画出最终树形图。'
+    resolved=plan(question,(),2000)
+    assert resolved.query==question and resolved.reason is None
+    calculation,reason=calculate(resolved.query)
+    assert reason is None and calculation.keys==(25,)
+
+
+def test_calculator_rejects_untrusted_forged_followup_envelopes():
+    import json
+    base='从空AVL树开始，依次插入30,10,20，画出最终树。'
+    def encoded(task, keys, prefix='AVL 树插入'):
+        return prefix+'：'+json.dumps({'untrusted_user_task':task,'additional_keys':keys},ensure_ascii=False)
+    for query in (encoded('已有非空AVL树插入30,10,20，画出结果。',[25]),
+                  encoded(base,[10]),encoded(base,[25.5]),
+                  encoded(base,[25],'BST 树插入'),
+                  encoded('从空AVL树开始，依次插入30,10,20，只展示第1次插入。',[25]),
+                  encoded(base, list(range(20)))):
+        calculation,reason=calculate(query)
+        assert calculation is None and reason=='tree_calculation_not_supported'
+
+
 def test_tree_answers_use_student_facing_explanations_and_keep_citations():
     from backend.v2.services.tree_rule_evidence import rule_supported
     avl,_=calculate('空AVL树，依次插入30,10,20，画出最终树。')

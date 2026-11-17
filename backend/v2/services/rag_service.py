@@ -80,7 +80,10 @@ def ask(factory,user,data,settings,*,verify_session,provider=None,before_cloud_c
                     return publish('insufficient_evidence','tree_rule_unverified','课程资料的具体约定超出当前可核对范围，请明确规则依据；不会将其当作一致约定。')
                 if not any(s.usable for s in rule_support.values()):
                     return publish('insufficient_evidence','tree_rule_evidence_required','本轮未检索到足够的树操作规则，无法为构造结果提供可靠课程引用。')
-        rule_citations=tuple(c for c,s in rule_support.items() if s.usable) if calculation and calculation.family=='AVL' and calculation.rotations else ()
+        # For bounded binary-tree constructions, model explanations may only
+        # cite rule chunks already checked against the reference calculation.
+        # Keep every original candidate subject to final freshness checks.
+        rule_citations=tuple(c for c,s in rule_support.items() if s.usable) if calculation and calculation.family in {'AVL','BST'} else ()
         messages=build_prompt(data.query,mode,context,settings,history=conversation_history,project_memories=project_memories,resolved_query=effective_query,rule_citations=rule_citations)
         if partition:partition.instruct(messages,settings.generation_max_input_bytes)
         # Recheck again immediately before any generator could receive evidence, then release locks.

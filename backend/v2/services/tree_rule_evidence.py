@@ -67,11 +67,15 @@ def _principle(clause,family):
     common=[(r'插入结果依赖初始树、阶数和分裂约定','构造结果依赖初始状态和分裂约定'),
             (r'分裂容量与时机须遵循题目约定','分裂容量与时机需明确')]
     specific={
-        'AVL':[(r'.*(?:左右高度差至多一|左右高度差不超过1|平衡因子.*绝对值不超过一).*','AVL高度平衡'),
-               (r'平衡因子为左高减右高|绝对值至多1','AVL平衡因子定义及界限'),
+        'AVL':[(r'.*(?:左右高度差至多一|左右高度差不超过1|左右子树(?:高度|深度)差绝对值不超过1|平衡因子.*绝对值不超过一).*','AVL高度平衡'),
+               (r'平衡因子为左高减右高|绝对值至多1|.*平衡因子(?::|=)?左子树高度(?:减|−|-)右子树高度','AVL平衡因子定义及界限'),
                (r'.*(?:旋转保持中序有序及键集合|LL失衡右旋).*','旋转与有序性规则'),
                (r'从空树插入单键时该键为根','空树插入单键成为根')],
-        'BST':[(r'.*(?:只要求左小右大|中序严格有序|中序遍历递增).*','二叉搜索树有序性')],
+        'BST':[(r'.*(?:只要求左小右大|中序严格有序|中序遍历递增|中序遍历结果严格递增).*','二叉搜索树有序性'),
+               (r'.*左子树所有节点(?:关键字<根关键字|值小于根)','左子树关键字小于根'),
+               (r'右子树所有节点(?:关键字>根关键字|值大于根)','右子树关键字大于根'),
+               (r'.*新结点一定作为叶子插入','新结点按叶结点方式插入'),
+               (r'在查找失败的空指针位置新建节点','在查找失败位置插入新结点')],
         'B':[(r'非叶孩子数比键数多一','孩子数与键数关系'),
              (r'子树键范围被父键严格分隔','父键分隔子树范围'),
              (r'溢出后按题定中位键提升','按给定中位规则分裂')],
@@ -168,6 +172,11 @@ def rule_supported(calculation,content):
         for key,value in parsed.items():facts.setdefault(key,set()).add(value)
         convention_cue=bool(re.search(r'约定|规定|要求|分裂|提升|上移|中位|中间键|最多|至多|分隔键|父.*(?:取|复制)|左叶|右叶|左\d+右\d+',clause))
         if convention_cue and not parsed and not principle:unknown=True
+    if calculation.family=='BST':
+        # A one-sided ordering clause is not the complete BST invariant.
+        left='左子树关键字小于根';right='右子树关键字大于根'
+        if (left in principles)!=(right in principles):
+            principles=[p for p in principles if p not in {left,right}]
     matched=[];conflicts=[]
     for key,actual in expected.items():
         values=facts.get(key,set())

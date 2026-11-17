@@ -9,7 +9,13 @@ import { projectsApi, type TopicProject, type StudyMemory } from '@/api/projects
 
 const controllers = new WeakMap<object, AbortController>()
 
-type Pending = { id: string; payload: AskRequest & {request_id: string} }
+/**
+ * `ready` marks that consent grants and the conversation id were resolved once, so a
+ * retry reuses the frozen payload instead of re-asking for a possibly different scope.
+ * The entry itself is created before any network call, so a failed or cancelled send
+ * still keeps the question on screen and offers 重试.
+ */
+type Pending = { id: string; ready: boolean; payload: AskRequest & {request_id: string} }
 
 /** Keep diagnostic codes visible without exposing provider messages or unfinished drafts. */
 function streamFailureMessage(code: string): string {
@@ -37,7 +43,39 @@ export const useChatStore = defineStore('chat', {
     messages: [] as ChatMessage[], messageOffset: 0, messageTotal: 0, loading: false, sending: false, error: '', revision: 0,
     pending: null as Pending | null, draft: '', streamStage: null as StreamStage | 'completed' | 'failed' | 'cancelled' | null }),
   actions: {
-    cancel() { controllers.get(this)?.abort(); controllers.delete(this); this.sending = false; this.draft = ''; this.streamStage = 'cancelled'; this.error = this.pending ? '已停止生成。可以重试确认结果；已完成的回答不会重复保存。' : '' },
+    cancel() { const pending = this.pending; controllers.get(this)?.abort(); controllers.delete(this); this.sending = false; this.draft = ''; this.streamStage = 'cancelled'; this.error = pending ? '已停止生成。可以重试确认结果；已完成的回答不会重复保存。' : ''; if (pending?.id) void this.reconcileCancelled(pending.id) },
+    /**
+     * Stopping only closes our reader. The server commits a validated answer if it finished
+     * before the disconnect, so pull once and let the transcript match what was actually
+     * saved; the "已停止" notice only stays when nothing was persisted.
+     */
+    async reconcileCancelled(id: string) {
+      const rev = this.revision; const epoch = currentEpoch()
+      const requestId = this.pending?.payload.request_id
+      if (!requestId) return
+      const current = () => rev === this.revision && epoch === currentEpoch() && this.active === id
+        && this.pending?.id === id && this.pending.payload.request_id === requestId
+      const pull = () => conversationsApi.messages(id, this.messageOffset + this.messages.length)
+      const committed = (items: ChatMessage[]) => items.some(message =>
+        message.role === 'assistant' && message.metadata_json?.request_id === requestId)
+      try {
+        let page = await pull()
+        if (!current()) return
+        if (!committed(page.items)) {
+          // A commit that raced the disconnect lands shortly after; allow one short retry window.
+          await new Promise(done => setTimeout(done, 1200))
+          if (!current()) return
+          page = await pull()
+        }
+        const known = new Set(this.messages.map(message => message.id))
+        const fresh = page.items.filter(message => !known.has(message.id))
+        // Another tab may save an unrelated answer in this conversation; only the
+        // matching request may clear this question's retry state.
+        if (!committed(fresh)) return
+        this.messages.push(...fresh); this.messageTotal = page.total
+        this.pending = null; this.error = ''; this.streamStage = 'completed'
+      } catch { /* keep the cancel notice; the unverified draft is already withdrawn */ }
+    },
     clear() { this.cancel(); this.streamStage = null; this.revision++; this.items = []; this.total = 0; this.active = null; this.activeProject = null; this.projects = []; this.messages = []; this.messageOffset = 0; this.messageTotal = 0; this.loading = false; this.sending = false; this.error = ''; this.pending = null },
     newChat() { this.cancel(); this.streamStage = null; this.revision++; this.active = null; this.messages = []; this.messageOffset = 0; this.messageTotal = 0; this.loading = false; this.pending = null; this.error = '' },
     selectProject(id: string | null) { this.newChat(); this.activeProject = id },
@@ -123,21 +161,30 @@ export const useChatStore = defineStore('chat', {
       const alive = () => epoch === currentEpoch() && rev === this.revision && controllers.get(this) === controller && !controller.signal.aborted
       this.sending = true; this.error = ''; this.draft = ''; this.streamStage = 'accepted'
       try {
-        if (!this.pending) {
+        if (!this.pending) this.pending = { id: this.active ?? '', ready: false, payload: {
+          request_id: crypto.randomUUID(), query, knowledge_base_ids: [...ids], answer_mode: 'auto', retrieval_mode: 'hybrid',
+          allow_cloud: false, allow_cloud_rerank: false, allow_cloud_generation: false } }
+        const pending = this.pending
+        if (!pending.ready) {
           const grants = await Promise.all(ids.map(async id => {
             const [records, targets] = await Promise.all([cloudConsentApi.list(id), cloudConsentApi.targets(id)])
             return (purpose: CloudPurpose) => { const target = targets.find(t => t.purpose === purpose); return !!target && records.some(g => g.purpose === purpose && g.service_key === target.service_key && !g.revoked_at) }
           }))
           if (!alive()) return
+          pending.payload.allow_cloud = grants.every(g => g('embedding'))
+          pending.payload.allow_cloud_rerank = grants.every(g => g('reranking'))
+          pending.payload.allow_cloud_generation = grants.every(g => g('generation'))
           if (!this.active) { const created = await conversationsApi.create(query.trim().slice(0, 40), this.activeProject); if (!alive()) return; this.active = created.conversation.id }
-          this.pending = {id: this.active, payload: {request_id: crypto.randomUUID(), query, knowledge_base_ids: [...ids], answer_mode: 'auto', retrieval_mode: 'hybrid',
-            allow_cloud: grants.every(g => g('embedding')), allow_cloud_rerank: grants.every(g => g('reranking')), allow_cloud_generation: grants.every(g => g('generation'))}}
+          pending.id = this.active ?? ''
+          if (!pending.id) return
+          pending.ready = true
         }
-        const pending = this.pending
         await conversationsApi.askStream(pending.id, pending.payload, event => {
           if (!alive()) return
           if (event.type === 'status') this.streamStage = event.payload.stage
-          else if (event.type === 'reset' || event.type === 'result' || event.type === 'error') this.draft = ''
+          // Keep the draft on `result`: the persisted message only lands after this request
+          // settles, so clearing here blanks the answer for the whole follow-up fetch.
+          else if (event.type === 'reset' || event.type === 'error') this.draft = ''
           else if (event.type === 'draft') this.draft += event.payload.text
         }, controller.signal)
         if (!alive()) return

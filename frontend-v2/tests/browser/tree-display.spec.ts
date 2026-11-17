@@ -12,6 +12,7 @@ async function openTree(page: Page, name: keyof typeof cases, data: unknown = ca
     let body:unknown
     if (path.endsWith('/auth/me')) body={user:mockUser}
     else if (path.endsWith('/knowledge-bases')) body={items:mockKnowledgeBases,total:mockKnowledgeBases.length}
+    else if (path.endsWith('/projects')) body={items:[]}
     else if (path.endsWith('/conversations')) body={items:[conversation],total:1}
     else if (path.endsWith('/messages')) body={items:[
       {id:'question',seq:1,role:'user',content:`请展示 ${name} 的已验证树形图。`,metadata_json:{}},

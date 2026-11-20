@@ -5,6 +5,7 @@ import os
 import pytest
 
 from backend.v2.services.generation_provider import Completion
+from backend.v2.services.verified_trees import unverified_tree_prose
 from backend.v2.tests.test_context_turns import conversation, send
 from backend.v2.tests.test_ingestion import setup, upload
 from backend.v2.tests.test_midterm_regressions import FOLLOWUPS, QUESTIONS
@@ -77,6 +78,9 @@ def test_qa_matrices_through_retrieval_and_validated_persistence(setup, monkeypa
                 answer = 'Node* q = *head; *head = q->next; free(q);'
             if case in {'Q05', 'M05'}:
                 answer = '中序为 2、4、6、8、10。不同形态的 BST 可以具有相同中序序列。'
+            if case == 'M05' and question == QUESTIONS['M05'][1]:
+                invalid.add('M05')
+                answer = 'BST 的根结点为4，左孩子为2，右孩子为6。'
             attempts.append((case, question))
             return Completion(json.dumps({'status': 'answered', 'answer': answer + cite,
                                           'used_source_ids': [cite]}, ensure_ascii=False))
@@ -91,6 +95,10 @@ def test_qa_matrices_through_retrieval_and_validated_persistence(setup, monkeypa
             assert response.status_code == 200, (case, response.json().get('reason'))
             result = response.json()
             assert result['status'] == 'answered', (case, result.get('reason'))
+            if case == 'M05' and question == QUESTIONS['M05'][1]:
+                assert result['reason'] == 'bst_inorder_theory_fallback'
+                assert '不能唯一确定' in result['answer']
+                assert not unverified_tree_prose(result['answer'])
             assert all(src['citation_id'] in result['answer'] and src['knowledge_base_id'] == env['kb']['id']
                        for src in result['sources']) and result['sources']
         items = env['client'].get(url + '/messages').json()['items']
@@ -101,4 +109,4 @@ def test_qa_matrices_through_retrieval_and_validated_persistence(setup, monkeypa
     for case, _, followup in FOLLOWUPS:
         check(case, [followup])
     assert len(attempts) == 43
-    assert invalid == {'M04', 'Q06'}
+    assert invalid == {'M04', 'Q06', 'M05'}

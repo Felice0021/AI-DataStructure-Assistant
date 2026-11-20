@@ -70,6 +70,11 @@ def missing_conditions(query):
         return None
     if not re.search(r'画出|构造|模拟|插入|删除',query):
         return None
+    from backend.v2.services.verified_trees import tree_family
+    from backend.v2.services.traversal_check import reconstruction_from_traversals
+    if (tree_family(query) is None and not re.search(r'插入|删除', query)
+            and reconstruction_from_traversals(query) is not None):
+        return None  # An ordinary binary tree may be reconstructed from two traversal orders.
     # A self-authored example may choose and disclose conventions. A concrete exercise may not.
     if re.search(r'自拟|自定|自行(?:假设|设定|拟定)|举(?:一)?个.*例|给(?:出)?(?:一个|个)?.*(?:例子|示例)|示意图',query):
         return None

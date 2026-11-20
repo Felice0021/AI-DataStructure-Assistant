@@ -5,8 +5,8 @@ import re
 from backend.v2.services.answer_validation import AnswerValidationError
 
 _LABELS = r'([A-Za-z](?:[\s、，,]*[A-Za-z]){1,31})(?![A-Za-z])'
-_PREORDER = re.compile(r'(?:前序|先序)(?:遍历)?(?:序列)?\s*(?:为|是|[:：])\s*' + _LABELS)
-_INORDER = re.compile(r'中序(?:遍历)?(?:序列)?\s*(?:为|是|[:：])\s*' + _LABELS)
+_PREORDER = re.compile(r'(?:前序|先序)(?:遍历)?(?:序列)?\s*(?:为|是|[:：])?\s*' + _LABELS)
+_INORDER = re.compile(r'中序(?:遍历)?(?:序列)?\s*(?:为|是|[:：])?\s*' + _LABELS)
 _POSTORDER = re.compile(r'后序(?:遍历)?(?:序列)?\s*(?:为|是|[:：])\s*' + _LABELS)
 
 
@@ -39,9 +39,14 @@ class TraversalCheck:
 
 
 def calculate_traversal(query):
-    """Return a check only when the question supplies both consistent sequences."""
+    """Run the output check only for a request for postorder."""
     if not re.search(r'(?:求|给出|写出|计算)[^。；!?！？]{0,60}后序', query):
         return None
+    return reconstruction_from_traversals(query)
+
+
+def reconstruction_from_traversals(query):
+    """Return a check only when the question supplies two consistent sequences."""
     preorder, inorder = _PREORDER.search(query), _INORDER.search(query)
     if not preorder or not inorder:
         return None

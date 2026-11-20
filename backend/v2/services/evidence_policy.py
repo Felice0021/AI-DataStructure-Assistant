@@ -46,6 +46,9 @@ def task_kind(query):
         return 'code'
     if pointer_explanation_only(query):
         return 'qa'
+    from backend.v2.services.verified_trees import is_bst_inorder_uniqueness_question
+    if is_bst_inorder_uniqueness_question(query):
+        return 'qa'
     if re.search(r'给定|依次|构造|求出|画出|模拟插入|遍历序列|最终结果|排序过程|计算.*(?:序列|结果)',query):
         return 'exercise'
     if re.search(r'是什么|什么是|定义|概念|特点|区别',query) and not re.search(r'复杂度|原理|过程|步骤',query):

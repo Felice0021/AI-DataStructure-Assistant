@@ -11,7 +11,7 @@ from backend.v2.services.answer_validation import parse_draft,validate_answer,An
 from backend.v2.services.generation_provider import build_provider,RequestBudget,GenerationError,Completion
 from backend.v2.services.retrieval_service import capacity
 from backend.v2.services.course_source_labels import read_mapping,source_label
-from backend.v2.services.verified_trees import calculate,TreeError,tree_family,unverified_tree_prose
+from backend.v2.services.verified_trees import calculate,TreeError,tree_family,unverified_tree_prose,bounded_bst_inorder_theory
 from backend.v2.services.tree_rule_evidence import rule_supported,focused_rule_query
 from backend.v2.services.traversal_check import calculate_traversal
 
@@ -160,6 +160,12 @@ def ask(factory,user,data,settings,*,verify_session,provider=None,before_cloud_c
                         raise AnswerValidationError('unverified_tree_prose')
                     return publish('answered',None,answer,citations,chosen.model,tree)
                 except AnswerValidationError as error:
+                    if str(error)=='unverified_tree_prose' and mode!='code' and not calculation:
+                        safe=bounded_bst_inorder_theory(effective_query,evidence)
+                        if safe:
+                            safe_answer,safe_citations=safe
+                            if len(safe_answer.encode())<=settings.generation_max_output_bytes:
+                                return publish('answered','bst_inorder_theory_fallback',safe_answer,safe_citations)
                     if attempt==settings.generation_validation_retries:
                         return publish('validation_failed',str(error),model=chosen.model)
                     # Do not feed unvalidated output back as control text, and do not strip bad citations.

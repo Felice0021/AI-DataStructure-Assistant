@@ -7,10 +7,45 @@ from backend.v2.services.tree_inputs import normalized, operation_sequence
 GENERIC=frozenset('什么 为什么 如何 请 解释 分析 计算 给定 资料 问题 课程 explain what why how code'.split())
 
 
+def focused_evidence(query, candidates):
+    """Keep named graph-storage and B+ leaf questions within their course topic."""
+    from backend.v2.services.conversation_context import topics
+
+    names = set(topics(query))
+    graph_storage = {'邻接表', '邻接矩阵'}
+    spanning_tree = {'Prim', 'Kruskal'}
+    if names and names <= graph_storage:
+        # A graph-independent mention of a storage cost is insufficient.
+        return [c for c in candidates if names.intersection(topics(c['content']))]
+    if names and names <= spanning_tree:
+        return [c for c in candidates
+                if names.intersection(topics(c['content'])) or '最小生成树' in c['content']]
+    if names == {'B+ 树'} and re.search(r'叶[子结节]|范围查询|区间遍历', query):
+        return [c for c in candidates if 'B+ 树' in topics(c['content'])
+                and re.search(r'(?<!非)叶[子结节]', c['content'])]
+    if names == {'链表'} and pointer_explanation_only(query):
+        return [c for c in candidates if '链表' in topics(c['content'])
+                and re.search(r'前驱|后继|next|指针|链接|链结', c['content'], re.I)]
+    return candidates
+
+
+def pointer_explanation_only(query):
+    """An operation question does not implicitly request executable code."""
+    return (bool(re.search(r'链表', query) and re.search(r'删除|插入|释放|摘除', query))
+            and not re.search(r'代码|程序|(?:编写|写出|实现).*(?:函数|算法)|源码|```|#include|->|\bfree\s*\(', query))
+
+
+def has_implementation(answer):
+    return bool(re.search(r'(?m)^\s*(?:`{3,}|~{3,})|\b(?:free|malloc|calloc|realloc)\s*\('
+                          r'|\bdelete\s+\w+\s*;|(?:->|\.)\s*next\s*=(?!=)', answer))
+
+
 def task_kind(query):
     """Internal pedagogy categories; public answer_mode remains qa/exercise/code."""
     if re.search(r'#include|```|std::|->|\b(?:int|void|char|bool|Node|TreeNode)\s*\*?\s+\w+\s*\(|\b(?:if|while|for)\s*\(|(?:^|\n)\s*(?:async\s+)?def\s+\w+\s*\(|代码纠错|修正代码|递归(?:终止条件|边界)|逻辑错误',query,re.I):
         return 'code'
+    if pointer_explanation_only(query):
+        return 'qa'
     if re.search(r'给定|依次|构造|求出|画出|模拟插入|遍历序列|最终结果|排序过程|计算.*(?:序列|结果)',query):
         return 'exercise'
     if re.search(r'是什么|什么是|定义|概念|特点|区别',query) and not re.search(r'复杂度|原理|过程|步骤',query):
@@ -31,7 +66,7 @@ def resolve_mode(query,requested):
 def missing_conditions(query):
     query=normalized(query)
     if task_kind(query)=='code':return None
-    if not re.search(r'AVL|二叉(?:搜索|排序)?树|B\s*\+?\s*树',query,re.I):
+    if not re.search(r'AVL|\bBST\b|二叉(?:搜索|排序)?树|B\s*\+?\s*树',query,re.I):
         return None
     if not re.search(r'画出|构造|模拟|插入|删除',query):
         return None

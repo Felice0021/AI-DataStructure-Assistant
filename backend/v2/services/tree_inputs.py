@@ -12,9 +12,11 @@ def operation_sequence(text):
     text = normalized(text)
     key = r'(?:[+-]?\d+|[A-Za-z])'
     run = re.compile(r'\s*[:=]?\s*[\[({]?\s*(' + key + r'(?:\s*[,、;\s]\s*' + key + r')*)(?![A-Za-z0-9])')
-    for prefix in (r'(?:待插入序列|插入序列|键值?序列|序列)\s*(?:为|是)?', r'(?:依次|按顺序)?(?:插入|删除)\s*(?:键值?|元素)?\s*(?:为|是)?', r'(?:前序|先序|中序|后序|层序)\s*(?:为|是)?'):
+    for prefix in (r'(?:待插入序列|插入序列|键值?序列|序列)\s*(?:为|是)?', r'(?:依次|按顺序)?(?:插入|删除)\s*(?:键值?|元素)?\s*(?:为|是)?'):
         sequences = []
         for anchor in re.finditer(prefix, text):
+            if re.search(r'(?:前序|先序|中序|后序|层序)(?:遍历)?\s*$', text[:anchor.start()]):
+                continue  # A traversal order is not an insertion sequence.
             match = run.match(text, anchor.end())
             if match and re.match(r'\s*(?:个|次|步|阶)|[./-]\d', text[match.end():]):
                 return ()  # Do not silently keep only the supported suffix of a malformed task.

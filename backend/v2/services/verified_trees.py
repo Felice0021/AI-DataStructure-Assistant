@@ -364,7 +364,7 @@ def unverified_tree_prose(answer):
     return bool(fenced or re.search(r'[├└┌┐┤┘│]',answer)
         or re.search(r'(?m)^[ \t]*[/\\]+(?:[ \t]+[/\\]+)*[ \t]*$',answer)
         or re.search(r'\d+\s*(?:->|→)\s*\d+',answer)
-        or re.search(r'(?:前序|中序|后序|层序|插入序列)\s*(?:为|是|[:：])\s*\[?\s*\d',answer)
+        or re.search(r'插入序列\s*(?:为|是|[:：])\s*\[?\s*\d',answer)
         or re.search(relation+r'\s*(?:为|是|[:：=])?\s*'+key,answer)
         or re.search(r'(?:左|右)\s*(?:[-+]?\d+|(?:为|是|[:：=])\s*'+key+r')',answer)
         or re.search(key+r'\s*(?:作为|为|是)\s*'+relation,answer))

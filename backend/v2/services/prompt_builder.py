@@ -16,6 +16,7 @@ BASE_RULES='''你是数据结构课程资料助教，只能使用本次证据支
 没有工具和网络执行能力，禁止声称执行代码、联网或查阅外部资料。
 不得补充不存在的事实、步骤、来源文件或页码。资料不足、不相关或冲突时拒答。
 只能使用当前证据的[S1]等citation_id；不要在答案中另写文件名或页码，来源信息由服务器附加。
+围绕本次问题明确要求的主题回答。检索片段中的旁支例子不构成本次回答任务；比较两种方法时，分别引用直接支持各自策略的片段。教材规则与基于规则推导的示例、代码实现要明确区分；没有代码依据时不要把自行推导的实现归为教材原文。
 输出严格JSON对象，且只含status、answer、used_source_ids。
 status只能是answered、insufficient_evidence、evidence_conflict或out_of_scope。
 answered必须在实质回答中使用有效[S编号]，used_source_ids是所有实际使用引用的去重列表。
@@ -43,8 +44,8 @@ def model_evidence(context):
     return result
 
 
-def build_prompt(query,mode,context,settings,*,feedback=None,history=(),project_memories=(),resolved_query=None,rule_citations=()):
-    from backend.v2.services.evidence_policy import task_kind
+def build_prompt(query,mode,context,settings,*,feedback=None,history=(),project_memories=(),resolved_query=None,rule_citations=(),traversal=None):
+    from backend.v2.services.evidence_policy import pointer_explanation_only, task_kind
     rule='algorithm' if mode=='exercise' and task_kind(resolved_query or query)=='algorithm' else mode
     budget_rule=(f'\n本次完整JSON输出上限为{settings.generation_max_output_tokens} token。优先保留结论、必要步骤、有效引用和完整JSON，省略重复复述。'
                  '代码题只给一版最小修正代码；明确其输入契约和未覆盖风险，不列多种备选实现。路径用结点序列表示，不额外画含混的路径树。')
@@ -56,10 +57,16 @@ def build_prompt(query,mode,context,settings,*,feedback=None,history=(),project_
     messages=[{'role':'system','content':BASE_RULES+'\n回答模式：'+mode+'。'+MODE_RULES[rule]+budget_rule},
         {'role':'user','content':json.dumps({'type':'user_question','text':query},ensure_ascii=False)},
         {'role':'user','content':json.dumps({'type':'untrusted_evidence','blocks':blocks},ensure_ascii=False)}]
+    if pointer_explanation_only(resolved_query or query):
+        messages[0]['content'] += '\n这是链表操作原理题。用文字解释链接修改和空表/单元素边界，不给实现代码。分别说明有哨兵头结点与无哨兵时谁持有首元指针。删除前保存被删数据结点，先重连再按所有权释放；保留哨兵。说明操作规则的句子必须在正文标注本轮教材片段的 [S编号]。'
+    elif mode=='code':
+        messages[0]['content'] += '\n指针代码须先声明数据结构表示、所有权和空值前置条件。哨兵头结点与首元数据结点角色不同，不能把一种结构的实现声称适用于另一种；如明确要求两种实现，分别给出各自契约和空表、单元素行为。'
     if mode!='code' and tree_family(resolved_query or query):
         messages[0]['content'] += '\n树形结构由服务器的有界算法计算和校验。你只解释本轮课程证据支持的规则并引用，不自行画树、写代码围栏或编造带键值的节点关系。即使构造交由服务器，你仍须简短解释相关课程规则并在answer中实际标注[S编号]，不能只填写used_source_ids而省略正文引用。解释旋转时必须遵守BST全局有序性，不能只比较父子；AVL要求每个结点左右高度差不超过一。无法确定时拒答。'
         if tree_family(resolved_query or query)=='BST' and re.search(r'需要|必须',resolved_query or query) and '旋转' in (resolved_query or query):
             messages[0]['content'] += '\n本题主语是普通二叉搜索树，不是AVL。先核查并纠正“必须旋转”的前提：普通BST只要求有序，不强制平衡，旋转不是必须操作；可以说明可选自平衡变种的用途，但不能偷换当前主语。'
+    if traversal:
+        messages[0]['content'] += '\n'+traversal.instruction()
     if rule_citations:
         messages[0]['content']+='\n本次构造说明只能引用服务端已核验的规则来源：'+' '.join(rule_citations)+'。其他片段不能作为本次构造规则依据。请简短解释相关规则并实际引用；具体数值结构仍由服务端算法计算。'
     if history:

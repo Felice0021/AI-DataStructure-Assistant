@@ -6,13 +6,14 @@ from backend.v2.schemas.rag import AnswerSource
 from backend.v2.services.context_service import prepare_context,validate_evidence
 from backend.v2.services.context_builder import safe_text
 from backend.v2.services.prompt_builder import build_prompt
-from backend.v2.services.evidence_policy import preflight,resolve_mode
+from backend.v2.services.evidence_policy import has_implementation,pointer_explanation_only,preflight,resolve_mode
 from backend.v2.services.answer_validation import parse_draft,validate_answer,AnswerValidationError
 from backend.v2.services.generation_provider import build_provider,RequestBudget,GenerationError,Completion
 from backend.v2.services.retrieval_service import capacity
 from backend.v2.services.course_source_labels import read_mapping,source_label
 from backend.v2.services.verified_trees import calculate,TreeError,tree_family,unverified_tree_prose
 from backend.v2.services.tree_rule_evidence import rule_supported,focused_rule_query
+from backend.v2.services.traversal_check import calculate_traversal
 
 REFUSAL='根据当前授权资料无法确定。'
 
@@ -26,6 +27,8 @@ def ask(factory,user,data,settings,*,verify_session,provider=None,before_cloud_c
             if original_before_call:original_before_call(purpose)
     started=time.monotonic();mode=resolve_mode(data.query,data.answer_mode)
     effective_query=retrieval_query or data.query
+    traversal=calculate_traversal(data.query) if mode!='code' else None
+    explain_pointers=pointer_explanation_only(effective_query)
     calculation=None;calculation_reason=None;calculation_error=False
     if mode!='code':
         try:calculation,calculation_reason=calculate(effective_query)
@@ -35,7 +38,7 @@ def ask(factory,user,data,settings,*,verify_session,provider=None,before_cloud_c
         top_k=data.top_k,rerank=data.rerank,allow_cloud=data.allow_cloud,allow_cloud_rerank=data.allow_cloud_rerank)
     with capacity(factory.kw['bind'],settings.generation_concurrency,namespace=174928):
         if stream:stream.stage('retrieving')
-        context=prepare_context(factory,user,request,settings,verify_session=verify_session,before_cloud_call=before_cloud_call)
+        context=prepare_context(factory,user,request,settings,verify_session=verify_session,before_cloud_call=before_cloud_call,course_query=effective_query)
         if stream:stream.check()
         evidence=context['evidence']
         partition_reason=None
@@ -86,8 +89,13 @@ def ask(factory,user,data,settings,*,verify_session,provider=None,before_cloud_c
         # cite rule chunks already checked against the reference calculation.
         # Keep every original candidate subject to final freshness checks.
         rule_citations=tuple(c for c,s in rule_support.items() if s.usable) if calculation and calculation.family in {'AVL','BST'} else ()
-        messages=build_prompt(data.query,mode,context,settings,history=conversation_history,project_memories=project_memories,resolved_query=effective_query,rule_citations=rule_citations)
-        if partition:partition.instruct(messages,settings.generation_max_input_bytes)
+        def prompt(feedback=None):
+            messages=build_prompt(data.query,mode,context,settings,history=conversation_history,project_memories=project_memories,
+                                  resolved_query=effective_query,rule_citations=rule_citations,feedback=feedback,
+                                  traversal=traversal)
+            if partition:partition.instruct(messages,settings.generation_max_input_bytes)
+            return messages
+        messages=prompt()
         # Recheck again immediately before any generator could receive evidence, then release locks.
         with factory() as session:validate_evidence(session,user,data.knowledge_base_ids,evidence,settings,verify_session=verify_session)
         budget=RequestBudget(settings.generation_max_calls)
@@ -111,7 +119,7 @@ def ask(factory,user,data,settings,*,verify_session,provider=None,before_cloud_c
                             require(session,current,data.knowledge_base_ids,'generation',settings)
                         yield
                 stream.preview_check=preview_check
-            preview_allowed=not (calculation or partition or tree_family(effective_query))
+            preview_allowed=not (calculation or partition or traversal or explain_pointers or tree_family(effective_query))
             for attempt in range(settings.generation_validation_retries+1):
                 try:
                     if stream:
@@ -133,6 +141,9 @@ def ask(factory,user,data,settings,*,verify_session,provider=None,before_cloud_c
                         reason='model_reported_conflict' if draft.status=='evidence_conflict' else 'scope_not_verified' if draft.status=='out_of_scope' else 'model_refusal'
                         return publish('insufficient_evidence',reason,REFUSAL,model=chosen.model)
                     answer=draft.answer
+                    if explain_pointers and has_implementation(answer):
+                        raise AnswerValidationError('unsolicited_pointer_implementation')
+                    if traversal:traversal.validate(answer)
                     tree=None
                     if calculation:
                         if any(not rule_support[c].usable for c in citations):
@@ -152,7 +163,6 @@ def ask(factory,user,data,settings,*,verify_session,provider=None,before_cloud_c
                     if attempt==settings.generation_validation_retries:
                         return publish('validation_failed',str(error),model=chosen.model)
                     # Do not feed unvalidated output back as control text, and do not strip bad citations.
-                    messages=build_prompt(data.query,mode,context,settings,feedback=str(error),history=conversation_history,project_memories=project_memories,resolved_query=effective_query,rule_citations=rule_citations)
-                    if partition:partition.instruct(messages,settings.generation_max_input_bytes)
+                    messages=prompt(str(error))
         except GenerationError as error:
             return publish('generation_unavailable',error.code)

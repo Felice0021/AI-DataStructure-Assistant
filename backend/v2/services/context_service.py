@@ -19,7 +19,7 @@ def order_candidates(candidates,rows,model):
              'rerank_applied':True,'rerank_model':model} for rank,i in enumerate(indices,1)]
 
 
-def prepare_context(factory,user,data,settings,*,verify_session,provider=None,before_cloud_call=None):
+def prepare_context(factory,user,data,settings,*,verify_session,provider=None,before_cloud_call=None,course_query=None):
     start=time.monotonic()
     if (data.top_k>settings.rerank_max_candidates or data.top_k>settings.rerank_batch_size
         or data.max_evidence>settings.context_max_evidence or data.context_max_chars>settings.context_max_chars
@@ -47,6 +47,9 @@ def prepare_context(factory,user,data,settings,*,verify_session,provider=None,be
             unique={}
             for candidate in retrieved['results']:unique.setdefault(candidate['chunk_id'],candidate)
             candidates=list(unique.values())
+            if course_query is not None:
+                from backend.v2.services.evidence_policy import focused_evidence
+                candidates=focused_evidence(course_query,candidates)
             applied=False;reason='requested_off' if data.rerank=='off' else 'provider_disabled' if disabled else 'empty_candidates'
             guard.evidence=candidates
             if candidates and data.rerank!='off' and not disabled:

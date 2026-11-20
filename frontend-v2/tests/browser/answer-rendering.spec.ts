@@ -87,6 +87,7 @@ async function openAnswer(page: Page, answer: string): Promise<void> {
     let body: unknown
     if (path.endsWith('/auth/me')) body = { user: mockUser }
     else if (path.endsWith('/knowledge-bases')) body = { items: mockKnowledgeBases, total: mockKnowledgeBases.length }
+    else if (path.endsWith('/projects')) body = { items: [] }
     else if (path.endsWith('/conversations')) body = { items: [conversation], total: 1 }
     else if (path.endsWith('/messages')) body = { items: [{ id: 'answer-1', seq: 1, role: 'assistant', content: answer, metadata_json: { result } }], total: 1 }
     else throw new Error(`Unexpected test API request: ${path}`)

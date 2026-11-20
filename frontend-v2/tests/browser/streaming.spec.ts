@@ -43,6 +43,7 @@ async function prepare(page:Page,baseURL:string,kind:'answer'|'failure'|'tree'='
     } else if(path.endsWith('/auth/csrf')) body={csrf_token:'mock-only-not-a-backend-token'}
     else if(path.endsWith('/auth/logout')) {state.loggedIn=false;await route.fulfill({status:204});return}
     else if(path.endsWith('/knowledge-bases'))body={items:mockKnowledgeBases,total:mockKnowledgeBases.length}
+    else if(path.endsWith('/projects'))body={items:[]}
     else if(path.endsWith('/conversations')&&method==='POST')body={conversation}
     else if(path.endsWith('/conversations'))body={items:state.body?[conversation]:[],total:state.body?1:0}
     else if(path.endsWith('/messages'))body={items:messages(),total:messages().length}
@@ -92,7 +93,8 @@ for(const kind of ['answer','failure','tree'] as const) test(`incremental ${kind
     harness.finish()
     await expect(page.locator('.stream-draft')).toHaveCount(0)
     if(kind==='failure'){
-      await expect(page.getByRole('alert')).toContainText('本次回答未完成')
+      await expect(page.getByRole('alert')).toContainText('回答未通过最终格式或来源校验')
+      await expect(page.getByRole('alert')).toContainText('invalid_citations')
       await expect(page.locator('[data-testid="answer-success"]')).toHaveCount(0)
       expect(harness.state.saved).toBe(false)
     } else {

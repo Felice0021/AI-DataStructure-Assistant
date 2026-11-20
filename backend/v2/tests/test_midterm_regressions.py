@@ -149,7 +149,7 @@ def test_bst_inorder_uniqueness_is_theory_with_evidence_gated_fallback():
     assert task_kind(question) == 'qa'
     evidence = [{
         'citation_id': '[S1]',
-        'content': '二叉搜索树 BST 中序遍历递增，但不同结构可有相同的中序。',
+        'content': '二叉搜索树的中序遍历递增，但不同结构可有相同的中序。',
     }]
     safe = bounded_bst_inorder_theory(question, evidence)
     assert safe is not None
@@ -169,3 +169,34 @@ def test_bst_inorder_uniqueness_is_theory_with_evidence_gated_fallback():
     ):
         assert not is_bst_inorder_uniqueness_question(other)
         assert bounded_bst_inorder_theory(other, evidence) is None
+
+
+@pytest.mark.parametrize('constraint', [
+    '根结点为4。', '根为四。', '它是一棵高度为2的树。', '前序从4开始。', '已知右子树为空。',
+    '请画一棵符合条件的树。', '该 BST 也是二叉堆。',
+])
+def test_constrained_bst_question_cannot_use_theory_fallback(constraint):
+    from backend.v2.services.verified_trees import is_bst_inorder_uniqueness_question
+
+    assert not is_bst_inorder_uniqueness_question(QUESTIONS['M05'][1] + constraint)
+
+
+@pytest.mark.parametrize('sequence', ['2', '2、2', '4、2、6', '2.5、4'])
+def test_non_distinct_or_out_of_scope_sequence_cannot_use_theory_fallback(sequence):
+    from backend.v2.services.verified_trees import is_bst_inorder_uniqueness_question
+
+    assert not is_bst_inorder_uniqueness_question(QUESTIONS['M05'][1].replace('2、4、6、8、10', sequence))
+
+
+@pytest.mark.parametrize('content', [
+    '二叉搜索树删除指南。中序遍历不一定有序。',
+    '二叉搜索树的中序遍历不是递增序列。',
+    '二叉搜索树的中序遍历得到递增序列吗？',
+    '二叉搜索树查找操作。中序遍历应用见下一节。归并排序的结果是升序。'
+])
+def test_bst_fallback_requires_an_asserted_ordering_rule(content):
+    from backend.v2.services.verified_trees import bounded_bst_inorder_theory
+
+    assert bounded_bst_inorder_theory(QUESTIONS['M05'][1], [
+        {'citation_id': '[S1]', 'content': content},
+    ]) is None

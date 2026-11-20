@@ -21,7 +21,7 @@ LESSONS = [
     '逻辑结构是元素关系；存储结构是计算机表示方法。线性表顺序存储查找第 i 个元素用地址计算 O(1)，链式存储顺链查找 O(n)。',
     '顺序表中间插入元素时，需要把插入位置及其后的元素后移。已有5个元素且在第3个位置插入，第3、4、5个元素都要移动。',
     '单链表删除数据结点需重连其前驱 next。有头结点时更新头结点的 next，保留头结点；无头结点时更新首元指针。空表直接返回，单元素删除后无数据结点。',
-    '二叉搜索树 BST 左子树键小于根，右子树键大于根。中序遍历递增，但不同结构可有相同的中序。',
+    '二叉搜索树 BST 左子树键小于根，右子树键大于根。二叉搜索树的中序遍历递增，但不同结构可有相同的中序。',
     '二叉树前序或先序遍历按根、左、右，中序按左、根、右，后序按左、右、根。先序与后序通常不能区分单孩子左右位置。',
     '图邻接矩阵适合稠密图，空间复杂度 O(n²)。邻接表适合稀疏图，n 个顶点表头与 O(e) 条边结点合计 O(n+e)。',
     'DFS 深度优先使用栈，BFS 广度优先使用队列；图遍历标记已访问顶点。BFS 分层扩展保证无权图最短路径，DFS 不按距离扩展。',
@@ -110,3 +110,43 @@ def test_qa_matrices_through_retrieval_and_validated_persistence(setup, monkeypa
         check(case, [followup])
     assert len(attempts) == 43
     assert invalid == {'M04', 'Q06', 'M05'}
+
+
+def test_bst_fallback_rejects_bad_citations_and_stale_evidence(setup, monkeypatch):
+    from sqlalchemy import text
+
+    env = setup
+    env['settings'].embedding_provider = 'deterministic'
+    env['settings'].embedding_allow_test_provider = True
+    record = upload(env, name='bst-theory.txt', data='二叉搜索树的中序遍历结果严格递增。'.encode())
+    assert parse_once(env['factory'], env['settings']) and index_once(env['factory'], env['settings'])
+    url = conversation(env)
+    question = QUESTIONS['M05'][1]
+
+    class RejectedDraft:
+        model = 'bst-fallback-test'
+        stale = False
+
+        def generate(self, messages, *, before_attempt):
+            before_attempt()
+            if self.stale:
+                cite = json.loads(messages[2]['content'])['blocks'][0]['citation_id']
+                with env['engine'].begin() as connection:
+                    connection.execute(
+                        text('UPDATE documents SET index_revision = index_revision + 1 WHERE id = :id'),
+                        {'id': record['id']},
+                    )
+            else:
+                cite = '[S99]'
+            return Completion(json.dumps({
+                'status': 'answered', 'answer': '根结点为4。' + cite, 'used_source_ids': [cite],
+            }, ensure_ascii=False))
+
+    provider = RejectedDraft()
+    monkeypatch.setattr('backend.v2.services.rag_service.build_provider', lambda *a, **kw: provider)
+    invalid, _ = send(env, url, question)
+    assert invalid.status_code == 502 and invalid.json()['reason'] == 'invalid_citations'
+    provider.stale = True
+    stale, _ = send(env, url, question)
+    assert stale.status_code == 409 and stale.json()['error']['code'] == 'context_stale'
+    assert env['client'].get(url + '/messages').json()['items'] == []

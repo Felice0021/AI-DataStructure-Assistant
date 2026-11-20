@@ -86,3 +86,25 @@ def test_fixed_c_list_fixture_compiles_and_runs(tmp_path):
     subprocess.run([compiler, '-std=c11', '-Wall', '-Wextra', '-Werror',
                     str(fixture), '-o', str(executable)], check=True, timeout=15)
     subprocess.run([str(executable)], check=True, timeout=5)
+
+@pytest.mark.parametrize('name,expected', [
+    ('Prim算法', 'Prim'),
+    ('Kruskal算法', 'Kruskal'),
+    ('WPL计算', '带权路径长度'),
+])
+def test_latin_course_terms_adjacent_to_chinese_are_explicit(name, expected):
+    from backend.v2.services.conversation_context import topics
+
+    assert topics('请解释' + name + '的原理。') == [expected]
+    query = '你刚才说' + name + '的基本原则是什么？'
+    assert plan(query, (), 2000).reason is None
+    assert plan(query, (turn('什么是栈？'),), 2000).reason is None
+
+
+def test_latin_course_term_ascii_boundaries_remain_strict():
+    from backend.v2.services.conversation_context import topics
+
+    assert 'Prim' not in topics('XPrim算法')
+    assert 'Kruskal' not in topics('Kruskal123算法')
+    assert '带权路径长度' not in topics('WPL_EXTRA')
+    assert topics('Prim算法和Kruskal算法有什么区别？') == ['Prim', 'Kruskal']

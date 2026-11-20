@@ -65,6 +65,13 @@ def build_prompt(query,mode,context,settings,*,feedback=None,history=(),project_
         messages[0]['content'] += '\n树形结构由服务器的有界算法计算和校验。你只解释本轮课程证据支持的规则并引用，不自行画树、写代码围栏或编造带键值的节点关系。即使构造交由服务器，你仍须简短解释相关课程规则并在answer中实际标注[S编号]，不能只填写used_source_ids而省略正文引用。解释旋转时必须遵守BST全局有序性，不能只比较父子；AVL要求每个结点左右高度差不超过一。无法确定时拒答。'
         if tree_family(resolved_query or query)=='BST' and re.search(r'需要|必须',resolved_query or query) and '旋转' in (resolved_query or query):
             messages[0]['content'] += '\n本题主语是普通二叉搜索树，不是AVL。先核查并纠正“必须旋转”的前提：普通BST只要求有序，不强制平衡，旋转不是必须操作；可以说明可选自平衡变种的用途，但不能偷换当前主语。'
+    # A BST traversal-property question is not a request to construct a numbered tree.
+    # Keep numerical topology exclusively under the verified calculation path.
+    focus = resolved_query or query
+    if mode!='code' and tree_family(focus)=='BST' and re.search(r'中序|inorder',focus,re.I) and re.search(r'唯一|确定|具体结构|树形|形状',focus):
+        messages[0]['content'] += '\n这是遍历性质与结构唯一性的理论辨析题，不是构造题。直接解释给定遍历能证明什么、不能确定什么；不要为说明理由自拟具体数字树、指定根或左右孩子的键值、列插入序列或画树。每项教材依据正常标注本轮[S编号]。'
+    if feedback=='unverified_tree_prose' and mode!='code' and tree_family(focus):
+        messages[0]['content'] += '\n上轮回答包含未经服务器校验的具体树形描述，必须重新生成。只保留抽象规则和结论；删除所有自拟的数字树、根/左孩子/右孩子具体键值、插入序列、字符树图、箭头和代码围栏。不要重复上轮的具体示例，也不要因无法举例就拒答；若教材证据足够，直接给出有引用的概念解释。'
     if traversal:
         messages[0]['content'] += '\n'+traversal.instruction()
     if rule_citations:

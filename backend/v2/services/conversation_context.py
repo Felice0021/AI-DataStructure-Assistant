@@ -28,11 +28,23 @@ TOPICS = (
     ('BFS', r'(?<![A-Za-z0-9_])BFS(?![A-Za-z0-9_])|广度优先(?:搜索|遍历)'),
     ('DFS', r'(?<![A-Za-z0-9_])DFS(?![A-Za-z0-9_])|深度优先(?:搜索|遍历)'),
     ('Dijkstra', r'(?<![A-Za-z0-9_])Dijkstra(?![A-Za-z0-9_])|迪杰斯特拉'),
+    ('Prim', r'(?<![A-Za-z0-9_])Prim(?![A-Za-z0-9_])|普里姆'),
+    ('Kruskal', r'(?<![A-Za-z0-9_])Kruskal(?![A-Za-z0-9_])|克鲁斯卡尔'),
+    ('邻接矩阵', r'邻接矩阵'),
+    ('邻接表', r'邻接表'),
+    ('顺序存储', r'顺序存储|顺序表'),
+    ('链式存储', r'链式存储'),
+    ('哈夫曼树', r'哈夫曼树|赫夫曼树|Huffman\s*(?:tree)?'),
+    ('带权路径长度', r'带权路径长度|(?<![A-Za-z0-9_])WPL(?![A-Za-z0-9_])'),
+    ('散列表', r'散列表|哈希表|散列冲突|哈希冲突'),
+    ('开放定址法', r'开放定址法|开放地址法'),
+    ('线性探测', r'线性探测'),
     ('栈', r'栈|(?<![A-Za-z0-9_])stack(?![A-Za-z0-9_])'),
     ('队列', r'队列|(?<![A-Za-z0-9_])queue(?![A-Za-z0-9_])'),
     ('链表', r'链表|\blinked\s*list\b'),
 )
 REFERENCE = re.compile(r'它|该(?:算法|结构|方法|树)|这(?:个|种)(?:算法|结构|方法|树)?|上述|前面|刚才|^(?:那|那么)|^(?:最坏|最好|平均)(?:情况|情况下)|^(?:时间|空间)复杂度(?:呢|怎么样|如何|[？?])')
+ATTRIBUTION = re.compile(r'(?:你\s*)?刚才\s*(?:提到|介绍|讲解|讲|说|指出)(?:了|过)?(?:的)?')
 CASE_FOLLOWUP = re.compile(r'^(?:最好|平均|最坏)(?:(?:情况|情况下))?(?:呢|如何|怎么样)?[？?。\s]*$')
 ROTATION_REFERENCE = re.compile(r'(?<![A-Za-z0-9_])(?:LL|RR|LR|RL)(?![A-Za-z0-9_]).*(?:失衡|旋转|树形)', re.I)
 PARTITION_VARIANT = re.compile(r'(?<![A-Za-z0-9_])(Lomuto|Hoare)(?![A-Za-z0-9_])', re.I)
@@ -92,6 +104,21 @@ def contextual(query):
                 or not topics(query) and ROTATION_REFERENCE.search(query))
 
 
+def named_independent(query, names):
+    if not names or re.search(r'(?:和|与|跟|同)它', query):
+        return False
+    stripped = ATTRIBUTION.sub('', query).strip()
+    # A named subject *after* the attribution supplies the referent. An unnamed
+    # comparison or a reference to a previous result still needs a real turn.
+    if stripped != query.strip():
+        if not topics(stripped) or re.match(r'^[的，,：:\s]*(?:它|那个|那种|这个|这种|上述|前面)', stripped):
+            return False
+        # If the first mentioned entity is only the comparison target, retain
+        # the history requirement (e.g. “它与 Prim 有什么区别”).
+        return not re.search(r'它\s*(?:和|与|跟|同)|刚才(?:的|那个)|上述(?:结果|步骤)', stripped)
+    return not REFERENCE.match(query)
+
+
 def history_focus(turns):
     """Replay bounded user discourse. Comparands/operations cannot seize the main topic."""
     anchor = variant = task = None
@@ -106,7 +133,7 @@ def history_focus(turns):
             # A refusal supplies no facts or verified resolution. An unrelated failed
             # question must not erase an earlier, independently revalidated subject.
             continue
-        independent = bool(names and not REFERENCE.match(query) and not re.search(r'(?:和|与|跟|同)它', query))
+        independent = named_independent(query, names)
         if TOPIC_SWITCH.search(query) or independent or not reference:
             bootstrap = False
             anchor = discourse_focus(query)
@@ -214,7 +241,7 @@ def plan(query, turns, max_query_chars):
     explicit = topics(query)
     needs_context = contextual(query)
     # A complete named question may contain a later pronoun referring to its own subject.
-    if explicit and not REFERENCE.match(query) and not re.search(r'(?:和|与|跟|同)它', query):
+    if named_independent(query, explicit):
         needs_context = False
     if not needs_context:
         # Independent new topics do not inherit unrelated conversation content.
@@ -253,6 +280,9 @@ def focused_plan(query, turns, limit):
     """Resolve concrete user inputs/numbered steps, never treat a prior solution as evidence."""
     is_code = bool(re.search(r'这个函数|该函数|这段代码', query) or MODIFICATION.search(query))
     step = STEP.search(query)
+    if step and named_independent(query, topics(query)) and re.search(r'权值|给定|输入', query) and re.search(r'\d+\s*[,，、]\s*\d+', query):
+        # The question supplies its own input and step; do not bind a historical step.
+        step = None
     continuation = NEXT_INSERT.fullmatch(query)
     appended = APPEND_INSERT.findall(query)
     if not (is_code or step or continuation or appended):

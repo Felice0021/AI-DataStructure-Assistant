@@ -22,3 +22,19 @@ it('shows verified source, chapter and known page', () => {
   expect(wrapper.text()).toContain('第三章 · 栈')
   expect(wrapper.text()).toContain('第 12 页')
 })
+
+it('groups identical known locations while keeping every citation anchor', () => {
+  const located = { ...source, source_filename: '课程资料.pdf', section_title: '第六章 · 哈夫曼树', page_number: 145 }
+  const wrapper = mount(SourceList, { props: {
+    sources: [located, { ...located, chunk_id: 'two', citation_id: '[S2]' },
+      { ...located, chunk_id: 'three', citation_id: '[S3]', section_title: '第六章 · 构造' },
+      { ...located, chunk_id: 'four', citation_id: '[S4]', page_number: null },
+      { ...located, chunk_id: 'five', citation_id: '[S5]', page_number: null }],
+    highlight: '[S2]', idPrefix: 'turn',
+  } })
+  expect(wrapper.findAll('.source-item')).toHaveLength(4)
+  const second = wrapper.get('#turn-source-S2')
+  expect(second.text()).toBe('[S2]')
+  expect(second.element.closest('.source-item')?.classList.contains('is-active')).toBe(true)
+  expect(wrapper.get('#turn-source-S1').element.closest('li')).toBe(second.element.closest('li'))
+})

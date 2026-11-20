@@ -33,7 +33,8 @@ for (const name of Object.keys(cases) as (keyof typeof cases)[]) {
     const graphic=page.locator('.verified-tree')
     await expect(graphic).toBeVisible()
     await expect(page.locator('.answer-text pre')).toHaveCount(0)
-    if (cases[name].family === 'AVL') await expect(page.locator('.answer-text tbody tr')).toHaveCount(3)
+    // The compact AVL answer introduced in #51 omits the duplicate insertion table.
+    if (cases[name].family === 'AVL') await expect(page.locator('.answer-text table')).toHaveCount(0)
     await expect(graphic.locator('svg')).toHaveCount(['LR','RL'].includes(name)?3:['LL','RR'].includes(name)?2:1)
     if (name==='B'||name==='B+') {
       await expect(graphic.locator('.tree-node circle')).toHaveCount(0)

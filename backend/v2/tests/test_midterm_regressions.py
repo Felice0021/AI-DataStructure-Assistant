@@ -136,3 +136,36 @@ def test_bst_traversal_theory_prompt_and_structure_validation_retry():
     construction = build_prompt('从空 AVL 树插入 30、10、20，画最终树。',
                                 'exercise', context, settings)
     assert '遍历性质与结构唯一性的理论辨析题' not in construction[0]['content']
+
+
+def test_bst_inorder_uniqueness_is_theory_with_evidence_gated_fallback():
+    from backend.v2.services.evidence_policy import task_kind
+    from backend.v2.services.verified_trees import (
+        is_bst_inorder_uniqueness_question, bounded_bst_inorder_theory,
+    )
+
+    question = QUESTIONS['M05'][1]
+    assert is_bst_inorder_uniqueness_question(question)
+    assert task_kind(question) == 'qa'
+    evidence = [{
+        'citation_id': '[S1]',
+        'content': '二叉搜索树 BST 中序遍历递增，但不同结构可有相同的中序。',
+    }]
+    safe = bounded_bst_inorder_theory(question, evidence)
+    assert safe is not None
+    answer, citations = safe
+    assert citations == ('[S1]',)
+    assert '不能唯一确定' in answer and '[S1]' in answer
+    assert not unverified_tree_prose(answer)
+
+    assert bounded_bst_inorder_theory(question, [{'citation_id': '[S1]',
+        'content': '关于二叉搜索树的无关资料。'}]) is None
+    assert bounded_bst_inorder_theory(question, []) is None
+    for other in (
+        '已知BST的前序和中序遍历序列，能唯一确定具体结构吗？',
+        '已知BST中序遍历和根结点已知，能确定具体结构吗？',
+        '请根据BST中序遍历序列构造树形结构。',
+        '已知一棵AVL树的中序遍历，能否确定具体结构？',
+    ):
+        assert not is_bst_inorder_uniqueness_question(other)
+        assert bounded_bst_inorder_theory(other, evidence) is None

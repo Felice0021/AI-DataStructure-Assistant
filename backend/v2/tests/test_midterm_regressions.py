@@ -108,3 +108,31 @@ def test_latin_course_term_ascii_boundaries_remain_strict():
     assert 'Kruskal' not in topics('Kruskal123算法')
     assert '带权路径长度' not in topics('WPL_EXTRA')
     assert topics('Prim算法和Kruskal算法有什么区别？') == ['Prim', 'Kruskal']
+
+
+def test_bst_traversal_theory_prompt_and_structure_validation_retry():
+    from types import SimpleNamespace
+    from backend.v2.services.prompt_builder import build_prompt
+
+    query = QUESTIONS['M05'][1]
+    assert '中序' in query
+    settings = SimpleNamespace(generation_max_output_tokens=1400, generation_max_input_bytes=16000)
+    context = {'context_text': json.dumps([{
+        'citation_id': 'S1',
+        'content': '二叉搜索树的中序遍历按关键字递增，但中序序列本身不包含形状信息。',
+    }], ensure_ascii=False)}
+    first = build_prompt(query, 'qa', context, settings)
+    assert '遍历性质与结构唯一性的理论辨析题' in first[0]['content']
+    assert '不要为说明理由自拟具体数字树' in first[0]['content']
+    assert 'validation_feedback' not in first[-1]['content']
+
+    retry = build_prompt(query, 'qa', context, settings, feedback='unverified_tree_prose')
+    assert '上轮回答包含未经服务器校验的具体树形描述' in retry[0]['content']
+    assert '删除所有自拟的数字树' in retry[0]['content']
+    assert json.loads(retry[-1]['content']) == {
+        'type': 'validation_feedback', 'code': 'unverified_tree_prose',
+    }
+
+    construction = build_prompt('从空 AVL 树插入 30、10、20，画最终树。',
+                                'exercise', context, settings)
+    assert '遍历性质与结构唯一性的理论辨析题' not in construction[0]['content']

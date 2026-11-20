@@ -24,3 +24,17 @@ def test_unreadable_invalid_or_unsafe_mapping_falls_back(tmp_path):
     entry={k:str(row[k]) for k in ('document_id','knowledge_base_id','content_hash')}
     entry.update(source_file='bad\nname',chapter='',section='',page=3)
     assert source_label(row,{str(row['chunk_id']):entry})=={}
+
+
+def test_v1_import_legacy_pages_are_not_verified_locations():
+    row = {'chunk_id': uuid4(), 'document_id': uuid4(), 'knowledge_base_id': uuid4(),
+           'content_hash': 'a' * 64, 'source_filename': 'v1-course-chapter-09.txt',
+           'section_title': 'V1:ds_ch09_0038', 'page_number': 1}
+    entry = {k: str(row[k]) for k in ('document_id', 'knowledge_base_id', 'content_hash')}
+    entry.update(source_file='教材.pdf', chapter='第九章 查找', section='B+树叶子链表', page=240)
+    assert source_label(row, {}) == {'section_title': None, 'page_number': None}
+    mapping = {str(row['chunk_id']): entry}
+    assert source_label(row, mapping)['page_number'] is None
+    entry.update(verified_printed_page=246, verified_section_title='9.2.2 B-树和B+树')
+    assert source_label(row, mapping)['page_number'] == 246
+    assert source_label(row, mapping)['section_title'] == '第九章 查找 · 9.2.2 B-树和B+树'

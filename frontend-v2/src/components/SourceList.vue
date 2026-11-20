@@ -1,27 +1,48 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { AnswerSource } from '@/types/api'
 
-defineProps<{
+const props = defineProps<{
   sources: AnswerSource[]
   highlight: string | null
   open?: boolean
   idPrefix?: string
 }>()
 const emit = defineEmits<{ (event: 'toggle', open: boolean): void }>()
+const locations = computed(() => {
+  const groups = new Map<string, { source: AnswerSource; citations: string[] }>()
+  for (const source of props.sources) {
+    const key = source.page_number == null
+      ? source.citation_id
+      : JSON.stringify([source.knowledge_base_id, source.document_id, source.source_filename,
+          source.page_number, source.section_title])
+    const group = groups.get(key)
+    if (group) group.citations.push(source.citation_id)
+    else groups.set(key, { source, citations: [source.citation_id] })
+  }
+  return Array.from(groups.values())
+})
 </script>
 
 <template>
   <details v-if="sources.length > 0" class="sources" :open="open" @toggle="emit('toggle', ($event.target as HTMLDetailsElement).open)">
-    <summary class="sources-title">资料来源（{{ sources.length }}）</summary>
+    <summary class="sources-title">资料来源（{{ locations.length }}）</summary>
     <ol class="source-list">
       <li
-        v-for="source in sources"
+        v-for="{ source, citations } in locations"
         :id="`${idPrefix ? idPrefix + '-' : ''}source-${source.citation_id.replace(/[[\]]/g, '')}`"
         :key="source.citation_id"
         class="source-item"
-        :class="{ 'is-active': highlight === source.citation_id }"
+        :class="{ 'is-active': highlight !== null && citations.includes(highlight) }"
       >
-        <span class="source-cite">{{ source.citation_id }}</span>
+        <div class="source-citations">
+          <span
+            v-for="citation in citations"
+            :id="citation === source.citation_id ? undefined : `${idPrefix ? idPrefix + '-' : ''}source-${citation.replace(/[[\]]/g, '')}`"
+            :key="citation"
+            class="source-cite"
+          >{{ citation }}</span>
+        </div>
         <div class="source-body">
           <p class="source-name">{{ /^v1-course-(?:chapter-)?\d+\.txt$/i.test(source.source_filename) ? '课程资料（来源待核实）' : source.source_filename }}</p>
           <p class="source-meta">
@@ -82,6 +103,14 @@ const emit = defineEmits<{ (event: 'toggle', open: boolean): void }>()
   color: #404040;
   font-size: 12px;
   font-weight: 500;
+}
+
+.source-citations {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 4px;
+  max-width: 40%;
 }
 
 .source-body {

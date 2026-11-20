@@ -355,6 +355,47 @@ def calculate(query):
     return Calculation(family,keys,multi_snapshot(root),{'keys':actual,'rules':rules},example=self_example,conventions=conventions),None
 
 
+
+def is_bst_inorder_uniqueness_question(query):
+    """Only an unconstrained BST inorder/shape-uniqueness theory question.
+
+    Extra traversal information, a known root, or a construction request can change
+    the answer. Such cases remain in the normal validated RAG / tree solver path.
+    """
+    text=normalized(query)
+    return bool(
+        tree_family(text)=='BST'
+        and re.search(r'中序|inorder',text,re.I)
+        and re.search(r'结构|树形|形状',text)
+        and re.search(r'能否|能不能|可否|是否|唯一|确定|判断',text)
+        and not re.search(r'前序|先序|后序|层序|preorder|postorder|'
+                          r'AVL|平衡|完全二叉树|满二叉树|已知根|指定根|根结点已知|根节点已知|'
+                          r'画出|绘制|构造|插入|删除|模拟',text,re.I)
+    )
+
+
+def bounded_bst_inorder_theory(query,evidence):
+    """Evidence-gated conceptual fallback if generated tree prose fails validation.
+
+    The factual BST ordering rule must occur in this turn's authorized evidence.
+    No model-authored topology, old citation or invented example is carried over.
+    The publisher revalidates every selected source before returning the answer.
+    """
+    if not is_bst_inorder_uniqueness_question(query):return None
+    for block in evidence:
+        content=normalized(str(block.get('content') or ''))
+        if (re.search(r'二叉搜索树|二叉排序树|(?<![A-Za-z0-9_])BST(?![A-Za-z0-9_])',content,re.I)
+                and re.search(r'中序|inorder',content,re.I)
+                and re.search(r'递增|升序|有序|从小到大|由小到大|相同.{0,6}中序',content)):
+            citation=block['citation_id']
+            answer=('不能唯一确定。二叉搜索树的中序遍历只能给出关键字的有序访问次序'
+                    +citation+
+                    '。这一序列没有记录根结点的位置和结点之间的父子关系，'
+                    '不同形状的二叉搜索树可能具有相同的中序遍历结果。'
+                    '因此，仅凭题中的中序序列无法唯一还原树的具体结构。')
+            return answer,(citation,)
+    return None
+
 def unverified_tree_prose(answer):
     """Conservative presentation boundary, not general natural-language fact verification."""
     fenced=bool(re.search(r'(?m)^\s*(?:`{3,}|~{3,})',answer))
